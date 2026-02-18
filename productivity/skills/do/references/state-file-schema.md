@@ -20,7 +20,8 @@ Reference for the /do skill's state file format. Load when creating or parsing s
 schema_version: 1
 run_id: 20250212-user-auth
 repo_root: /path/to/repo
-worktree_path: /path/to/worktrees/repo-user-auth  # set during EXECUTE setup
+worktree_path: /path/to/worktrees/repo-user-auth  # set during EXECUTE setup (null if no worktree)
+workdir_mode: worktree  # worktree | branch_only | current_branch
 branch: feature/user-auth
 base_ref: abc123
 current_phase: EXECUTE

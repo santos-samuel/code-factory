@@ -117,14 +117,9 @@ When dispatching to agents that produce structured artifacts, include a brief ex
 
 ## State File Protocol
 
-State is stored in the **current working directory's** `.plans/do/<run-id>/`.
+State is stored in the **target working directory's** `.plans/do/<run-id>/` from the first phase. The `/do` skill sets up the working directory (worktree/branch) and creates the state directory BEFORE dispatching to this orchestrator.
 
-**CRITICAL:** Once you create a worktree and move into it, ALL state file updates MUST go to the **worktree's** `.plans/` directory. Never write back to the source repo. This keeps all working files together in the isolated workspace.
-
-**State migration during EXECUTE setup:**
-1. Before creating worktree: state is in source repo's `.plans/`
-2. After creating worktree: copy `.plans/do/<run-id>/` to worktree
-3. From then on: all updates go to worktree's `.plans/`
+**CRITICAL:** The `<workdir_path>` provided in your dispatch prompt is the ONLY location for state files. Never write state to a different directory. For worktree mode, this means the source repo has NO state files.
 
 Files for each phase:
 
@@ -137,6 +132,7 @@ Files for each phase:
 | `VALIDATION.md` | VALIDATE phase | Test results, acceptance evidence |
 
 **Update protocol:**
+- All state writes go to `<workdir_path>/.plans/do/<run-id>/` — the path from your dispatch prompt
 - On phase entry: update `current_phase` in FEATURE.md frontmatter, log in Progress
 - After each subagent returns: write outputs to the appropriate phase file
 - After each commit: record commit SHA in FEATURE.md Progress section
@@ -519,40 +515,12 @@ AskUserQuestion(
 
 **Entry criteria:** Plan approved or `current_phase: EXECUTE`
 
-**MANDATORY Setup (before ANY code changes):**
+**Working directory is already set up.** The `/do` skill created the worktree/branch and initialized state files in the target workdir BEFORE dispatching to this orchestrator. The `<workdir_path>` in your dispatch prompt is where you work and where all state lives.
 
-You MUST complete workspace setup before writing any code. Check the state file:
-- If `branch` is `null` → setup required
-- If `branch` is set → verify worktree exists, skip to Task Loop
-
-**Step 1: Create isolated worktree via `/worktree`:**
-```
-Skill(skill="worktree", args="<feature-slug>")
-```
-This creates a clean workspace separate from the main repo.
-
-**Step 2: Create feature branch via `/branch`:**
-```
-Skill(skill="branch", args="<feature-slug>")
-```
-This creates and checks out the feature branch.
-
-**Step 3: Migrate state to worktree:**
-```bash
-# Copy state directory from source repo to worktree
-cp -r <source_repo>/.plans/do/<run-id> <worktree_path>/.plans/do/
-```
-Ensure `.plans/` is in the worktree's `.gitignore`.
-
-**Step 4: Update state file (in worktree):**
-- Set `branch` to the created branch name
-- Set `base_ref` to the base commit SHA
-- Set `worktree_path` to the worktree directory
-- Log "Workspace Setup Complete" in Progress Log
-
-From this point forward, ALL state updates go to the worktree's `.plans/` directory.
-
-**CRITICAL:** Do NOT proceed to code changes until both `/worktree` AND `/branch` have been called and state is updated.
+Verify the workdir is ready:
+- Confirm you are on the correct branch (`git branch --show-current` from `<workdir_path>`)
+- Confirm state files exist at `<workdir_path>/.plans/do/<run-id>/`
+- If either check fails, report a blocker — do NOT attempt to set up a working directory
 
 **Plan Critical Review (do this ONCE before the task loop):**
 
@@ -618,7 +586,7 @@ Task(
   </role>
 
   <constraints>
-  - Work from: <worktree_path>
+  - Work from: <workdir_path>
   - Commit atomically via /commit after every logical change
   - Follow TDD-first for behavior changes: write failing test → verify FAIL → implement → verify PASS → commit
   - Do not add features or refactor beyond what the task specifies
@@ -664,7 +632,7 @@ Task(
   </task>
 
   <constraints>
-  - Work from: <worktree_path>
+  - Work from: <workdir_path>
   - Every finding must cite a file:line reference
   - Report: COMPLIANT (all requirements met) or ISSUES (list specific gaps with file:line)
   - Acknowledge strengths before listing issues
@@ -719,7 +687,7 @@ Task(
   </task>
 
   <constraints>
-  - Work from: <worktree_path>
+  - Work from: <workdir_path>
   - Every finding must cite a file:line reference
   - Report: APPROVED or ISSUES with specific findings and severity
   - Always include Strengths section and Plan Alignment section
@@ -810,10 +778,10 @@ If during execution you discover the plan needs fundamental changes (not minor f
 - Continue past a batch boundary without reporting (even in autonomous mode)
 
 **Task execution rules:**
-- Update Progress section in FEATURE.md after each task (in worktree's .plans/)
+- Update Progress section in FEATURE.md after each task (in `<workdir_path>/.plans/`)
 - Record discoveries in Surprises and Discoveries section of FEATURE.md
 - Record decisions in Decisions Made section of FEATURE.md
-- All state file writes go to the worktree's `.plans/` directory
+- All state file writes go to `<workdir_path>/.plans/` — the location provided at dispatch
 - Never commit .plans/ files (they are gitignored)
 
 **Exit criteria:** All milestone tasks complete, no known failing checks
