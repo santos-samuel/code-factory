@@ -15,6 +15,7 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 | `/skill-workbench` | productivity | Create and improve skills in this marketplace |
 | `/commit` | git | Create a structured git commit |
 | `/atcommit` | git | Validate and organize atomic commits |
+| `/fixup` | git | Create a fixup commit targeting an earlier branch commit |
 | `/pr` | git | Create a GitHub pull request |
 | `/branch` | git | Create a well-named feature branch |
 | `/worktree` | git | Create an isolated git worktree |
@@ -52,7 +53,7 @@ Productivity skills -- feature development lifecycle, systematic debugging, docu
 
 ### git
 
-Git workflow skills -- structured commits, PR creation, and branch management.
+Git workflow skills -- structured commits, fixup commits, PR creation, and branch management.
 
 **Skills:**
 
@@ -61,6 +62,7 @@ Git workflow skills -- structured commits, PR creation, and branch management.
 - `/branch` -- Create a well-named feature branch from a ticket ID or description. Generates branches with the naming convention `<user>/<slug>-<TICKET-ID>` from the default branch (prefix derived from `git config user.name`).
 - `/worktree` -- Create an isolated git worktree for feature development. Sets up a detached worktree from the default branch in a sibling directory, ready for `/branch` to create a feature branch.
 - `/atcommit` -- Validate and organize changes into self-contained atomic commits. Builds a dependency graph across changed files, detects violations (missing deps, mixed concerns, forward references), and proposes commit groups in the correct order.
+- `/fixup` -- Match current changes to an existing branch commit and create a fixup commit. Scores commits by file overlap and directory proximity, handles ambiguous matches interactively, and reminds the user to autosquash.
 
 ### code
 
