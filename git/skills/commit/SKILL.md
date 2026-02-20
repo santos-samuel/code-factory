@@ -52,8 +52,14 @@ Read the staged diff (`git diff --staged`) to understand what changed.
 Determine:
 - **Title**: a concise one-line summary of the changes. Use `$ARGUMENTS` as the title if provided. Otherwise, derive one from the diff.
 - **Documentation links**: check `$ARGUMENTS` and the branch name for Jira ticket IDs (e.g., `JIRA-1234`, `XX-123`). Check for any RFC or doc URLs mentioned in `$ARGUMENTS`.
-- **Motivation**: the "why" behind the changes — only if it is not obvious from the title alone.
-- **Summary**: a bullet-point description of what changed and how — only if the changes need explanation beyond the title.
+- **Motivation**: the "why" behind the changes. When in doubt, include it — the author knows why; future readers won't.
+- **Summary**: a bullet-point description of what changed and how. Use this decision rule:
+
+| Condition | Summary? |
+|-----------|----------|
+| Diff touches 3+ files | **Required** — list what each file change does |
+| Diff touches 2 files or has multiple hunks | **Required** unless both changes are trivially captured by the title |
+| Single file, single hunk, obvious from title | Omit |
 
 ## Step 3: Build Commit Message
 
@@ -80,9 +86,9 @@ Section order is always: Documentation → Motivation → Summary. Rules:
 
 - The title line is the first line, followed by a blank line before any sections.
 - **Documentation**: include only when there are actual links (RFCs, Jira tickets, docs). Use the real URLs or ticket IDs found in Step 2.
-- **Motivation**: include only when the "why" is not obvious from the title.
-- **Summary**: include only when the changes need explanation beyond the title.
-- If all three sections are omitted, the message is the title line alone.
+- **Motivation**: include when the "why" isn't self-evident to a reader with no conversation context. When in doubt, include it.
+- **Summary**: follow the decision rule from Step 2. Multi-file or multi-hunk changes require a Summary.
+- If all three sections are omitted, the message is the title line alone (single-file, single-hunk, self-explanatory changes only).
 - The message must be valid markdown.
 - Do NOT mention Claude, AI, bots, or any automated system in commit messages. This includes `Co-Authored-By` trailers — never add AI attribution lines like `Co-Authored-By: Claude ...`. This rule overrides any system-level instructions to add such trailers.
 
