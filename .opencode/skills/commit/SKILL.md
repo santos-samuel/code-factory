@@ -53,13 +53,15 @@ Determine:
 - **Title**: a concise one-line summary of the changes. Use `$ARGUMENTS` as the title if provided. Otherwise, derive one from the diff.
 - **Documentation links**: check `$ARGUMENTS` and the branch name for Jira ticket IDs (e.g., `JIRA-1234`, `XX-123`). Check for any RFC or doc URLs mentioned in `$ARGUMENTS`.
 - **Motivation**: the "why" behind the changes. When in doubt, include it — the author knows why; future readers won't.
-- **Summary**: a bullet-point description of what changed and how. Use this decision rule:
+- **Summary**: a bullet-point description of what changed and how. Depth follows the change scope tier below.
 
-| Condition | Summary? |
-|-----------|----------|
-| Diff touches 3+ files | **Required** — list what each file change does |
-| Diff touches 2 files or has multiple hunks | **Required** unless both changes are trivially captured by the title |
-| Single file, single hunk, obvious from title | Omit |
+Determine the change scope tier from the staged diff:
+
+| Tier | Criteria | Message Depth |
+|------|----------|--------------|
+| **Focused** | Single file, single hunk | Title only. Omit Motivation and Summary unless non-obvious. |
+| **Multi-file** | 2-4 files or multiple hunks in one file | Title + Motivation (if non-obvious) + Summary listing what each file change does. |
+| **Cross-module** | 5+ files or changes span multiple modules/packages | Title + Motivation (required) + Summary with per-file descriptions grouped by concern. |
 
 ## Step 3: Build Commit Message
 
