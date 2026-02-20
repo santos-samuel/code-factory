@@ -196,11 +196,7 @@ sync-opencode: ## Sync skills and agents to OpenCode config directory
 	@./sync-opencode.sh
 
 check-opencode-sync: ## Validate OpenCode sync is up-to-date
-	@if [ ! -d "$$HOME/.config/opencode/skills" ]; then \
-		echo "  SKIP  OpenCode sync (not installed, run 'make install')"; \
-	else \
-		./sync-opencode.sh --check; \
-	fi
+	@./sync-opencode.sh --check
 
 check: check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-opencode-sync ## Run all validation checks (frontmatter, agents, refs, structure, plugins)
 	@echo "Checking plugin references..."
