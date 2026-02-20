@@ -7,7 +7,6 @@ description: >
   "skill workbench", "make skills better".
 argument-hint: "[create <name> | improve <name|plugin|docs|tools>]"
 user-invocable: true
-disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, Task, WebFetch, WebSearch
 ---
 
