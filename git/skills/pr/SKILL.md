@@ -2,9 +2,11 @@
 name: pr
 description: >
   Use when the user wants to create a GitHub pull request from the current branch,
-  open a PR, or push and create a PR with a structured description.
-  Triggers: "create pr", "open pr", "pull request", "gh pr create", "create pull request".
-argument-hint: "[optional PR title or --base <branch>]"
+  open a PR, push and create a PR with a structured description, or mark an existing
+  draft PR as ready for review.
+  Triggers: "create pr", "open pr", "pull request", "gh pr create", "create pull request",
+  "mark ready", "ready for review", "pr ready", "open for review".
+argument-hint: "[optional PR title or --base <branch> or --open or ready]"
 user-invocable: true
 allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 ---
@@ -13,7 +15,17 @@ allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 
 Announce: "I'm using the pr skill to open a GitHub pull request from the current branch."
 
-## Step 1: Gather Context
+## Step 1: Gather Context and Determine Mode
+
+Parse `$ARGUMENTS` to determine the operation mode:
+
+| Argument | Mode |
+|----------|------|
+| `ready` (as first word) | **Ready mode** — mark existing draft PR as ready for review |
+| `--open` (anywhere) | **Create mode** with `open=true` — create a non-draft PR |
+| Anything else or empty | **Create mode** with `open=false` — create a draft PR (default) |
+
+Strip `--open` and `ready` from `$ARGUMENTS` before further parsing (remaining text is treated as title or `--base` flags).
 
 Run in parallel:
 - `git branch --show-current` (head branch name)
@@ -26,6 +38,8 @@ Run in parallel:
 **If `gh` is not installed or not authenticated:** inform the user that the `gh` CLI is required and must be authenticated (`gh auth login`). Stop.
 
 **If this is not a git repository:** inform the user and stop.
+
+**If Ready mode:** skip to Step 8.
 
 ## Step 2: Determine Base Branch
 
@@ -245,9 +259,16 @@ Check if the branch has an upstream remote:
 - If no upstream exists, push the branch: `git push -u origin HEAD`
 - If upstream exists, check if local is ahead: `git status` should show up-to-date or ahead. If ahead, push with `git push`.
 
-Create the PR using a HEREDOC to pass the body:
+Create the PR using a HEREDOC to pass the body. **PRs are created as drafts by default.** Only add `--draft` if `open=false` (the default). Omit `--draft` if `open=true` (user passed `--open`).
 
 ```bash
+# Default (draft):
+gh pr create --draft --base <base> --head <head> --title "<title>" --body "$(cat <<'EOF'
+<constructed body>
+EOF
+)"
+
+# With --open (non-draft):
 gh pr create --base <base> --head <head> --title "<title>" --body "$(cat <<'EOF'
 <constructed body>
 EOF
@@ -259,7 +280,23 @@ EOF
 - The HEREDOC delimiter `EOF` must be on its own line with no leading spaces.
 - Do NOT use a temp file, the Write tool, or `--body-file` for PR bodies.
 
-After the PR is created, report the PR URL to the user.
+After the PR is created, report the PR URL to the user. If the PR is a draft, remind the user they can mark it ready with `/pr ready`.
+
+## Step 8: Mark Draft PR as Ready for Review
+
+This step runs when the mode is **Ready** (user invoked `/pr ready`).
+
+1. Check if a PR exists for the current branch:
+   ```bash
+   gh pr view --json number,state,isDraft,url
+   ```
+2. **If no PR exists:** inform the user there is no PR for the current branch. Stop.
+3. **If the PR is not a draft:** inform the user the PR is already open for review and show the URL. Stop.
+4. Mark the PR as ready:
+   ```bash
+   gh pr ready
+   ```
+5. Report the PR URL to the user and confirm it is now open for review.
 
 ## Error Handling
 
@@ -270,4 +307,6 @@ After the PR is created, report the PR URL to the user.
 - **Default branch not detected**: follow the Default Branch Detection procedure in Step 2, then ask the user if all fallbacks fail.
 - **Push failure**: report the push error. Do NOT force-push. Let the user decide how to proceed.
 - **PR already exists**: if `gh pr create` fails because a PR already exists for this branch, report the existing PR URL using `gh pr view --web` or `gh pr view --json url`. Let the user decide whether to update it.
+- **Mark ready fails**: if `gh pr ready` fails, report the error. Common causes: PR not found, PR already merged, insufficient permissions.
+- **No PR for current branch** (Ready mode): inform the user no PR exists and suggest creating one with `/pr`.
 - **Network or API failure**: report the error from `gh`. Let the user retry.
