@@ -18,7 +18,7 @@ Bootstrap Claude Code with the code-factory plugin marketplace and personal conf
 ## Overview
 
 This skill helps set up and manage a Claude Code development environment with:
-- **Plugin marketplace** (productivity, git, code plugins)
+- **Plugin marketplace** (productivity and git plugins)
 - **MCP server configuration** (Atlassian, Datadog, Chrome DevTools)
 - **Claude Code settings** (permissions, model preferences, enabled plugins)
 - **OpenCode CLI configuration** (alternative CLI support)
@@ -125,9 +125,8 @@ After setup, these plugins are enabled:
 
 | Plugin | Source | Skills |
 |--------|--------|--------|
-| `productivity@code-factory` | Local | `/do`, `/debug`, `/doc`, `/execplan`, `/reflect`, `/skill-workbench`, `/workspace` |
-| `git@code-factory` | Local | `/commit`, `/atcommit`, `/pr`, `/branch`, `/worktree` |
-| `code@code-factory` | Local | `/review`, `/tour` |
+| `productivity@code-factory` | Local | `/do`, `/debug`, `/doc`, `/execplan`, `/review`, `/tour`, `/reflect`, `/skill-workbench`, `/workspace` |
+| `git@code-factory` | Local | `/commit`, `/atcommit`, `/fixup`, `/pr`, `/branch`, `/worktree` |
 | `superpowers@claude-plugins-official` | GitHub | TDD, debugging, brainstorming |
 | `dd@datadog-claude-plugins` | GitHub | Datadog-specific tools |
 

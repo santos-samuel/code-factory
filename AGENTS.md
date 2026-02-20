@@ -4,7 +4,7 @@ Instructions for AI coding agents working in this repository.
 
 ## Project Overview
 
-Claude Code and OpenCode plugin marketplace. Three plugins — **productivity**, **git**, **code** — each containing skills and optionally agents. Tech stack: Markdown skill definitions, JSON configs, Makefile, shell scripts.
+Claude Code and OpenCode plugin marketplace. Two plugins — **productivity** and **git** — each containing skills and optionally agents. Tech stack: Markdown skill definitions, JSON configs, Makefile, shell scripts.
 
 ## Repository Structure
 

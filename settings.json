@@ -148,7 +148,6 @@
   "enabledPlugins": {
     "productivity@code-factory": true,
     "git@code-factory": true,
-    "code@code-factory": true,
     "code-review@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,

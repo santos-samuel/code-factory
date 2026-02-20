@@ -1,6 +1,6 @@
 # code-factory
 
-rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenCode](https://opencode.ai) marketplace -- a collection of plugins, skills, and agent definitions that extend AI coding assistants with structured workflows for execution planning, git operations, and code understanding.
+rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenCode](https://opencode.ai) marketplace -- a collection of plugins, skills, and agent definitions that extend AI coding assistants with structured workflows for productivity, execution planning, and git operations.
 
 ## Quick Reference
 
@@ -13,20 +13,19 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 | `/workspace` | productivity | Set up Claude Code configuration and plugins |
 | `/reflect` | productivity | Capture session learnings and update knowledge files |
 | `/skill-workbench` | productivity | Create and improve skills in this marketplace |
+| `/review` | productivity | Review a pull request with structured feedback |
+| `/tour` | productivity | Guided code walkthrough (interactive or written) |
 | `/commit` | git | Create a structured git commit |
 | `/atcommit` | git | Validate and organize atomic commits |
 | `/fixup` | git | Create a fixup commit targeting an earlier branch commit |
 | `/pr` | git | Create a GitHub pull request |
 | `/branch` | git | Create a well-named feature branch |
 | `/worktree` | git | Create an isolated git worktree |
-| `/review` | code | Review a pull request with structured feedback |
-| `/tour` | code | Guided code walkthrough (interactive or written) |
-
 ## Plugins
 
 ### productivity
 
-Productivity skills -- feature development lifecycle, systematic debugging, documentation management, execution planning, workspace setup, and skill workbench.
+Productivity skills -- feature development lifecycle, systematic debugging, documentation management, execution planning, PR review, guided code tours, workspace setup, and skill workbench.
 
 **Skills:**
 
@@ -34,6 +33,8 @@ Productivity skills -- feature development lifecycle, systematic debugging, docu
 - `/debug` -- Systematic debugging with enforced root cause investigation. Four-phase workflow (REPRODUCE -> INVESTIGATE -> FIX -> VERIFY) with persistent state, hypothesis tracking, and defense-in-depth validation. Leverages explorer and researcher agents for evidence gathering.
 - `/doc` -- Manage Markdown documentation lifecycle: create, update, improve, maintain, and audit. Supports Confluence sync via ddoc. Includes templates for runbooks, guides, references, tutorials, and ADRs.
 - `/execplan` -- Create, execute, review, or resume an ExecPlan. Supports four modes: author (write a new plan), review (interactive walkthrough with feedback), execute (run a plan from the start), and resume (continue an in-progress plan).
+- `/review` -- Review a pull request with structured feedback across five categories (Correctness, Security, Design, Testing, Style) with severity levels (critical, suggestion, nit). Presents findings to the user without posting automatically.
+- `/tour` -- Guided code walkthroughs to explain architecture, flows, or structure. Supports three modes: interactive (step-by-step with pauses), written (complete markdown document), and PR comment (collapsible sections posted to a GitHub PR).
 - `/workspace` -- Set up and manage Claude Code configuration. Bootstraps the code-factory plugin marketplace, symlinks configuration files, and manages MCP server settings.
 - `/reflect` -- Capture session learnings and update knowledge files. Extracts conventions, corrections, patterns, and gotchas from the current session. Uses confidence-based routing: high-confidence learnings are auto-applied, medium-confidence ones are queued for human review.
 - `/skill-workbench` -- Create new skills or improve existing ones in this plugin marketplace. Supports two modes: CREATE (scaffold a new skill with frontmatter, structure, and OpenCode command) and IMPROVE (audit skills for clarity, conciseness, and completeness; apply improvements directly).
@@ -64,15 +65,6 @@ Git workflow skills -- structured commits, fixup commits, PR creation, and branc
 - `/atcommit` -- Validate and organize changes into self-contained atomic commits. Builds a dependency graph across changed files, detects violations (missing deps, mixed concerns, forward references), and proposes commit groups in the correct order.
 - `/fixup` -- Match current changes to an existing branch commit and create a fixup commit. Scores commits by file overlap and directory proximity, handles ambiguous matches interactively, and reminds the user to autosquash.
 
-### code
-
-Code understanding skills -- PR review with structured feedback and guided code tours.
-
-**Skills:**
-
-- `/review` -- Review a pull request with structured feedback across five categories (Correctness, Security, Design, Testing, Style) with severity levels (critical, suggestion, nit). Presents findings to the user without posting automatically.
-- `/tour` -- Guided code walkthroughs to explain architecture, flows, or structure. Supports three modes: interactive (step-by-step with pauses), written (complete markdown document), and PR comment (collapsible sections posted to a GitHub PR).
-
 ## Installation
 
 1. Clone the repository:
@@ -94,7 +86,7 @@ Code understanding skills -- PR review with structured feedback and guided code 
 
    If a destination already exists as a regular file (not a symlink), the script warns and skips it. If it exists as a symlink, it is replaced.
 
-3. The marketplace is registered in `settings.json` under `extraKnownMarketplaces` as `code-factory` pointing to `rtfpessoa/code-factory` on GitHub. The plugins `productivity@code-factory`, `git@code-factory`, and `code@code-factory` are enabled by default.
+3. The marketplace is registered in `settings.json` under `extraKnownMarketplaces` as `code-factory` pointing to `rtfpessoa/code-factory` on GitHub. The plugins `productivity@code-factory` and `git@code-factory` are enabled by default.
 
 ## Configuration Files
 
