@@ -9,16 +9,19 @@
 #
 # Behavior:
 #   - If the destination is an existing symlink, it is removed and re-created.
-#   - If the destination is a regular file, it is skipped with a warning.
-#     To use the symlink, back up or remove the existing file manually.
+#   - If the destination is a regular file, the script records an error.
+#     To fix, back up or remove the existing file manually and re-run.
 #   - If the destination does not exist, the symlink is created.
 #   - Parent directories are created as needed (e.g., ~/.claude/, ~/.config/opencode/).
+#   - The script exits non-zero if any file fails to link, with a summary at the end.
 #
 # This script is idempotent: running it multiple times produces the same result.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+errors=()
 
 SRCS=(
     "$SCRIPT_DIR/mcp.json"
@@ -36,7 +39,8 @@ for i in "${!SRCS[@]}"; do
     dest="${DESTS[$i]}"
 
     if [[ ! -f "$src" ]]; then
-        echo "SKIP  $src (source file not found)"
+        errors+=("$src -> $dest: source file not found")
+        echo "FAIL  $src (source file not found)"
         continue
     fi
 
@@ -45,11 +49,16 @@ for i in "${!SRCS[@]}"; do
     if [[ -L "$dest" ]]; then
         rm "$dest"
     elif [[ -e "$dest" ]]; then
-        echo "WARN  $dest already exists as a regular file, skipping"
+        errors+=("$src -> $dest: destination already exists as a regular file")
+        echo "FAIL  $dest already exists as a regular file, cannot link"
         continue
     fi
 
-    ln -s "$src" "$dest"
+    if ! ln -s "$src" "$dest"; then
+        errors+=("$src -> $dest: ln -s failed")
+        echo "FAIL  could not link $dest -> $src"
+        continue
+    fi
     echo "LINK  $dest -> $src"
 done
 
@@ -83,9 +92,13 @@ if [[ -d "$OPENCODE_DIR/skills" ]]; then
         [[ -d "$skill_src" ]] || continue
         skill_name=$(basename "$skill_src")
         skill_dest="$GLOBAL_DIR/skills/$skill_name"
-        ln -sfn "$skill_src" "$skill_dest"
-        new_manifest+=("$skill_dest")
-        echo "  LINK  skills/$skill_name/"
+        if ! ln -sfn "$skill_src" "$skill_dest"; then
+            errors+=("$skill_src -> $skill_dest: ln -sfn failed")
+            echo "  FAIL  skills/$skill_name/"
+        else
+            new_manifest+=("$skill_dest")
+            echo "  LINK  skills/$skill_name/"
+        fi
     done
 fi
 
@@ -99,9 +112,13 @@ for subdir in agents commands; do
     while IFS= read -r src_file; do
         rel="${src_file#"$src_dir"/}"
         dest_file="$dest_dir/$rel"
-        ln -sf "$src_file" "$dest_file"
-        new_manifest+=("$dest_file")
-        echo "  LINK  $subdir/$rel"
+        if ! ln -sf "$src_file" "$dest_file"; then
+            errors+=("$src_file -> $dest_file: ln -sf failed")
+            echo "  FAIL  $subdir/$rel"
+        else
+            new_manifest+=("$dest_file")
+            echo "  LINK  $subdir/$rel"
+        fi
     done < <(find "$src_dir" -type f -name "*.md" | sort)
 done
 
@@ -134,10 +151,27 @@ if [[ -f "$HOOK_SRC" ]]; then
     if [[ -L "$HOOK_DEST" ]]; then
         rm "$HOOK_DEST"
     elif [[ -e "$HOOK_DEST" ]]; then
-        echo "WARN  $HOOK_DEST already exists as a regular file, skipping"
+        errors+=("$HOOK_SRC -> $HOOK_DEST: destination already exists as a regular file")
+        echo "FAIL  $HOOK_DEST already exists as a regular file, cannot link"
     fi
     if [[ ! -e "$HOOK_DEST" ]]; then
-        ln -s "$HOOK_SRC" "$HOOK_DEST"
-        echo "LINK  $HOOK_DEST -> $HOOK_SRC"
+        if ! ln -s "$HOOK_SRC" "$HOOK_DEST"; then
+            errors+=("$HOOK_SRC -> $HOOK_DEST: ln -s failed")
+            echo "FAIL  could not link $HOOK_DEST -> $HOOK_SRC"
+        else
+            echo "LINK  $HOOK_DEST -> $HOOK_SRC"
+        fi
     fi
+fi
+
+# Final error summary
+if [[ ${#errors[@]} -gt 0 ]]; then
+    echo ""
+    echo "========================================="
+    echo "ERROR: ${#errors[@]} file(s) failed to link or sync:"
+    for err in "${errors[@]}"; do
+        echo "  - $err"
+    done
+    echo "========================================="
+    exit 1
 fi
