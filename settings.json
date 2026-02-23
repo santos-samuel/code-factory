@@ -132,9 +132,20 @@
         "hooks": [
           {
             "type": "agent",
-            "prompt": "Call `/reflect` to extract high-signal, actionable learnings from the just-finished conversation (corrections, explicit conventions, repeated patterns, gotchas, tool/command discoveries), score each 0–1 with brief evidence, dedupe via grep/search in target files, auto-append ONLY new single-line imperative bullets (10–20 words; no reorganizing) for high-confidence (≥0.8) to AGENTS.md/CLAUDE.md or default ~/.claude/projects/*/memory/MEMORY.md, queue medium (0.5–0.79) to ~/.claude/projects/*/memory/pending-learnings.md using the specified Pending template with date/confidence/target/evidence, discard <0.5, make all updates through this single `/reflect` invocation, and return JSON only: `{ \"ok\": true, \"applied\": N, \"queued\": M }` or `{ \"ok\": true, \"reason\": \"No actionable learnings\" }`.",
+            "timeout": 600,
             "model": "sonnet",
-            "timeout": 600
+            "prompt": "Call `/reflect` to extract high-signal, actionable learnings from the just-finished conversation (corrections, explicit conventions, repeated patterns, gotchas, tool/command discoveries), score each 0–1 with brief evidence, dedupe via grep/search in target files, auto-append ONLY new single-line imperative bullets (10–20 words; no reorganizing) for high-confidence (≥0.8) to AGENTS.md/CLAUDE.md or default ~/.claude/projects/*/memory/MEMORY.md, queue medium (0.5–0.79) to ~/.claude/projects/*/memory/pending-learnings.md using the specified Pending template with date/confidence/target/evidence, discard <0.5, make all updates through this single `/reflect` invocation, and return JSON only: `{ \"ok\": true, \"applied\": N, \"queued\": M }` or `{ \"ok\": true, \"reason\": \"No actionable learnings\" }`."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/rodrigo.fernandes/.claude/hooks/rtk-rewrite.sh"
           }
         ]
       }
@@ -165,7 +176,8 @@
     "git-split-branch@mat-brown-contrib": true,
     "permissions@mat-brown-contrib": true,
     "pr-description@mat-brown-contrib": true,
-    "playground@claude-plugins-official": true
+    "playground@claude-plugins-official": true,
+    "learning-skills@mrlee-plugins": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
@@ -190,6 +202,12 @@
       "source": {
         "source": "github",
         "repo": "rtfpessoa/code-factory"
+      }
+    },
+    "mrlee-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "DataDog/mrlee-plugins"
       }
     }
   },
