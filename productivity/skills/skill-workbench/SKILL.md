@@ -34,7 +34,7 @@ This skill has reference documents for deeper guidance. Load them when needed �
 | [best-practices.md](references/best-practices.md) | Writing or evaluating any skill content |
 | [claude-search-optimization.md](references/claude-search-optimization.md) | Writing or improving descriptions and frontmatter |
 | [persuasion-principles.md](references/persuasion-principles.md) | Writing discipline-enforcing skills that resist rationalization |
-| [testing-with-subagents.md](references/testing-with-subagents.md) | Testing skill compliance with RED-GREEN-REFACTOR cycle |
+| [testing-with-subagents.md](references/testing-with-subagents.md) | Testing any skill change (all types, not just discipline) with RED-GREEN-REFACTOR |
 | [progressive-disclosure.md](references/progressive-disclosure.md) | Deciding file organization and token optimization |
 | [skill-quality-checklist.md](references/skill-quality-checklist.md) | Final quality gate before committing |
 | [new-skill-template.md](references/new-skill-template.md) | Creating a new skill from scratch |
@@ -142,15 +142,24 @@ Write `{plugin}/skills/{name}/SKILL.md` using the template from [new-skill-templ
 - Include red flag lists for self-checking
 - Close loopholes explicitly ("Delete means delete. Not 'save for reference.'")
 
-### 2d: Test the Skill (Discipline-Enforcing Skills)
+### 2d: Test the Skill
 
-For skills that enforce rules or resist agent rationalization, follow the RED-GREEN-REFACTOR cycle from [testing-with-subagents.md](references/testing-with-subagents.md):
+**Iron Law: No skill without a failing test first.** This applies to ALL skill types — not just discipline-enforcing ones.
 
-1. **RED**: Launch a Task subagent with a pressure scenario (3+ combined pressures) WITHOUT the skill. Document baseline rationalizations verbatim.
-2. **GREEN**: Load the skill and re-run the same scenario. Verify compliance.
-3. **REFACTOR**: If the agent found loopholes, add explicit counters and re-test.
+Follow the RED-GREEN-REFACTOR cycle from [testing-with-subagents.md](references/testing-with-subagents.md). The test approach varies by skill type:
 
-For workflow or reference skills, functional testing during Step 2e validation is sufficient.
+| Skill Type | RED (Baseline Without Skill) | GREEN (Verify With Skill) |
+|------------|------------------------------|---------------------------|
+| **Discipline-enforcing** | Pressure scenario (3+ pressures). Document rationalizations verbatim. | Agent complies under same pressure. Cites skill sections. |
+| **Technique/workflow** | Application scenario. Does agent apply the technique correctly? | Agent follows technique. Handles edge cases. No gaps in instructions. |
+| **Pattern** | Recognition scenario. Does agent know when to apply/not apply? | Agent correctly identifies when pattern applies and uses it. |
+| **Reference** | Retrieval scenario. Can agent find and use the right information? | Agent finds correct info and applies it to a new scenario. |
+
+**For all types:**
+
+1. **RED**: Launch a Task subagent with a test scenario WITHOUT the skill. Document what went wrong (rationalizations, incorrect technique, missed info).
+2. **GREEN**: Re-run the same scenario WITH the skill loaded. Verify the skill fixes the documented failures.
+3. **REFACTOR**: If the agent found loopholes or the skill had gaps, fix and re-test.
 
 ### 2e: Create OpenCode Command
 
@@ -247,7 +256,40 @@ Apply changes directly. Prioritize:
 
 **Version bump required:** Any skill or agent change requires a patch bump in the owning plugin's `.claude-plugin/plugin.json`. New skills require a minor bump.
 
+### 3d: Test Changes
+
+**Iron Law: No skill change without a failing test first.** Editing a skill without testing is the same violation as creating one without testing. No exceptions — not for "simple additions", not for "just adding a section", not for "documentation updates".
+
+Determine the appropriate test based on what changed:
+
+| Change Type | Required Test |
+|-------------|--------------|
+| New or modified steps in a workflow skill | Launch Task subagent with a scenario that exercises the changed steps. Verify the agent follows them correctly. |
+| Modified discipline rules or rationalization tables | RED-GREEN-REFACTOR: baseline without change → verify with change. Document rationalizations. |
+| Description or frontmatter changes | Verify discoverability: launch a Task subagent with a trigger phrase and confirm it loads the skill. |
+| Reference file changes | Launch Task subagent with a retrieval scenario. Verify the agent finds and correctly applies the updated info. |
+| Filler word removal or formatting only | Structural validation in Step 4 is sufficient. |
+
+**Rationalizations for skipping testing (all invalid):**
+
+| Excuse | Reality |
+|--------|---------|
+| "The change is obviously clear" | Clear to you ≠ clear to other agents. Test it. |
+| "It's just a reference update" | References can have gaps or unclear phrasing. Test retrieval. |
+| "Testing edits is overkill" | Untested edits have issues. Always. |
+| "I'll test if problems emerge" | Problems = agents failing silently. Test BEFORE deploying. |
+| "Academic review is enough" | Reading ≠ using. Test application. |
+| "No time to test" | Deploying untested changes wastes more time fixing them later. |
+
 ## Step 4: Validate
+
+### 4a: Verify Testing Was Done
+
+Before structural validation, confirm behavioral testing from Step 2d (CREATE) or Step 3d (IMPROVE) was completed. If any skill was modified without testing, go back and test it now.
+
+**Exception:** formatting-only changes (filler word removal, table alignment, whitespace) do not require behavioral testing.
+
+### 4b: Structural Validation
 
 ```bash
 make all

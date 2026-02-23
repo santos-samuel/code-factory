@@ -10,18 +10,23 @@ Testing skills IS Test-Driven Development applied to documentation. Same iron la
 
 ## When to Test
 
-**Test skills that:**
+**All skill types benefit from testing** — the test approach varies by type (see "Testing All Skill Types" below).
+
+**Higher-risk skills (test with more pressure scenarios):**
 
 - Enforce discipline (carry compliance costs)
 - Risk rationalization (agents have incentive to bypass)
 - Conflict with immediate goals (e.g., "delete your code and start over")
 - Have multi-step workflows where steps might be skipped
 
-**Skip testing for:**
+**Lower-risk skills (lighter-touch testing):**
 
-- Pure reference materials (API docs, syntax guides)
-- Skills without violable rules
-- Areas where agents lack incentive to bypass
+- Reference materials: test with retrieval scenarios (can agent find the right info?)
+- Simple patterns: test with recognition scenarios (does agent know when to apply?)
+
+**Skip behavioral testing only for:**
+
+- Formatting-only changes (filler word removal, table alignment, whitespace)
 
 ## The RED-GREEN-REFACTOR Cycle
 
@@ -115,6 +120,77 @@ Three response patterns:
 | "I knew the rule but chose pragmatism" | Need stronger foundational principles | Add authority language, rationalization table |
 | "I didn't see the rule about X" | Missing content | Add that specific language |
 | "The rule was buried in a long section" | Visibility problem | Reorganize, add prominence headers |
+
+## Testing All Skill Types
+
+Different skill types need different test approaches. Discipline-enforcing skills are not the only ones that benefit from testing.
+
+### Discipline-Enforcing Skills (rules/requirements)
+
+**Examples:** TDD, verification-before-completion, designing-before-coding
+
+**Test with:**
+- Pressure scenarios: Do they comply under stress? (3+ combined pressures)
+- Academic questions: Do they understand the rules?
+- Multiple pressures combined: time + sunk cost + exhaustion
+
+**Success criteria:** Agent follows rule under maximum pressure. Cites skill sections as justification.
+
+### Technique/Workflow Skills (how-to guides)
+
+**Examples:** condition-based-waiting, root-cause-tracing, skill-workbench
+
+**Test with:**
+- Application scenarios: Can they apply the technique correctly to a new problem?
+- Variation scenarios: Do they handle edge cases the technique covers?
+- Gap testing: Are there missing instructions that leave the agent guessing?
+
+**Success criteria:** Agent successfully applies technique to an unfamiliar scenario without skipping steps.
+
+### Pattern Skills (mental models)
+
+**Examples:** reducing-complexity, information-hiding concepts
+
+**Test with:**
+- Recognition scenarios: Do they recognize when the pattern applies?
+- Application scenarios: Can they use the mental model correctly?
+- Counter-examples: Do they know when NOT to apply the pattern?
+
+**Success criteria:** Agent correctly identifies when/how to apply pattern AND when not to.
+
+### Reference Skills (documentation/APIs)
+
+**Examples:** API documentation, command references, library guides
+
+**Test with:**
+- Retrieval scenarios: Can they find the right information for a given question?
+- Application scenarios: Can they use what they found correctly?
+- Gap testing: Are common use cases covered?
+
+**Success criteria:** Agent finds correct info and applies it without errors.
+
+## Testing Edits to Existing Skills
+
+**Iron Law applies to edits too.** Modifying a skill without testing is the same violation as creating one without testing.
+
+| Change Type | Required Test |
+|-------------|--------------|
+| New/modified workflow steps | Application scenario exercising changed steps |
+| Modified discipline rules | Full RED-GREEN-REFACTOR with pressure scenarios |
+| Description/frontmatter changes | Discoverability test — does a trigger phrase load the skill? |
+| Reference file updates | Retrieval scenario — can agent find and apply updated info? |
+| Formatting-only (filler words, tables) | Structural validation sufficient |
+
+**Common rationalizations for skipping testing on edits:**
+
+| Excuse | Reality |
+|--------|---------|
+| "The change is obviously clear" | Clear to you ≠ clear to other agents. Test it. |
+| "It's just a reference update" | References can have gaps. Test retrieval. |
+| "Testing edits is overkill" | Untested edits have issues. Always. |
+| "I'll test if problems emerge" | Problems = agents failing silently. Test BEFORE deploying. |
+| "Academic review is enough" | Reading ≠ using. Test application scenarios. |
+| "No time to test" | Deploying untested changes wastes more time fixing later. |
 
 ## Success Indicators
 

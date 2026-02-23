@@ -94,6 +94,18 @@ See [persuasion-principles.md](persuasion-principles.md) for the full framework.
 
 A skill improvement is complete when:
 
+**Behavioral testing (required for all non-formatting changes):**
+
+- [ ] Appropriate test type executed per skill type (see [testing-with-subagents.md](testing-with-subagents.md))
+- [ ] For discipline skills: RED-GREEN-REFACTOR cycle completed with pressure scenarios
+- [ ] For technique/workflow skills: application scenario verified agent follows changed steps
+- [ ] For pattern skills: recognition/application scenario verified
+- [ ] For reference skills: retrieval scenario verified agent finds and applies info
+- [ ] For edits: test exercises the specific changes made, not just the skill overall
+- [ ] Exception: formatting-only changes (filler words, table alignment) skip behavioral testing
+
+**Structural quality:**
+
 - [ ] All frontmatter fields present and valid (`name`, `description`, `argument-hint`, `user-invocable`)
 - [ ] Description starts with "Use when", includes triggers, written in third person
 - [ ] Description does NOT summarize the skill's workflow (triggering conditions only)
