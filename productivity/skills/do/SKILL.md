@@ -411,9 +411,13 @@ Do not modify state or code.
 
 ```
 REFINE -> RESEARCH -> PLAN_DRAFT -> PLAN_REVIEW -> EXECUTE -> VALIDATE -> DONE
-                        ^                |             ^          |
-                        |                v             |          v
-                        +--- (changes requested) ------+-- (fix forward) --+
+                        ^              |    |           ^          |
+                        |              v    v           |          v
+                        |         consistency  +-------+-- (fix forward) --+
+                        |           check      |
+                        |              |       |
+                        |              v       |
+                        +--- (changes requested)
 ```
 
 ### EXECUTE Batch Loop

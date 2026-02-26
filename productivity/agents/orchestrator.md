@@ -436,7 +436,45 @@ AskUserQuestion(
 **Entry criteria:** Plan draft exists or `current_phase: PLAN_REVIEW`
 
 **Actions:**
-1. Spawn `reviewer`:
+
+1. Spawn `consistency-checker` to fix internal inconsistencies before review:
+   ```
+   Task(
+     subagent_type = "productivity:consistency-checker",
+     description = "Consistency check plan for: <feature>",
+     prompt = "
+     <document_path>
+     <path to PLAN.md in run directory>
+     </document_path>
+
+     <role>
+     You are a document consistency checker. Find and fix internal contradictions,
+     mismatched references, and terminology drift in this plan document.
+     </role>
+
+     <task>
+     Read the plan document at the path above. Iteratively scan for internal inconsistencies
+     (contradictory statements, task ID mismatches, file path inconsistencies, count mismatches,
+     terminology drift, dangling references). Fix each one directly using the Edit tool, then
+     re-read from the top. Repeat until clean or 10 iterations reached.
+
+     Do NOT change the plan's substance — only fix internal contradictions and mismatches.
+     Flag substantive issues in a Consistency Notes section for the reviewer.
+     </task>
+
+     <constraints>
+     - Fix inconsistencies directly — do not report them for someone else to fix
+     - One fix at a time, re-read after each
+     - Never change the plan's approach, tasks, or acceptance criteria
+     - Max 10 iterations
+     </constraints>"
+   )
+   ```
+
+   After the consistency checker completes, re-read PLAN.md (it may have been edited).
+   If the checker flagged substantive issues in Consistency Notes, log them for the reviewer.
+
+2. Spawn `reviewer`:
    ```
    Task(
      subagent_type = "productivity:reviewer",
@@ -495,13 +533,13 @@ AskUserQuestion(
    )
    ```
 
-2. Write review feedback to `REVIEW.md` in the run directory
+3. Write review feedback to `REVIEW.md` in the run directory
 
-3. If required changes exist:
+4. If required changes exist:
    - Log feedback in REVIEW.md
    - Transition back to PLAN_DRAFT
 
-3. If plan approved by reviewer:
+5. If plan approved by reviewer:
 
 **User Checkpoint (if interactive mode):**
 ```
@@ -518,7 +556,7 @@ AskUserQuestion(
 
 **Autonomous mode:** If no critical issues, mark approved and proceed. If critical issues exist, loop back to PLAN_DRAFT.
 
-4. Mark `approved: true` in frontmatter and transition to EXECUTE
+6. Mark `approved: true` in frontmatter and transition to EXECUTE
 
 **Exit criteria:** Plan marked approved, execution commands identified
 

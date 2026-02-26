@@ -28,7 +28,20 @@ Reference for detailed phase behaviors. Loaded by the orchestrator when executin
 - **Autonomous**: Proceed to review, let reviewer catch issues
 
 ## PLAN_REVIEW Phase
-- Spawn `reviewer` for critique
+
+**Two-step review: consistency check → substantive review.**
+
+1. Spawn `consistency-checker` to fix internal inconsistencies in PLAN.md before substantive review:
+   - Iteratively scans for contradictions, mismatched task IDs, file path inconsistencies, count mismatches, terminology drift, dangling references
+   - **Fixes issues directly** (Edit tool) — does not report them for the planner to fix
+   - One fix at a time, re-reads from the top after each fix, max 10 iterations
+   - Never changes plan substance — only fixes internal contradictions
+   - Flags substantive issues in a Consistency Notes section for the reviewer
+   - Uses `sonnet` model (mechanical task, not reasoning-heavy)
+
+2. Re-read PLAN.md after consistency checker completes (it may have been edited).
+
+3. Spawn `reviewer` for substantive critique (coverage, path verification, research cross-check, dependency analysis, safety, executability)
 - Output: Review report, required changes
 - May loop back to PLAN_DRAFT
 - **Interactive**: Present review findings, ask user for final approval before execution
