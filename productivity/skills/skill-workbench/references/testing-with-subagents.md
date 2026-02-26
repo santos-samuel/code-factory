@@ -49,6 +49,48 @@ Launch a Task subagent with:
 - NO mention of the skill being tested
 ```
 
+### Parallel Baseline Execution
+
+For measurable skill impact, spawn with-skill and without-skill runs simultaneously for each test case. This produces side-by-side data showing what the skill changes.
+
+**Spawn both runs in the same turn** — do not run with-skill first and come back for baselines later:
+
+```
+# With-skill run
+Task subagent:
+- Load skill from: <path-to-skill>
+- Execute: <eval prompt>
+- Save outputs to: <skill-name>-workspace/iteration-N/eval-ID/with_skill/outputs/
+
+# Without-skill run (same prompt, no skill)
+Task subagent:
+- No skill loaded
+- Execute: <eval prompt>
+- Save outputs to: <skill-name>-workspace/iteration-N/eval-ID/without_skill/outputs/
+```
+
+**Baseline type depends on context:**
+
+| Context | Baseline |
+|---------|----------|
+| Creating a new skill | No skill at all — same prompt, no skill path |
+| Improving an existing skill | Snapshot the old version (`cp -r <skill-path> <workspace>/skill-snapshot/`) and run baseline against the snapshot |
+
+**Workspace organization:**
+
+```
+<skill-name>-workspace/
+  iteration-1/
+    <eval-name>/
+      with_skill/outputs/
+      without_skill/outputs/
+      eval_metadata.json
+  iteration-2/
+    ...
+```
+
+**Structured grading (optional):** For quantitative comparison, dispatch the `skill-grader` agent (see `productivity/agents/skill-grader.md`) to evaluate assertions against each run's outputs. For blind qualitative comparison, use the `skill-comparator` agent (see `productivity/agents/skill-comparator.md`).
+
 ### GREEN: Write Minimal Skill
 
 Write the skill addressing only the specific failures documented during RED. Then:
