@@ -45,6 +45,7 @@ This skill has reference documents for deeper guidance. Load them when needed �
 | [claude-search-optimization.md](references/claude-search-optimization.md) | Writing or improving descriptions and frontmatter |
 | [persuasion-principles.md](references/persuasion-principles.md) | Writing discipline-enforcing skills that resist rationalization |
 | [testing-with-subagents.md](references/testing-with-subagents.md) | Testing any skill change (all types, not just discipline) with RED-GREEN-REFACTOR |
+| [eval-schemas.md](references/eval-schemas.md) | Writing eval definitions or grading assertions |
 | [progressive-disclosure.md](references/progressive-disclosure.md) | Deciding file organization and token optimization |
 | [skill-quality-checklist.md](references/skill-quality-checklist.md) | Final quality gate before committing |
 | [new-skill-template.md](references/new-skill-template.md) | Creating a new skill from scratch |
@@ -174,7 +175,46 @@ Follow the RED-GREEN-REFACTOR cycle from [testing-with-subagents.md](references/
 2. **GREEN**: Re-run the same scenario WITH the skill loaded. Verify the skill fixes the documented failures.
 3. **REFACTOR**: If the agent found loopholes or the skill had gaps, fix and re-test.
 
-### 2e: Create OpenCode Command
+### 2e: Optimize Description
+
+The description field determines whether Claude loads the skill. After testing, optimize it for trigger accuracy. Read [claude-search-optimization.md](references/claude-search-optimization.md) for writing rules.
+
+**Generate 20 trigger eval queries** — 10 should-trigger, 10 should-not-trigger:
+
+| Query Type | Count | Guidance |
+|------------|-------|----------|
+| Should-trigger | 8-10 | Different phrasings of same intent. Mix formal/casual. Include cases where user does not name the skill but needs it. |
+| Should-not-trigger | 8-10 | Near-misses sharing keywords but needing something different. Adjacent domains. Ambiguous phrasing. |
+
+Queries must be realistic and substantive — concrete details, file paths, context. Short or generic queries (e.g., "format this data") do not reliably trigger skills and produce false negatives.
+
+Save as JSON:
+
+```json
+[
+  {"query": "realistic user prompt with details", "should_trigger": true},
+  {"query": "near-miss prompt that should NOT trigger", "should_trigger": false}
+]
+```
+
+**Review with user:** Present the query list and ask for approval before testing.
+
+**Test each query** with `claude -p`:
+
+```bash
+claude -p "<query>" --model <current-model-id> 2>&1 | head -20
+```
+
+Check whether the skill triggered. Record pass/fail for each query.
+
+**Iterate** (max 3 iterations):
+1. Revise description based on which queries failed.
+2. Re-test all queries.
+3. If accuracy plateaus or reaches 3 iterations, report remaining failures and move on.
+
+**Cleanup:** Delete eval workspace artifacts after optimization completes to avoid token budget waste on future loads.
+
+### 2f: Create OpenCode Command
 
 Create `.opencode/commands/{name}.md` to mirror the skill for OpenCode:
 
@@ -189,7 +229,7 @@ Invoke the `{name}` skill with explicit syntax:
 skill({ name: "{name}" })
 ```
 
-### 2f: Validate and Version Bump
+### 2g: Validate and Version Bump
 
 1. Bump the owning plugin's version in `.claude-plugin/plugin.json` if it exists (minor bump for new skills).
 2. Run `make all` if a Makefile with that target exists. Otherwise, manually validate frontmatter, cross-references, and JSON.
