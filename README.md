@@ -7,6 +7,7 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 | Command | Plugin | Purpose |
 |---------|--------|---------|
 | `/do` | productivity | Orchestrate feature development with lifecycle tracking |
+| `/rfc` | productivity | Write RFCs and design documents with iterative research |
 | `/debug` | productivity | Systematic debugging with root cause investigation |
 | `/execplan` | productivity | Create, review, execute, or resume execution plans |
 | `/doc` | productivity | Create, update, improve, or audit Markdown docs |
@@ -27,11 +28,12 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 ### productivity
 
-Productivity skills -- feature development lifecycle, systematic debugging, documentation management, execution planning, PR review, guided code tours, Datadog workspace management, and skill workbench.
+Productivity skills -- feature development lifecycle, RFC writing, systematic debugging, documentation management, execution planning, PR review, guided code tours, Datadog workspace management, and skill workbench.
 
 **Skills:**
 
 - `/do` -- Orchestrate feature development with full lifecycle management. Multi-phase workflow (RESEARCH -> PLAN -> EXECUTE -> VALIDATE -> DONE) with resumable state, specialized subagents, and atomic commits. Supports interactive and autonomous modes.
+- `/rfc` -- Write RFCs and design documents with iterative research and refinement. Multi-phase workflow (REFINE -> RESEARCH -> EXPLORE -> PLAN -> REVIEW -> WRITE -> DONE) with backtracking, staff engineer quality standards, and source citation enforcement. Supports problem statement and design document types.
 - `/debug` -- Systematic debugging with enforced root cause investigation. Four-phase workflow (REPRODUCE -> INVESTIGATE -> FIX -> VERIFY) with persistent state, hypothesis tracking, and defense-in-depth validation. Leverages explorer and researcher agents for evidence gathering.
 - `/doc` -- Manage Markdown documentation lifecycle: create, update, improve, maintain, and audit. Supports Confluence sync via ddoc. Includes templates for runbooks, guides, references, tutorials, and ADRs.
 - `/execplan` -- Create, execute, review, or resume an ExecPlan. Supports four modes: author (write a new plan), review (interactive walkthrough with feedback), execute (run a plan from the start), and resume (continue an in-progress plan).

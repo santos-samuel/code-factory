@@ -212,6 +212,6 @@
   },
   "alwaysThinkingEnabled": true,
   "autoUpdatesChannel": "latest",
-  "bypassPermissionsModeAccepted": true,
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "bypassPermissionsModeAccepted": true
 }
