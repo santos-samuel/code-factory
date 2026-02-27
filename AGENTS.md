@@ -18,6 +18,10 @@ Claude Code and OpenCode plugin marketplace. Two plugins — **productivity** an
     {name}/SKILL.md
 Makefile                          # all, check, lint, and install targets
 init.sh                           # Bootstrap script
+sync-opencode.sh                  # Regenerates .opencode/ from plugin sources
+hooks/                            # Claude Code hook scripts linked by init.sh
+.githooks/                        # Git hooks linked into .git/hooks by init.sh
+.opencode/                        # Generated OpenCode assets (do not edit directly)
 settings.json                     # Claude Code global settings
 mcp.json                          # MCP server configuration
 opencode.jsonc                    # OpenCode CLI configuration
@@ -96,7 +100,7 @@ Run after every implementation:
 make all
 ```
 
-- `make check` verifies skill frontmatter, agent frontmatter, skill cross-references, agent skill references, description conventions, skill structure, and plugin manifest references.
+- `make check` verifies skill frontmatter, agent frontmatter, skill cross-references, agent skill references, description conventions, skill structure, plugin manifest references, and OpenCode sync freshness.
 - `make lint` validates all JSON and JSONC files.
 
 All checks must pass before proceeding.
