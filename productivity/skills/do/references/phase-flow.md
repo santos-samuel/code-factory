@@ -60,18 +60,24 @@ The orchestrator reads the plan once, extracts all tasks with full text, then ex
 
 Per-task sequence within each batch:
 1. **Dispatch fresh implementer** with full task text + scene-setting context inlined (milestone position, prior task summary, upcoming tasks, relevant discoveries, architectural context)
-2. Implementer asks questions → answers provided → implements → self-reviews → reports
+2. Implementer asks questions → answers provided → implements → self-reviews → reports (NO commit)
 3. **Spec compliance review** — fresh reviewer acknowledges strengths, then verifies implementation matches spec (nothing missing, nothing extra, nothing misunderstood)
 4. If issues → implementer fixes → re-review (loop until compliant)
 5. **Code quality review** — fresh reviewer receives plan context, reports strengths first, then assesses code quality, architecture, plan alignment, patterns, testing
 6. If critical issues → implementer fixes → re-review (loop until approved)
 7. If plan deviations found → orchestrator updates PLAN.md if warranted
-8. Mark task complete, update state, proceed to next task in batch
+8. Mark task complete, update state, proceed to next task in batch (do NOT commit yet)
 
 After each batch:
-- Report: tasks completed, commits, test status, discoveries
+- Report: tasks completed, test status, discoveries
 - **Interactive**: Ask to continue, adjust, review code, or stop
 - **Autonomous**: Log summary and continue (stop only on blockers)
+
+At milestone boundary (all tasks in milestone complete + tests pass):
+- Run `/atcommit` to organize ALL accumulated changes into atomic commits grouped by concept
+- `/atcommit` builds dependency graphs and groups files that belong together (e.g., package + tests, wiring + config)
+- Typical result: 3-5 commits per feature instead of one per task
+- Verify all commits build in isolation before proceeding to next milestone
 
 **Mid-batch stop conditions**: missing dependencies, systemic test failures, unclear instructions, repeated verification failures, or discoveries that invalidate the plan's assumptions.
 
@@ -83,21 +89,26 @@ When a task introduces or changes behavior, follow this exact sequence — no ex
 2. Run the test — verify it FAILS for the expected reason (not a syntax error)
 3. Write minimal implementation to make the test pass
 4. Run the test — verify it PASSES and all other tests still pass
-5. Commit atomically via `/atcommit`
+5. Do NOT commit — changes accumulate until the milestone boundary
 
 **Red flags — STOP and restart the task with TDD if you catch yourself:**
 - Writing implementation code before the test
 - Skipping the "verify failure" step
 - Writing a test that passes immediately (you're testing existing behavior, not new behavior)
 - Rationalizing "this is too simple to test" or "I'll add the test after"
+- Running `git commit` or `/atcommit` after a single task (commits happen at milestone boundaries only)
 
-**When TDD does not apply:** Config-only changes, documentation updates, refactoring that preserves existing behavior (with existing test coverage). Use direct step structure: edit → verify → commit.
+**When TDD does not apply:** Config-only changes, documentation updates, refactoring that preserves existing behavior (with existing test coverage). Use direct step structure: edit → verify (do NOT commit — wait for milestone boundary).
+
+**Milestone boundary commits:**
+When all tasks in a milestone are complete and tests pass, the orchestrator (NOT the implementer) runs `/atcommit` to organize all accumulated changes into atomic commits. `/atcommit` analyzes file dependencies and groups changes by concept (e.g., a complete package with tests, an integration layer, configuration + wiring). This produces 3-5 well-organized commits for a typical feature instead of one commit per task.
 
 **Never:**
 - Dispatch multiple implementer subagents in parallel (causes conflicts)
 - Skip either review stage (spec compliance OR code quality)
 - Start code quality review before spec compliance passes
 - Proceed to the next task while review issues remain open
+- Let implementer subagents run git commit — only the orchestrator commits at milestone boundaries
 
 ## VALIDATE Phase
 - Spawn `validator` to run automated checks AND quality assessment
