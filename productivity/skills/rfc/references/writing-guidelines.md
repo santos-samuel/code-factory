@@ -27,14 +27,14 @@ Reference for maintaining staff-level quality in RFC documents.
 | Standard | Example |
 |----------|---------|
 | Testable criteria | "Must handle 10K req/s with P99 < 100ms" not "must be performant" |
-| Prioritized (must/should/nice) | Use MoSCoW or equivalent — not everything is "required" |
+| Prioritized (must/should/nice) | Use MoSCoW or equivalent; not everything is "required" |
 | Bounded scope | Explicit "Out of Scope" section with rationale for each exclusion |
 
 ### Design / Architecture
 
 | Standard | Example |
 |----------|---------|
-| Diagrams for complex systems | Architecture, data flow, sequence diagrams — Mermaid preferred |
+| Diagrams for complex systems | Architecture, data flow, sequence diagrams (Mermaid preferred) |
 | Interface contracts | API signatures, proto definitions, or schema examples |
 | Failure mode analysis | "If component X fails, the system degrades by Y" with recovery path |
 
@@ -42,7 +42,7 @@ Reference for maintaining staff-level quality in RFC documents.
 
 | Standard | Example |
 |----------|---------|
-| Minimum 2 alternatives | Even for "obvious" choices — forces explicit reasoning |
+| Minimum 2 alternatives | Even for "obvious" choices. Forces explicit reasoning. |
 | Fair comparison | Present each alternative's strengths before its weaknesses |
 | Concrete rejection rationale | "Rejected because X metric is 3x worse" not "didn't feel right" |
 
@@ -72,6 +72,14 @@ Reference for maintaining staff-level quality in RFC documents.
 | Keep paragraphs under 5 sentences | Long paragraphs lose readers |
 | Use tables for comparisons | Tables scan faster than prose for structured data |
 | Lead with the conclusion | "We recommend approach A because X. Here's the analysis..." |
+
+## Typographic Rules
+
+| Rule | Detail |
+|------|--------|
+| No em dashes | Do not use `---` or `—`. Rewrite the sentence, use a colon, semicolon, or split into two sentences. |
+| Straight quotes only | Use `"` and `'`. Do not use curly quotes like " " or ' '. |
+| No mid-sentence styling | Do not use `**bold**` or `*italic*` inside sentences. Use headings, lists, or code formatting instead. |
 
 ## Document Length Guidelines
 
@@ -104,3 +112,6 @@ Before finalizing any RFC section, verify:
 - [ ] Diagrams are included where text alone would be unclear
 - [ ] A reader unfamiliar with the domain can follow the argument
 - [ ] The document stays within length guidelines
+- [ ] No em dashes (`---` or `—`) anywhere in the document
+- [ ] Only straight quotes (`"` and `'`), no curly quotes
+- [ ] No bold or italic formatting inside sentences

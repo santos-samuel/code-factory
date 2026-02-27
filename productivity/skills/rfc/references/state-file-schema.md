@@ -140,7 +140,7 @@ phases:
 **Path:** <file/directory path>
 **Purpose:** <what this code does>
 **Key files:**
-- `path/to/file.go:42` — <description>
+- `path/to/file.go:42`: <description>
 
 ## Existing Patterns
 <!-- How similar problems are currently solved -->
@@ -188,7 +188,7 @@ phases:
 <!-- Research still needed -->
 
 ## Writing Order
-1. <section> — <reason for ordering>
+1. <section>: <reason for ordering>
 ```
 
 ## REVIEW.md

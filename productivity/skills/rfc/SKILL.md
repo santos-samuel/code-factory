@@ -15,10 +15,10 @@ Announce: "I'm using the /rfc skill to write a technical RFC with iterative rese
 
 ## Hard Rules
 
-- **Preferences before everything.** Step 1 runs IMMEDIATELY on invocation — before discovering runs, parsing arguments, or doing any phase work.
+- **Preferences before everything.** Step 1 runs IMMEDIATELY on invocation. It runs before discovering runs, parsing arguments, or doing any phase work.
 - **Refine before research.** No research until the RFC topic is detailed enough to act on.
 - **Research before writing.** Every claim in the RFC must be grounded in research findings, source code analysis, or explicit user input. Never fabricate data, metrics, or architectural details.
-- **Never assume.** When a detail is unknown, research it, explore the code, or ask the user. Flag unresolved gaps as Open Questions in the RFC — do not fill them with plausible-sounding guesses.
+- **Never assume.** When a detail is unknown, research it, explore the code, or ask the user. Flag unresolved gaps as Open Questions in the RFC. Do not fill them with plausible-sounding guesses.
 - **Staff engineer quality.** Every section must meet the standards in [references/writing-guidelines.md](references/writing-guidelines.md): data-backed claims, explicit trade-offs, measurable metrics, concrete alternatives with rejection rationale.
 - **State is sacred.** Update state files after every phase transition and significant action. State enables resumption.
 - **Cite or flag.** Every technical claim must reference a source (code path, research finding, user statement). Unverified claims must be flagged as open questions.
@@ -26,7 +26,7 @@ Announce: "I'm using the /rfc skill to write a technical RFC with iterative rese
 
 ## Anti-Pattern: "This Is Too Simple for the Full Workflow"
 
-Every RFC goes through the full workflow. A "quick" problem statement, a "simple" design doc — all of them. "Simple" documents are where unexamined assumptions cause the most rework.
+Every RFC goes through the full workflow. A "quick" problem statement, a "simple" design doc: all of them. "Simple" documents are where unexamined assumptions cause the most rework.
 
 | Rationalization | Reality |
 |----------------|---------|
@@ -70,7 +70,7 @@ Load [references/phase-flow.md](references/phase-flow.md) for detailed agent dis
 
 ## Step 1: Ask Preferences (ALWAYS FIRST)
 
-**This step runs IMMEDIATELY on invocation — before discovering runs or doing any other work.**
+**This step runs IMMEDIATELY on invocation, before discovering runs or doing any other work.**
 
 Check `$ARGUMENTS` for the `--auto` flag. If present, strip it and pre-select autonomous mode.
 
@@ -100,7 +100,7 @@ AskUserQuestion(
 )
 ```
 
-**If `--auto` was in arguments:** Skip 1b — use autonomous mode.
+**If `--auto` was in arguments:** Skip 1b and use autonomous mode.
 
 Record choices:
 - `rfc_type`: `problem_statement` or `design`
@@ -118,12 +118,12 @@ For each discovered `RFC-STATE.md`, read it and check `current_phase`. Runs with
 
 ## Step 3: Mode Selection
 
-**Classification rules — apply in order:**
+**Classification rules (apply in order):**
 
-1. **State file reference** — `$ARGUMENTS` contains `RFC-STATE.md` or is a path to an existing state file:
+1. **State file reference**: `$ARGUMENTS` contains `RFC-STATE.md` or is a path to an existing state file:
    - Parse phase status → route to **Resume** (Step 5)
 
-2. **RFC topic, no active runs** — `$ARGUMENTS` is an RFC topic:
+2. **RFC topic, no active runs**: `$ARGUMENTS` is an RFC topic:
    - Route to **New RFC** (Step 4)
 
 3. **RFC topic, active runs exist**:
@@ -157,7 +157,7 @@ mkdir -p ~/docs/rfcs
 
 ### 4b: Create Initial State File
 
-Write `~/docs/plans/$SHORT_NAME/RFC-STATE.md` — see [references/state-file-schema.md](references/state-file-schema.md) for the full schema.
+Write `~/docs/plans/$SHORT_NAME/RFC-STATE.md` (see [references/state-file-schema.md](references/state-file-schema.md) for the full schema).
 
 Initial frontmatter:
 
@@ -197,7 +197,7 @@ cat ~/docs/plans/<short-name>/RFC-STATE.md
 
 Read any existing phase artifacts (RESEARCH.md, EXPLORATION.md, PLAN.md, REVIEW.md).
 
-Find the first phase with status `not_started`, `in_progress`, or `needs_rerun` — resume from there.
+Find the first phase with status `not_started`, `in_progress`, or `needs_rerun` and resume from there.
 
 Proceed to **Phase Loop** (Step 6) starting from that phase.
 

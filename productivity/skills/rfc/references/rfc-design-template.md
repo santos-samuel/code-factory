@@ -2,7 +2,7 @@
 
 *This template is for the design phase of the RFC process. It describes how the project will be built, operated, and maintained. The design phase should not begin until the problem statement has been reviewed and approved.*
 
-*Design documents can get long — if it exceeds six pages, move detailed information to appendices while keeping key elements in the first six pages.*
+*Design documents can get long. If the document exceeds six pages, move detailed information to appendices while keeping key elements in the first six pages.*
 
 ---
 

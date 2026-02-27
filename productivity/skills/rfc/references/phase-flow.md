@@ -1,4 +1,4 @@
-# RFC Phase Flow — Detailed Agent Dispatch
+# RFC Phase Flow: Detailed Agent Dispatch
 
 Reference for each phase's agent dispatch, prompts, and expected outputs.
 
@@ -66,7 +66,7 @@ Task(
 </key_questions>
 
 <task>
-Research the following for an RFC document. Do NOT write the RFC — only gather and organize findings.
+Research the following for an RFC document. Do NOT write the RFC. Only gather and organize findings.
 
 Research sources (search ALL of these):
 1. **Web**: Prior art, industry best practices, benchmark data, similar systems at other companies
@@ -84,7 +84,7 @@ Organize findings by:
 2. **Technical Findings**: Relevant technologies, patterns, benchmarks
 3. **Organizational Context**: Teams involved, dependencies, constraints
 4. **Data Points**: Metrics, benchmarks, cost figures, timelines
-5. **Open Questions**: What could not be answered — needs user input or further investigation
+5. **Open Questions**: What could not be answered (needs user input or further investigation)
 
 CRITICAL: Every finding must have a source citation. Do not present assumptions as findings.
 </task>
@@ -171,7 +171,7 @@ Task(
 </rfc_template>
 
 <task>
-Create a section-by-section writing plan for this RFC. Do NOT write the RFC — plan how to write it.
+Create a section-by-section writing plan for this RFC. Do NOT write the RFC. Plan how to write it.
 
 For each section in the template:
 1. **What to write**: Key points, arguments, data to include
@@ -237,7 +237,7 @@ Fix minor issues directly. Flag blocking issues that require user decision.
 
 ## REVIEW Phase
 
-**No agent dispatch** — direct interaction with user.
+**No agent dispatch.** Direct interaction with user.
 
 **Interactive mode:**
 1. Present the writing plan section by section
@@ -295,23 +295,28 @@ Task(
 Write the RFC document following the plan exactly. Write to the output_path.
 
 Rules:
-1. Follow the template structure — do not add or remove sections unless the plan specifies it.
+1. Follow the template structure. Do not add or remove sections unless the plan specifies it.
 2. Write each section per the plan's instructions (key points, sources, quality criteria).
 3. CITE SOURCES: Every technical claim must reference a research finding, code path, or user decision.
    Use inline citations: (Source: <reference>)
-4. Open questions that could not be resolved go in the 'Open Questions' section — do not guess answers.
+4. Open questions that could not be resolved go in the 'Open Questions' section. Do not guess answers.
 5. Use clear, direct prose. Write from a staff software engineer perspective:
    - Data-backed claims with specific numbers
    - Explicit trade-off analysis for every decision
    - Concrete alternatives with clear rejection rationale
    - Measurable success metrics
    - Realistic risk assessment with mitigation strategies
-6. After writing all sections, do a self-review pass:
+6. Follow these typographic rules strictly:
+   - No em dashes (--- or the character). Rewrite the sentence, use a colon, semicolon, or split into two sentences.
+   - Straight quotes only: " and '. Never use curly quotes.
+   - No bold or italic formatting inside sentences. Use headings, lists, or code formatting instead.
+7. After writing all sections, do a self-review pass:
    - Check coherence: do sections reference each other consistently?
    - Check completeness: are all plan items covered?
    - Check citations: does every claim have a source?
    - Check quality: would a staff engineer find this convincing?
-7. Write the final document to the output path.
+   - Check typography: no em dashes, no curly quotes, no mid-sentence bold/italic?
+8. Write the final document to the output path.
 </task>
 "
 )
