@@ -37,7 +37,7 @@ else
     else
         echo "  Installing rtk via cargo..."
     fi
-    if cargo install --git https://github.com/rtk-ai/rtk 2>&1; then
+    if cargo install --git https://github.com/rtk-ai/rtk --config net.git-fetch-with-cli=true 2>&1; then
         echo "  OK  rtk up-to-date ($(rtk --version 2>/dev/null || echo 'unknown version'))"
     else
         errors+=("rtk: cargo install failed")

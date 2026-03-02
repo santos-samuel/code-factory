@@ -90,7 +90,7 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
    `init.sh` performs the full local setup:
 
-   - Installs or updates `rtk` via `cargo install --git https://github.com/rtk-ai/rtk`.
+   - Installs or updates `rtk` via `cargo install --git https://github.com/rtk-ai/rtk --config net.git-fetch-with-cli=true`.
    - Symlinks root configs:
 
      | Source | Destination |
