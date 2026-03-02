@@ -31,6 +31,9 @@ interaction_mode: <interactive|autonomous>
 created: <ISO 8601 timestamp>
 last_checkpoint: <ISO 8601 timestamp>
 output_path: ~/docs/rfcs/<short-name>-<date>.md
+# Iteration fields (optional, present when improving an existing RFC)
+iterates_on: <path to the existing RFC being improved, omit for new RFCs>
+iteration_context: <summary of improvement request and feedback, omit for new RFCs>
 phases:
   REFINE: <not_started|in_progress|completed|needs_rerun|skipped>
   RESEARCH: <not_started|in_progress|completed|needs_rerun|skipped>

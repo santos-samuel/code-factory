@@ -49,6 +49,11 @@ Refine this RFC topic into a detailed specification. This is for an RFC document
    - Key questions that research must answer
    - Success criteria for the RFC document itself
 5. Questions to the user should be ONE at a time, preferring multiple choice.
+
+ITERATION MODE (when iterates_on is set in RFC-STATE.md):
+You also receive the existing RFC document and the user's improvement request.
+Focus refinement on what needs to change, not on re-establishing the entire specification.
+Carry forward the original refined specification and update only the parts affected by the iteration.
 </task>
 "
 )
@@ -204,6 +209,11 @@ Also include:
 - **Reviewer guidance**: What reviewers should focus on per section
 
 The plan must be specific enough that a writer can execute it without further research.
+
+ITERATION MODE (when iterates_on is set in RFC-STATE.md):
+You also receive the existing RFC document, the previous PLAN.md (if available), and the iteration context.
+Create a targeted revision plan: identify which sections need changes, what changes to make, and which sections to preserve as-is.
+Do not re-plan sections that are not affected by the iteration.
 </task>
 "
 )
@@ -354,6 +364,24 @@ After tightening, do a critic pass:
 5. Check completeness: are all plan items covered?
 6. Check citations: does every claim have a source?
 7. Verify the document reads like it was written by an engineer who built the system, not by someone summarizing it from the outside.
+
+ITERATION MODE (when iterates_on is set in RFC-STATE.md):
+If this is an iteration on an existing RFC, you also receive:
+
+<existing_rfc>
+<content of the RFC being improved>
+</existing_rfc>
+
+<iteration_context>
+<improvement request and feedback from user>
+</iteration_context>
+
+Additional rules for iteration:
+1. Read the existing RFC first. Identify which sections need changes based on the iteration context.
+2. Preserve unchanged sections verbatim. Do not rewrite sections that are not targeted for improvement.
+3. For targeted sections, apply the same multi-pass editorial process (Draft, Tighten, Red Team).
+4. If feedback contradicts research findings, flag the contradiction as an Open Question rather than silently overriding the research.
+5. Update citations if new research was gathered in this iteration.
 
 Write the final document to the output path.
 </task>

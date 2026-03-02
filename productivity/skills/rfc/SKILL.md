@@ -3,9 +3,11 @@ name: rfc
 description: >
   Use when the user wants to write an RFC (Request for Comments), design document,
   technical proposal, or problem statement with iterative research and refinement.
+  Also use when the user wants to improve, iterate on, or revise an existing RFC.
   Triggers: "rfc", "write rfc", "create rfc", "design document", "technical proposal",
-  "problem statement", "write a design doc", "new rfc", "resume rfc".
-argument-hint: "[RFC topic or path to existing RFC state file] [--auto to skip questions]"
+  "problem statement", "write a design doc", "new rfc", "resume rfc", "improve rfc",
+  "iterate rfc", "revise rfc", "update rfc".
+argument-hint: "[RFC topic, path to existing RFC, or path to state file] [--auto to skip questions]"
 user-invocable: true
 ---
 
@@ -111,43 +113,54 @@ Record choices:
 
 ## Step 2: Discover Existing Runs
 
-Search for active RFC runs:
+Search for all RFC runs and completed outputs:
 
 ```bash
-find ~/docs/plans -maxdepth 2 -name "RFC-STATE.md" 2>/dev/null
+find ~/docs/plans/rfc -maxdepth 2 -name "RFC-STATE.md" 2>/dev/null
+ls ~/docs/rfcs/*.md 2>/dev/null
 ```
 
-For each discovered `RFC-STATE.md`, read it and check `current_phase`. Runs without `DONE` are active.
+For each discovered `RFC-STATE.md`, read it and check `current_phase`:
+- **Active**: `current_phase` is not `DONE` — can be resumed
+- **Completed**: `current_phase` is `DONE` — can be iterated on
 
 ## Step 3: Mode Selection
 
 **Classification rules (apply in order):**
 
 1. **State file reference**: `$ARGUMENTS` contains `RFC-STATE.md` or is a path to an existing state file:
-   - Parse phase status → route to **Resume** (Step 5)
+   - If `current_phase` is not `DONE` → route to **Resume** (Step 5)
+   - If `current_phase` is `DONE` → route to **Iterate** (Step 4b)
 
-2. **RFC topic, no active runs**: `$ARGUMENTS` is an RFC topic:
+2. **RFC output file reference**: `$ARGUMENTS` is a path to an existing `.md` file that is not a state file (e.g., `~/docs/rfcs/*.md`):
+   - Read the file and verify it has RFC structure (title, sections)
+   - Route to **Iterate** (Step 4b)
+
+3. **RFC topic, no active or completed runs**: `$ARGUMENTS` is an RFC topic:
    - Route to **New RFC** (Step 4)
 
-3. **RFC topic, active runs exist**:
+4. **RFC topic, active or completed runs exist**:
    ```
    AskUserQuestion(
-     header: "Active RFCs found",
-     question: "Found active RFC runs. What would you like to do?",
+     header: "Existing RFCs found",
+     question: "Found existing RFC runs. What would you like to do?",
      options: [
        "Start new RFC" -- Begin fresh,
-       "<short-name>: <topic> (phase: <phase>)" -- Resume this RFC
+       "<short-name>: <topic> (phase: <phase>)" -- Resume this active RFC,
+       "<short-name>: <topic> (completed)" -- Iterate on this completed RFC
      ]
    )
    ```
+   - Active runs → **Resume** (Step 5)
+   - Completed runs → **Iterate** (Step 4b)
 
-4. **No arguments:**
-   - If active runs exist: list them and ask which to resume
-   - If no active runs: prompt for RFC topic
+5. **No arguments:**
+   - If active or completed runs exist: list all and ask which to resume or iterate on
+   - If no runs: prompt for RFC topic
 
 ## Step 4: Initialize State (New RFC)
 
-### 4a: Create Directories
+### Create Directories
 
 ```bash
 # Derive short-name from topic (kebab-case, max 40 chars)
@@ -158,7 +171,7 @@ mkdir -p ~/docs/plans/rfc/$SHORT_NAME
 mkdir -p ~/docs/rfcs
 ```
 
-### 4b: Create Initial State File
+### Create Initial State File
 
 Write `~/docs/plans/rfc/$SHORT_NAME/RFC-STATE.md` (see [references/state-file-schema.md](references/state-file-schema.md) for the full schema).
 
@@ -189,6 +202,110 @@ phases:
 ```
 
 Then proceed to **Phase Loop** (Step 6).
+
+## Step 4b: Initialize Iteration (Existing RFC)
+
+This step handles improving an existing RFC, whether reached from an output file path, a completed state file, or user selection.
+
+### 4b-a: Load Existing RFC
+
+Determine the RFC to iterate on:
+
+| Source | How to load |
+|--------|-------------|
+| RFC output file path (e.g., `~/docs/rfcs/foo-2025-01-01.md`) | Read the file. Derive `short-name` from filename. |
+| Completed state file | Read `output_path` from state frontmatter. Read that file. |
+| User selected a completed RFC from discovery | Same as state file. |
+
+Look for existing state directory at `~/docs/plans/rfc/<short-name>/`:
+- If found: read all artifacts (RFC-STATE.md, RESEARCH.md, EXPLORATION.md, PLAN.md, REVIEW.md)
+- If not found: only the RFC document itself is available as context
+
+### 4b-b: Ask Improvement Type
+
+```
+AskUserQuestion(
+  header: "Improvement type",
+  question: "What kind of improvement do you want to make to this RFC?",
+  options: [
+    "Incorporate feedback (Recommended)" -- Address review comments or fix issues raised by reviewers. Provide the feedback in your next message.,
+    "Revise specific sections" -- Update, expand, or rewrite specific sections of the RFC.,
+    "Add new research or data" -- Incorporate new findings, updated metrics, or recently discovered context.,
+    "Full revision" -- Rework the RFC from scratch using the existing document as a starting point.
+  ]
+)
+```
+
+### 4b-c: Gather Iteration Context
+
+Based on improvement type, gather additional input:
+
+| Type | What to ask |
+|------|-------------|
+| Incorporate feedback | Ask user to paste or describe the feedback. Record verbatim as `iteration_context`. |
+| Revise specific sections | List section headings from the existing RFC. Ask which sections to target. |
+| Add new research | Ask what new information or questions to investigate. |
+| Full revision | Ask what changed since the original (new constraints, different approach, scope change). |
+
+### 4b-d: Create Iteration State
+
+```bash
+SHORT_NAME="<derived from existing RFC>"
+DATE=$(date +%Y-%m-%d)
+mkdir -p ~/docs/plans/rfc/$SHORT_NAME
+```
+
+Determine starting phase based on improvement type:
+
+| Improvement type | Starting phase | Rationale |
+|-----------------|---------------|-----------|
+| Incorporate feedback | PLAN | Feedback maps to section-level changes. Backtrack to RESEARCH if feedback identifies factual gaps. |
+| Revise specific sections | PLAN | Target specific sections for rewriting. |
+| Add new research | RESEARCH | New data needs gathering before revising the document. |
+| Full revision | REFINE | Start from the beginning with the existing RFC as context. |
+
+Write or update `~/docs/plans/rfc/$SHORT_NAME/RFC-STATE.md` with iteration fields (see [references/state-file-schema.md](references/state-file-schema.md)):
+
+```yaml
+---
+schema_version: 1
+short_name: <short-name>
+rfc_type: <preserved from original or inferred from document>
+topic: <preserved from original or extracted from document title>
+current_phase: <starting phase from table above>
+phase_status: not_started
+interaction_mode: <from Step 1>
+created: <original created timestamp if known, else now>
+last_checkpoint: <ISO timestamp>
+output_path: ~/docs/rfcs/<short-name>-<date>.md
+iterates_on: <path to the existing RFC being improved>
+iteration_context: <user's improvement request and feedback summary>
+phases:
+  REFINE: <completed if starting after REFINE, else not_started>
+  RESEARCH: <completed if starting after RESEARCH, else not_started>
+  EXPLORE: <skipped or completed, matching original>
+  PLAN: <not_started for the starting phase and all subsequent>
+  CONSISTENCY_CHECK: not_started
+  REVIEW: not_started
+  WRITE: not_started
+  DONE: not_started
+---
+```
+
+Carry forward the `## Refined Specification` section from the existing state file, or extract it from the RFC document if no state exists.
+
+### 4b-e: Phase Context for Iteration
+
+When `iterates_on` is set, each phase receives the existing RFC and iteration context as additional input:
+
+| Phase | Additional context |
+|-------|-------------------|
+| REFINE | Existing RFC document, improvement request, user feedback |
+| RESEARCH | Existing RESEARCH.md (if available), new questions to investigate |
+| PLAN | Existing RFC document, existing PLAN.md (if available), section-level improvement targets |
+| WRITE | Existing RFC document as baseline; preserve unchanged sections, revise targeted sections |
+
+Proceed to **Phase Loop** (Step 6) starting from the determined phase.
 
 ## Step 5: Resume Mode
 
