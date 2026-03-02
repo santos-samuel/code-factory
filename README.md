@@ -31,7 +31,15 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 **Skills:**
 
-- `/do` -- Full lifecycle orchestration with resumable state and explicit phases (`REFINE -> RESEARCH -> PLAN_DRAFT -> PLAN_REVIEW -> EXECUTE -> VALIDATE -> DONE`).
+- `/do` -- Full lifecycle feature orchestration. Phases: `REFINE → RESEARCH → PLAN_DRAFT → PLAN_REVIEW → EXECUTE → VALIDATE → DONE`. Features:
+  - **Workspace modes:** worktree + branch (isolated), branch-only, current branch, or Datadog remote workspace.
+  - **Interaction modes:** interactive (approve at each phase) or autonomous (`--auto`).
+  - **Resumable state:** all artifacts persist in `~/docs/plans/do/<name>/` — resume interrupted work across sessions.
+  - **Approach exploration:** refiner proposes 2-3 approaches with trade-offs before planning begins.
+  - **TDD enforcement:** behavioral tasks require a failing test before implementation — code written before its test is deleted and restarted.
+  - **Batched execution:** tasks run in batches of 3, each followed by spec compliance and code quality reviews from independent agents.
+  - **Atomic commits at milestones:** changes accumulate within a milestone, then `/atcommit` organizes them into concept-grouped commits.
+  - **Input isolation:** user descriptions are wrapped in `<feature_request>` tags to prevent prompt injection into subagents.
 - `/rfc` -- RFC authoring workflow with refinement, research, exploration, consistency check, and write phases.
 - `/debug` -- Root-cause-first debugging protocol (`REPRODUCE -> INVESTIGATE -> FIX -> VERIFY`) with persistent state.
 - `/doc` -- Documentation lifecycle management (create, update, improve, maintain, audit, sync, status) with templates.
