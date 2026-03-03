@@ -123,6 +123,12 @@
     ]
   },
   "model": "opus",
+  "enabledMcpjsonServers": [
+    "atlassian"
+  ],
+  "disabledMcpjsonServers": [
+    "datadog"
+  ],
   "hooks": {
     "Stop": [
       {
