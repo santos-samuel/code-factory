@@ -103,18 +103,6 @@
   "enabledMcpjsonServers": ["atlassian"],
   "disabledMcpjsonServers": ["datadog"],
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "agent",
-            "timeout": 600,
-            "model": "sonnet",
-            "prompt": "Call the `/reflect` skill to extract high-signal, actionable learnings from the just-finished conversation (corrections, explicit conventions, repeated patterns, gotchas, tool/command discoveries), score each 0-1 with brief evidence, dedupe via grep/search in target files, auto-append ONLY new single-line imperative bullets (10-20 words; no reorganizing) for high-confidence (≥0.8) to AGENTS.md/CLAUDE.md or default ~/.claude/projects/*/memory/MEMORY.md, queue medium (0.5-0.79) to ~/.claude/projects/*/memory/pending-learnings.md using the specified Pending template with date/confidence/target/evidence, discard <0.5, make all updates through this single `/reflect` invocation, and return JSON only: `{ \"ok\": true, \"applied\": N, \"queued\": M }` or `{ \"ok\": true, \"reason\": \"No actionable learnings\" }`."
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -193,9 +181,10 @@
       }
     }
   },
-  "defaultMode": "default",
   "alwaysThinkingEnabled": true,
   "autoUpdatesChannel": "latest",
   "skipDangerousModePermissionPrompt": true,
-  "bypassPermissionsModeAccepted": true
+  "defaultMode": "default",
+  "bypassPermissionsModeAccepted": true,
+  "effortLevel": "high"
 }
