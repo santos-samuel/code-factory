@@ -416,6 +416,7 @@
       "git show *": "allow",
       "git blame *": "allow",
       "git branch *": "allow",
+      "git branch -D *": "ask",
       "git rev-parse *": "allow",
       "git remote *": "allow",
       "git symbolic-ref *": "allow",
