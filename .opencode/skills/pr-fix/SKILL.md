@@ -188,6 +188,8 @@ Response format by category:
 | Disagreement (keep) | `{explanation of reasoning}. Let me know if you'd like to discuss further.` |
 | Outdated (addressed) | `This has been addressed in a subsequent update.` |
 
+**Bot attribution:** When replying to automated reviewer comments (Greptile, Codex, etc.), prefix every reply with `*Automated response from Claude:*` to distinguish from human responses.
+
 **Resolve** the thread using GraphQL mutation (see [references/graphql-queries.md](references/graphql-queries.md)):
 
 ```bash
@@ -249,9 +251,34 @@ AskUserQuestion(
 - **"Yes — watch and fix"**: full loop — wait for CI, analyze failures, fix, commit, push, recheck (max 3 iterations).
 - **"Just watch"**: wait for CI to complete and report results. No fixes applied.
 
-Append the CI loop report to the Step 9 summary.
+Append the CI loop report to the Step 10 summary.
 
-## Step 9: Summary
+## Step 9: Automated Review Loop (Optional)
+
+After CI passes (or CI loop completes), offer to trigger automated code reviews:
+
+<interaction>
+AskUserQuestion(
+  header: "Auto-review?",
+  question: "CI is green. Want me to trigger automated reviews (Greptile, Codex) and fix their feedback?",
+  options: [
+    "Yes — review and fix" — Trigger reviewers, fix actionable feedback, loop until clean (max 3 iterations),
+    "Just trigger" — Post review comments but do not auto-fix,
+    "No" — Skip automated reviews
+  ]
+)
+</interaction>
+
+**If "No":** skip to Step 10.
+
+**If "Yes — review and fix" or "Just trigger":** follow the automated review loop in [references/automated-review-loop.md](references/automated-review-loop.md).
+
+- **"Yes — review and fix"**: full loop — trigger `@greptileai review` and `@codex` in separate comments, poll for responses, fix actionable feedback, commit, push, re-trigger (max 3 iterations).
+- **"Just trigger"**: post the review trigger comments and report when reviews arrive. No fixes applied.
+
+Append the review loop report to the Step 10 summary.
+
+## Step 10: Summary
 
 Present the final report:
 
@@ -274,6 +301,10 @@ Present the final report:
 ### CI Validation
 {if CI loop ran, include the report from references/ci-validation-loop.md Phase 5}
 {if CI loop skipped, omit this section}
+
+### Automated Review
+{if review loop ran, include the report from references/automated-review-loop.md Phase 8}
+{if review loop skipped, omit this section}
 
 ### Next Steps
 - {if all resolved and CI green}: Ready for re-review
@@ -305,3 +336,5 @@ gh pr edit {number} --add-reviewer {reviewer1},{reviewer2}
 | CI fix loop exceeds 3 iterations | Stop. Report remaining failures with log excerpts. Let user investigate. |
 | Same CI failure recurs after fix | Mark as unfixable. Do NOT retry the same fix. Report to user. |
 | DDCI logs unavailable | Skip log analysis. Report the Mosaic URL for manual investigation. |
+| Greptile/Codex not configured | If no review appears after 15-min timeout, skip that reviewer. Continue with others. |
+| Automated review loop exceeds 3 iterations | Stop. Report remaining review comments. Let user investigate. |

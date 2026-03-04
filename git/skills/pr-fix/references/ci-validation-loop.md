@@ -97,6 +97,26 @@ Classify each failure by priority:
 | **P2** | Lint/format | Style violations, unused imports, formatting | Yes — run formatter/linter with --fix |
 | **P3** | Flaky/infra | Network timeout, runner OOM, service unavailable | No — retry, not fix |
 
+### Re-run Flaky Jobs
+
+For failures classified as P3 (flaky/infra), re-run without fixing code:
+
+**GitHub Actions:**
+
+```bash
+gh run rerun {run_id} --failed
+```
+
+**DDCI:**
+
+```bash
+retry_ddci_job.sh {job_id}
+```
+
+**If `retry_ddci_job.sh` is not available:** report the failure and Mosaic link. Let the user retry manually.
+
+After re-running, return to Phase 1 to wait for the new run. Count this as an iteration.
+
 ### Fix Strategy
 
 For each failure, in priority order:
@@ -160,7 +180,7 @@ Track across iterations:
 
 ## Phase 5: CI Loop Report
 
-Return this report to the calling step (Step 9 in SKILL.md):
+Return this report to the calling step (Step 10 in SKILL.md):
 
 ```
 ### CI Validation
