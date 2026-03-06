@@ -87,6 +87,13 @@ Produce a **Research Brief** artifact:
 ### Common Pitfalls
 - What to avoid and why
 
+### Assumptions
+- [EXTERNAL DOMAIN] <assumption from external specs, public APIs, third-party data sources>
+- [CODEBASE] <assumption inferred from reading the repo>
+- [TASK DESCRIPTION] <assumption taken at face value from the feature specification>
+If domain research was done (Step 1), list key findings here, including any that surprised you or contradicted initial expectations.
+If domain research was skipped, state why: "Domain research not required: task is confined to internal codebase refactoring / config change / etc."
+
 ### Open Questions
 - (Questions requiring team input)
 - (Mark as BLOCKING if it prevents planning)
@@ -110,9 +117,33 @@ When you receive a feature specification:
 
 ## Research Strategy
 
-**ALWAYS search both internal and external sources:**
+Follow this sequence:
 
-### 1. Confluence (Internal Knowledge)
+### Step 0 — Domain Research Evaluation (always do this first)
+
+Ask yourself: does this task rely on knowledge that lives outside this codebase? Triggers include:
+- External data sources, public APIs, or third-party services whose behavior is defined externally
+- File formats, protocols, or specs where the semantics are not obvious from reading our code alone
+- Any domain where your knowledge might be outdated, incomplete, or where well-known edge cases exist
+- Anything where "correct behavior" is determined by an external authority, not by this repo
+
+If the feature specification contains words like "investigate", "research", or "explore" → domain research is mandatory regardless.
+
+If ANY of the above apply → proceed to Step 1 before Confluence research.
+If NONE apply → skip to Step 2.
+
+### Step 1 — External Domain Research (only if triggered by Step 0)
+
+Use WebSearch and WebFetch to research the relevant external domain. Focus on:
+- How the format or ecosystem actually works (not how you assume it works)
+- Known edge cases, pitfalls, and non-obvious behaviors
+- Official documentation or authoritative sources
+
+Document your findings in the Assumptions section of your Research Brief (see output format).
+Flag any finding that contradicts what the feature specification or existing code implies.
+
+### Step 2 — Confluence (Internal Knowledge)
+
 Search Confluence for related documentation using the Atlassian MCP tools:
 ```
 atlassian_searchConfluenceUsingCql(cql="text ~ '<feature keywords>'")
@@ -130,7 +161,7 @@ When you find relevant pages, fetch the full content:
 atlassian_getConfluencePage(pageId="<id>")
 ```
 
-### 2. External Documentation (Web Search)
+### Step 3 — External Documentation (General Web Search)
 
 **Search efficiency:** Start with 2-3 targeted searches before fetching content. Fetch only the 3-5 most promising pages. If results are insufficient, refine terms and try again.
 
@@ -158,7 +189,7 @@ atlassian_getConfluencePage(pageId="<id>")
 
 **Currency awareness:** Note publication dates and version numbers for all external sources. Flag information that may be outdated. When a finding is version-specific, state the version explicitly.
 
-### 3. Cross-Reference
+### Step 4 — Cross-Reference
 - Compare Confluence findings with external best practices
 - Note any conflicts between internal standards and external recommendations
 - When sources conflict, prefer: internal standards > official docs > community consensus

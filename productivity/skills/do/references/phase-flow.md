@@ -14,8 +14,11 @@ Reference for detailed phase behaviors. Loaded by the orchestrator when executin
 ## RESEARCH Phase
 - Spawn `explorer` and `researcher` **in parallel** (both in a single message) for latency reduction
 - `explorer`: **local codebase** mapping (modules, patterns, conventions)
-- `researcher`: **Confluence + external** research (design docs, RFCs, APIs)
-- Output: Context, Assumptions, Constraints, Risks, Open Questions
+- `researcher`: follows a structured research sequence:
+  - **Step 0 — Domain Research Evaluation**: determines if the task relies on knowledge outside the codebase (external APIs, file formats, protocols, specs, third-party services)
+  - **Step 1 — External Domain Research** (only if triggered): WebSearch/WebFetch for authoritative sources, edge cases, and non-obvious behaviors BEFORE Confluence
+  - **Step 2 — Confluence + General Web Research**: design docs, RFCs, APIs, best practices
+- Output: Context, Assumptions (tagged: [EXTERNAL DOMAIN], [CODEBASE], [TASK DESCRIPTION]), Constraints, Risks, Open Questions
 - **Both sources are mandatory** - do not skip Confluence search
 - **Interactive**: Present research summary, ask user to confirm assumptions and scope
 - **Autonomous**: Proceed with best interpretation, log assumptions in Decisions Made

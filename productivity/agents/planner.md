@@ -191,8 +191,12 @@ Identify which quality dimensions are most important for this feature and set mi
 - [ ] Edge case 1: How to trigger and verify
 
 ## Assumptions
-- (List assumptions made during planning that could be wrong)
-- (These become verification points before/during implementation)
+For each assumption:
+- Tag as [EXTERNAL DOMAIN] if it comes from outside this codebase (external specs, public APIs, third-party data sources)
+- Tag as [CODEBASE] if inferred from reading the repo
+- Tag as [TASK DESCRIPTION] if taken at face value from the feature specification
+If domain research was done during RESEARCH phase, carry forward key findings here.
+If domain research was skipped, state why: "Domain research not required: task is confined to internal codebase refactoring / config change / etc."
 
 ## Open Questions
 - (Questions that must be answered before implementing specific tasks)

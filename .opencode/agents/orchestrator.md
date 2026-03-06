@@ -299,28 +299,47 @@ Validation protocol: For each required section, check that the heading exists in
      </role>
 
      <task>
-     Research context for this feature. Search BOTH internal and external sources, then
-     synthesize findings into a Research Brief with these exact sections:
+     Research context for this feature following this sequence:
 
+     STEP 0 — DOMAIN RESEARCH EVALUATION (always do this first):
+     Ask yourself: does this task rely on knowledge that lives outside this codebase? Triggers:
+       - External data sources, public APIs, or third-party services whose behavior is defined externally
+       - File formats, protocols, or specs where the semantics are not obvious from reading our code alone
+       - Any domain where your knowledge might be outdated, incomplete, or where well-known edge cases exist
+       - Anything where "correct behavior" is determined by an external authority, not by this repo
+     If the feature spec contains words like "investigate", "research", or "explore" → domain research is mandatory.
+     If ANY trigger applies → do STEP 1 before STEP 2. Otherwise skip to STEP 2.
+
+     STEP 1 — EXTERNAL DOMAIN RESEARCH (only if triggered by STEP 0):
+     Use WebSearch and WebFetch to research the relevant external domain. Focus on:
+       - How the format or ecosystem actually works (not how you assume it works)
+       - Known edge cases, pitfalls, and non-obvious behaviors
+       - Official documentation or authoritative sources
+     Document findings in the Assumptions section. Flag anything that contradicts the feature spec or existing code.
+
+     STEP 2 — CONFLUENCE + GENERAL WEB RESEARCH (always do this):
+     INTERNAL (Confluence) — search using atlassian_searchConfluenceUsingCql:
+     - Design docs, RFCs, ADRs related to this feature area
+     - Existing runbooks or implementation guides
+     - Team conventions and standards
+     EXTERNAL (Web) — search for:
+     - Library/API documentation
+     - Best practices and patterns
+     - Known issues and limitations
+
+     Synthesize all findings into a Research Brief with these exact sections:
      1. Findings (facts only) — each with source citation
      2. Hypotheses (if any) — clearly marked as inferences
      3. Solution Direction — recommended approach, rationale, rejected alternatives, complexity, risks
      4. Libraries/APIs — key methods, usage patterns, gotchas
      5. Best Practices — patterns to follow
      6. Common Pitfalls — what to avoid
-     7. Open Questions — unresolved items (mark BLOCKING if they prevent planning)
-     8. Internal References (Confluence) — page title, URL, summary
-     9. External References — source URL, summary
-
-     INTERNAL (Confluence) — search using atlassian_searchConfluenceUsingCql:
-     - Design docs, RFCs, ADRs related to this feature area
-     - Existing runbooks or implementation guides
-     - Team conventions and standards
-
-     EXTERNAL (Web) — search for:
-     - Library/API documentation
-     - Best practices and patterns
-     - Known issues and limitations
+     7. Assumptions — each tagged as [EXTERNAL DOMAIN], [CODEBASE], or [TASK DESCRIPTION].
+        If domain research was done, list key findings including surprises or contradictions.
+        If skipped, state why.
+     8. Open Questions — unresolved items (mark BLOCKING if they prevent planning)
+     9. Internal References (Confluence) — page title, URL, summary
+     10. External References — source URL, summary
      </task>
 
      <constraints>
@@ -337,7 +356,7 @@ Validation protocol: For each required section, check that the heading exists in
 2. Write merged outputs to `RESEARCH.md` in the run directory with sections:
    - Codebase Map (from explorer)
    - Research Brief (from researcher)
-   - Assumptions, Constraints, Risks, Open Questions
+   - Assumptions (tagged: [EXTERNAL DOMAIN], [CODEBASE], [TASK DESCRIPTION]), Constraints, Risks, Open Questions
 
 **User Checkpoint (if interactive mode):**
 ```
