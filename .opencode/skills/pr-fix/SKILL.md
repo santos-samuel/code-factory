@@ -2,11 +2,11 @@
 name: pr-fix
 description: >
   Use when the user wants to address PR review feedback, fix PR comments, resolve review threads,
-  or respond to code review suggestions on a pull request.
+  or respond to code review suggestions on a pull request. Supports --auto for fully autonomous mode.
   Triggers: "fix pr feedback", "address pr comments", "resolve pr reviews", "pr fix",
   "address review feedback", "fix review comments", "handle pr feedback",
-  "respond to pr review", "address pr feedback".
-argument-hint: "[PR number or URL, optional --reviewer <name>]"
+  "respond to pr review", "address pr feedback", "pr fix --auto".
+argument-hint: "[PR number or URL, optional --reviewer <name>, optional --auto]"
 user-invocable: true
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(get_ddci_logs.sh:*), Read, Write, Edit, Grep, Glob, AskUserQuestion, Task
 ---
@@ -24,6 +24,9 @@ Parse `$ARGUMENTS` for:
 | PR number | Digits | `42`, `332190` |
 | PR URL | `github.com/.*/pull/\d+` | `https://github.com/org/repo/pull/42` |
 | Reviewer filter | `--reviewer <name>` | `--reviewer alice` |
+| Autonomous mode | `--auto` | `--auto` |
+
+**Autonomous mode (`--auto`):** Runs the full fix-commit-push-CI-review cycle without user prompts. Defaults: fix all threads, explain-and-keep for disagreements, watch-and-fix CI, review-and-fix automated feedback. Use when you want a hands-off run.
 
 Run in parallel:
 
@@ -104,7 +107,9 @@ Proposed actions:
 - Need your decision: {count} (disagreements)
 ```
 
-**For disagreements**, present each one explicitly:
+**If `--auto` mode:** Skip all prompts. Default to "Fix all" for non-disagreements and "Explain and keep" for disagreements (safest autonomous default — code stays unchanged, reviewer gets a reasoned explanation). Proceed to Step 5.
+
+**For disagreements** (interactive mode only), present each one explicitly:
 
 <interaction>
 AskUserQuestion(
@@ -118,7 +123,7 @@ AskUserQuestion(
 )
 </interaction>
 
-**For everything else**, ask:
+**For everything else** (interactive mode only), ask:
 
 <interaction>
 AskUserQuestion(
@@ -228,9 +233,51 @@ git push
 
 **If push fails due to diverged branch:** inform the user. Do NOT force-push. Let the user decide.
 
-## Step 8: CI Validation Loop (Optional)
+## Step 8: CI Validation + Automated Reviews (Parallel)
 
-After pushing, offer to watch CI and auto-fix failures:
+After pushing, trigger bot reviews immediately and monitor CI in parallel. Bot reviews don't depend on CI — start them early so they complete during CI.
+
+### 8a: Trigger Automated Reviews (if stale)
+
+Check if new commits exist since the last greptile/codex comments:
+
+```bash
+# Get the latest bot comment timestamp
+gh api repos/{owner}/{repo}/issues/{number}/comments \
+  --jq '[.[] | select(.user.login | test("greptile|codex"; "i")) | .created_at] | sort | last'
+
+# Get the latest commit timestamp on the PR branch
+gh api repos/{owner}/{repo}/pulls/{number}/commits \
+  --jq '[.[].commit.committer.date] | sort | last'
+```
+
+Compare timestamps. If the latest commit is **after** the latest bot comment (or no bot comments exist), reviews are stale.
+
+**If reviews are current:** skip to 8b — no re-trigger needed.
+
+**If `--auto` mode:** Trigger immediately (no prompt).
+
+**Interactive mode:**
+
+<interaction>
+AskUserQuestion(
+  header: "Re-trigger automated reviews?",
+  question: "There are new commits since the last Greptile/Codex reviews. Re-trigger them?",
+  options: [
+    "Yes — review and fix" — Trigger reviewers, fix actionable feedback after CI (max 3 iterations),
+    "Just trigger" — Post review comments but do not auto-fix,
+    "No" — Skip automated reviews
+  ]
+)
+</interaction>
+
+If triggering: post `@greptileai review` and `@codex` comments now per [references/automated-review-loop.md](references/automated-review-loop.md) Phase 1. **Do NOT wait for responses** — bots review in background while CI runs.
+
+### 8b: CI Validation Loop
+
+**If `--auto` mode:** Proceed with "Yes — watch and fix" (no prompt).
+
+**Interactive mode:**
 
 <interaction>
 AskUserQuestion(
@@ -244,41 +291,26 @@ AskUserQuestion(
 )
 </interaction>
 
-**If "No":** skip to Step 9.
+**If "No":** skip to 8c.
 
-**If "Yes — watch and fix" or "Just watch":** follow the CI validation loop in [references/ci-validation-loop.md](references/ci-validation-loop.md).
+Follow the CI validation loop in [references/ci-validation-loop.md](references/ci-validation-loop.md).
 
 - **"Yes — watch and fix"**: full loop — wait for CI, analyze failures, fix, commit, push, recheck (max 3 iterations).
 - **"Just watch"**: wait for CI to complete and report results. No fixes applied.
 
-Append the CI loop report to the Step 10 summary.
+### 8c: Process Automated Review Feedback
 
-## Step 9: Automated Review Loop (Optional)
+If bot reviews were triggered in 8a, collect their responses now. By this point bots have had the full CI wait time to complete.
 
-After CI passes (or CI loop completes), offer to trigger automated code reviews:
+Follow [references/automated-review-loop.md](references/automated-review-loop.md) starting from **Phase 2** (Phase 1 trigger already done in 8a).
 
-<interaction>
-AskUserQuestion(
-  header: "Auto-review?",
-  question: "CI is green. Want me to trigger automated reviews (Greptile, Codex) and fix their feedback?",
-  options: [
-    "Yes — review and fix" — Trigger reviewers, fix actionable feedback, loop until clean (max 3 iterations),
-    "Just trigger" — Post review comments but do not auto-fix,
-    "No" — Skip automated reviews
-  ]
-)
-</interaction>
+- **"Yes — review and fix"**: wait for responses, fix actionable feedback, commit, push, re-trigger (max 3 iterations).
+- **"Just trigger"**: wait for responses and report. No fixes applied.
+- **If reviews were not triggered in 8a:** skip this substep.
 
-**If "No":** skip to Step 10.
+Append both the CI loop and review loop reports to the Step 9 summary.
 
-**If "Yes — review and fix" or "Just trigger":** follow the automated review loop in [references/automated-review-loop.md](references/automated-review-loop.md).
-
-- **"Yes — review and fix"**: full loop — trigger `@greptileai review` and `@codex` in separate comments, poll for responses, fix actionable feedback, commit, push, re-trigger (max 3 iterations).
-- **"Just trigger"**: post the review trigger comments and report when reviews arrive. No fixes applied.
-
-Append the review loop report to the Step 10 summary.
-
-## Step 10: Summary
+## Step 9: Summary
 
 Present the final report:
 

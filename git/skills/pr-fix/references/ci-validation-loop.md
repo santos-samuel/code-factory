@@ -180,7 +180,7 @@ Track across iterations:
 
 ## Phase 5: CI Loop Report
 
-Return this report to the calling step (Step 10 in SKILL.md):
+Return this report to the calling step (Step 9 in SKILL.md):
 
 ```
 ### CI Validation
