@@ -148,6 +148,32 @@ git log --author="$(git config user.email)" \
   --oneline --no-merges
 ```
 
+### 2f: Daily Log Entries
+
+Scan the Obsidian daily journal (written by `/daily`) for entries in the date range.
+
+```bash
+# Find daily notes within range
+find ~/docs/Daily/ -name "*.md" -newer <temp_start> ! -newer <temp_end> 2>/dev/null
+```
+
+For each daily note file in range, Read the file and extract items from these sections:
+
+| Daily Log Section | Brag Section |
+|-------------------|-------------|
+| **Work** | Direct Impact |
+| **Achievements** | Direct Impact |
+| **Kudos** (given by others to the user) | Direct Impact or Uncategorized |
+| **Kudos** (given by the user to others) | Consulting or skip |
+| **Meetings** (with notable decisions) | Consulting or Direct Impact |
+| **Learning** | Learning |
+
+Skip Team Pulse, Travel, and Notes sections — they don't map to brag categories.
+
+Only extract items with enough context to be meaningful in a brag doc.
+"4x 1:1s" is too generic — skip it.
+"Architecture review — decided to go with option B for the caching layer" is worth capturing.
+
 ## Step 3: Deduplicate and Update Document
 
 ### 3a: Deduplicate
