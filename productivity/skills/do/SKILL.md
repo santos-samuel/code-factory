@@ -74,6 +74,7 @@ All state is stored in `~/docs/plans/do/<short-name>/`, independent of the worki
   PLAN.md                 # Execution plan (milestones, tasks, validation strategy)
   REVIEW.md               # Plan review feedback
   VALIDATION.md           # Validation results and evidence
+  SESSION.log             # Append-only activity log with token/timing metrics
 ```
 
 The `<short-name>` is derived from the feature description (kebab-case, max 40 chars). State lives outside the repo, so no gitignore configuration is needed.
@@ -358,11 +359,29 @@ GIT WORKFLOW:
 - DONE phase finalization sequence (each step depends on the previous): /atcommit (remaining changes) → git push → /pr (create PR) → /pr-fix (validate and fix automated review feedback, CI issues)
 - /pr-fix may loop up to 2 times if new automated review feedback arrives after fixes
 
-SUBAGENT COORDINATION — BATCH EXECUTION WITH FRESH SUBAGENT PER TASK AND TWO-STAGE REVIEW:
+SESSION ACTIVITY LOG:
+- Initialize SESSION.log in the state directory on EXECUTE entry
+- Append timestamped entries after every significant action (phase transitions, task completions, milestone completions, deviations)
+- Include token/duration metrics in TASK_COMPLETE and MILESTONE_COMPLETE entries
+- The log is append-only — never rewrite or truncate
+- Tell the user the log path so they can open it in their editor to follow progress in real-time
+- See state-file-schema.md for entry types and format
+
+SUBAGENT COORDINATION — MILESTONE-PARALLEL BATCH EXECUTION WITH TWO-STAGE REVIEW:
 - Do a PLAN CRITICAL REVIEW before implementing: re-read the plan, verify ordering, check environment, raise concerns before any code is written
-- Read the plan ONCE and extract ALL tasks with full text upfront
-- Execute tasks in BATCHES of 3 (adjustable at feedback checkpoints)
-- For each task in the batch, dispatch a FRESH implementer subagent with full task text + context inlined
+- Read the plan ONCE and extract ALL tasks with full text AND the File Impact Map upfront
+- Build the milestone dependency graph from task dependencies
+
+MILESTONE-LEVEL PARALLELISM:
+- Identify READY milestones: all dependency milestones completed
+- When multiple milestones are ready, check the File Impact Map for file overlap:
+  - No file overlap → dispatch one implementer per ready milestone IN PARALLEL (multiple Task calls in a single message)
+  - Files overlap → run milestones sequentially (one at a time)
+- Within a single milestone, tasks always run sequentially (they share files)
+- Log parallel milestones in SESSION.log: "MILESTONE_START: M-002 (Title) [parallel with M-003]"
+
+PER-TASK SEQUENCE (same whether running one or multiple milestones):
+- Dispatch a FRESH implementer subagent with full task text + context inlined
   - Never make subagents read plan files — provide full text directly in the prompt
   - Include scene-setting context: milestone position, previously completed tasks summary, upcoming tasks, relevant discoveries, architectural context
   - Place longform context (research, plans, specs) at the TOP in XML-tagged blocks, task directive at the BOTTOM
@@ -373,17 +392,29 @@ SUBAGENT COORDINATION — BATCH EXECUTION WITH FRESH SUBAGENT PER TASK AND TWO-S
   2. Code quality review — fresh reviewer assesses quality, architecture, patterns, testing (only after spec passes)
      - Reviewer receives plan context to check implementation alignment with planned approach
      - Reports strengths before issues; flags plan deviations with justified/problematic assessment
-     - If deviations warrant plan updates, orchestrator updates PLAN.md before proceeding
+     - If deviations found → handle per STRUCTURED DEVIATION HANDLING below
 - If either reviewer finds issues: implementer fixes → reviewer re-reviews → repeat until approved
-- After each BATCH completes: report progress (tasks completed, test status, discoveries), then collect feedback (interactive) or log summary (autonomous)
+- Append TASK_COMPLETE to SESSION.log with token/duration/review outcomes after both reviews pass
+- After each BATCH completes: report progress (tasks completed, test status, discoveries, token usage, duration), then collect feedback (interactive) or log summary (autonomous)
 - At each MILESTONE BOUNDARY (all tasks in the milestone complete + tests pass): run /atcommit to organize accumulated changes into atomic commits grouped by concept
 - STOP IMMEDIATELY on: missing dependencies, systemic test failures, unclear instructions, repeated verification failures, or discoveries that invalidate plan assumptions
-- RE-PLAN TRIGGER: if a discovery reveals the plan needs fundamental changes, stop the batch, log with evidence, re-read the plan, and adjust before proceeding
-- Never dispatch multiple implementers in parallel (causes conflicts)
 - Never skip either review stage
 - Never proceed to next task while review issues remain open
 - Never continue past a batch boundary without reporting
 - Instruct subagents to quote relevant context before acting — this grounds their responses in actual data
+
+TOKEN AND TIMING TRACKING:
+- After each subagent Task completes, extract total_tokens and duration_ms from the Task result
+- Track cumulatively: per-task (implementer + reviewers), per-milestone (all tasks), grand total (all milestones + overhead)
+- Include token/duration data in batch reports and SESSION.log entries
+- Report grand totals in SESSION_COMPLETE at the end
+
+STRUCTURED DEVIATION HANDLING:
+- When an implementer or reviewer reports something doesn't match the plan's assumptions, classify by severity:
+  - MINOR (wrong assumption, step needs adjusting, small addition): Interactive → propose specific PLAN.md edit, show before/after, ask user approval. Autonomous → log rationale, apply edit, continue.
+  - MAJOR (wrong approach, missing phase, scope change, fundamental rethink): Both modes → stop the batch, log with evidence in SESSION.log (DEVIATION_MAJOR), present issue to user, recommend re-planning (return to PLAN_DRAFT).
+- After resolving a deviation, re-read the latest PLAN.md before resuming
+- Log all deviations in SESSION.log and in Surprises & Discoveries of FEATURE.md
 
 BOUNDED ITERATIONS — diminishing returns after 2 fix cycles:
 - Review fix loops (spec or code quality): max 2 cycles per stage. After 2, escalate to user (interactive) or log caveats and proceed (autonomous)
@@ -501,7 +532,10 @@ REFINE -> RESEARCH -> PLAN_DRAFT -> PLAN_REVIEW -> EXECUTE -> VALIDATE -> DONE
                         +--- (changes requested)
 ```
 
-Per-task loop within EXECUTE: Dispatch implementer → Shift-left checks (lint/format/typecheck) → Spec review (max 2 fix cycles) → Code quality review (max 2 fix cycles) → Next task.
+Per-task loop within EXECUTE: Dispatch implementer → Shift-left checks (lint/format/typecheck) → Spec review (max 2 fix cycles) → Code quality review (max 2 fix cycles) → Log to SESSION.log → Next task.
+
+Milestone parallelism: when multiple milestones are ready and have no file overlap per File Impact Map,
+dispatch one implementer per milestone in a single message for parallel execution.
 
 See [references/phase-flow.md](references/phase-flow.md) for detailed phase descriptions, EXECUTE batch loop, DONE finalization sequence, and all agent dispatch details.
 
@@ -525,3 +559,4 @@ All files live in `~/docs/plans/do/<short-name>/`:
 | `PLAN.md` | PLAN_DRAFT | Milestones, task breakdown (TDD-first), validation strategy, recovery |
 | `REVIEW.md` | PLAN_REVIEW | Review feedback, required changes |
 | `VALIDATION.md` | VALIDATE | Test results, acceptance evidence, quality scorecard |
+| `SESSION.log` | EXECUTE entry | Append-only activity log with token/timing metrics per task and milestone |

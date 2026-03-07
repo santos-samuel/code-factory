@@ -131,6 +131,7 @@ Files for each phase:
 | `PLAN.md` | PLAN_DRAFT phase | Milestones, tasks, validation strategy |
 | `REVIEW.md` | PLAN_REVIEW phase | Review feedback, required changes |
 | `VALIDATION.md` | VALIDATE phase | Test results, acceptance evidence |
+| `SESSION.log` | EXECUTE entry | Append-only activity log with token/timing metrics |
 
 **Update protocol:**
 - All state writes go to `~/docs/plans/do/<short-name>/` — the directory containing the FEATURE.md from your dispatch prompt
@@ -626,24 +627,79 @@ If you have concerns, raise them NOW — before any code is written:
 - **Interactive mode**: Present concerns to the user and ask whether to proceed, adjust, or re-plan.
 - **Autonomous mode**: Log concerns in Decisions Made. Proceed if no critical issues; stop if the plan has fundamental gaps.
 
+**Session Activity Log (initialize ONCE on EXECUTE entry):**
+
+Create `SESSION.log` in the state directory (`~/docs/plans/do/<short-name>/`).
+Write the session header:
+
+```
+--- SESSION START ---
+feature: <short-name>
+date: <ISO date>
+branch: <branch name>
+workdir: <workdir_path>
+interaction_mode: <interactive|autonomous>
+---
+```
+
+Tell the user: "Session log at `~/docs/plans/do/<short-name>/SESSION.log` — open it in your editor to follow progress in real-time."
+
+Append timestamped entries after every significant action.
+The log is append-only — never rewrite or truncate.
+See state-file-schema.md for entry types and format.
+
 **Context Preparation (do this ONCE after plan review):**
 
-Read PLAN.md and extract ALL tasks with their full text, acceptance criteria, dependencies, and risk levels. Store this extracted context — you will inline it into each subagent dispatch. Never make subagents read plan files; provide full context directly in the prompt.
+Read PLAN.md and extract ALL tasks with their full text,
+acceptance criteria, dependencies, risk levels, and the **File Impact Map**.
+Build the **milestone dependency graph** from task dependencies.
+Store this extracted context — you will inline it into each subagent dispatch.
+Never make subagents read plan files; provide full context directly in the prompt.
+
+**Milestone-Level Parallelism:**
+
+After context preparation, identify **ready milestones** — milestones whose dependency milestones are all completed.
+When multiple milestones are ready simultaneously, check the File Impact Map for file overlap:
+
+| Condition | Execution Mode |
+|-----------|---------------|
+| Ready milestones have **no file overlap** in File Impact Map | Run in **parallel** — dispatch one implementer per ready milestone in a single response message |
+| Ready milestones **share modified files** | Run **sequentially** — one milestone at a time |
+
+Parallel dispatch example (3 ready milestones with no file overlap):
+```
+// In a SINGLE response, emit all Task calls:
+Task(subagent_type="productivity:implementer", description="Implement T-004 (M-002): <name>", prompt=<prompt>)
+Task(subagent_type="productivity:implementer", description="Implement T-007 (M-003): <name>", prompt=<prompt>)
+Task(subagent_type="productivity:implementer", description="Implement T-010 (M-004): <name>", prompt=<prompt>)
+```
+
+After all return, run shift-left checks and reviews for each task.
+Within a single milestone, tasks always run sequentially (they share files by definition).
+
+Append to SESSION.log when starting parallel milestones:
+```
+[<timestamp>] MILESTONE_START: M-002 (Title) [parallel with M-003, M-004]
+[<timestamp>] MILESTONE_START: M-003 (Title) [parallel with M-002, M-004]
+[<timestamp>] MILESTONE_START: M-004 (Title) [parallel with M-002, M-003]
+```
 
 **Batch Execution Model:**
 
-Tasks execute in **batches** (default: 3 tasks per batch). After each batch, stop and report before proceeding.
+Within each milestone, tasks execute in **batches** (default: 3 tasks per batch).
+After each batch (or parallel round across milestones), stop and report before proceeding.
 
 ```
-Per-batch sequence:
-1. EXECUTE batch (3 tasks) → 2. REPORT → 3. COLLECT FEEDBACK → 4. NEXT BATCH
+Per-round sequence:
+1. Identify ready milestones → 2. DISPATCH tasks (parallel across milestones) →
+3. SHIFT-LEFT per task → 4. REVIEWS per task → 5. REPORT → 6. COLLECT FEEDBACK → 7. NEXT ROUND
 
-Per-task sequence within batch:
-1. DISPATCH implementer → 2. SPEC REVIEW → 3. CODE QUALITY REVIEW → 4. UPDATE STATE
+Per-task sequence:
+1. DISPATCH implementer → 2. SHIFT-LEFT → 3. SPEC REVIEW → 4. CODE QUALITY REVIEW → 5. LOG to SESSION.log → 6. UPDATE STATE
 ```
 
 **Batch size adjustments:**
-- Default: 3 tasks per batch
+- Default: 3 tasks per batch (per milestone)
 - For high-risk tasks: reduce to 1 task per batch
 - The user can request a different batch size at any feedback checkpoint
 
@@ -813,16 +869,28 @@ Task(
 
 **If code quality reviewer recommends plan updates:** Log the recommendation in the Decisions Made section of FEATURE.md. If the deviation affects downstream tasks, update PLAN.md before proceeding.
 
-**Step 4: Update State**
+**Step 4: Update State and Log**
 
 After both reviews pass:
 - Mark task `[x]` with commit SHA in Progress
 - Record any review findings in Surprises and Discoveries
 - Update FEATURE.md state file (in `~/docs/plans/do/<short-name>/`)
+- Append `TASK_COMPLETE` entry to SESSION.log with token/duration/review outcomes:
+  ```
+  [<timestamp>] TASK_COMPLETE: T-XXX | tokens: <N>k | duration: <N>s | spec: <COMPLIANT|ISSUES (N fix cycles)> | quality: <APPROVED|ISSUES (N fix cycles)>
+  ```
+  Token and duration values = sum of implementer + spec reviewer + code quality reviewer for this task.
 - Check if the current batch is complete → if yes, proceed to **Batch Report**
 - Otherwise, proceed to the next task in the batch
 
-**Batch Report (after every N tasks):**
+At **milestone boundary** (all tasks in milestone complete + tests pass):
+- Run `/atcommit` to organize accumulated changes into atomic commits
+- Append `MILESTONE_COMPLETE` to SESSION.log:
+  ```
+  [<timestamp>] MILESTONE_COMPLETE: M-XXX | milestone_tokens: <N>k | milestone_duration: <N>s | commits: <N>
+  ```
+
+**Batch Report (after every batch or parallel round):**
 
 After completing a batch, stop and report:
 
@@ -837,12 +905,20 @@ After completing a batch, stop and report:
 - Tests: <passing/failing>
 - Lint: <passing/failing>
 
+### Resource Usage
+- Batch tokens: <total>k | Batch duration: <total>s
+- Running total: <cumulative>k tokens | <cumulative>s
+
 ### Discoveries
 - <any surprises or deviations found during this batch>
 
-### Next Batch
-- T-ZZZ: <description>
+### Milestone Status
+- <which milestones completed, which are in progress, which are newly unblocked>
+
+### Next Round
+- T-ZZZ: <description> (M-NNN)
 - ...
+- Parallel milestones available: <list if applicable>
 
 Ready for feedback.
 ```
@@ -873,22 +949,35 @@ AskUserQuestion(
 | Repeated verification failures (same check fails 2+ times) | Stop. The approach may be wrong. |
 | Discovery that invalidates the plan's assumptions | Stop. The plan may need fundamental changes. |
 
-**Re-Plan Trigger — Return to plan review when:**
+**Structured Deviation Handling:**
 
-If during execution you discover the plan needs fundamental changes (not minor fixes):
-1. Stop the current batch
-2. Log the discovery in Decisions Made with evidence
-3. Re-read the full PLAN.md to assess the impact
-4. **Interactive mode:** Present the issue and ask whether to continue, adjust the plan, or re-plan from scratch
-5. **Autonomous mode:** If the issue affects only downstream tasks, update PLAN.md and continue. If it affects the current approach fundamentally, stop and report.
+When an implementer or reviewer reports that something doesn't match the plan's assumptions,
+classify the deviation by severity and handle accordingly:
+
+**Minor deviation** — wrong assumption, step needs adjusting, small addition:
+- Detection: implementer says "this won't work because...", "this already exists", or reviewer flags plan misalignment as justified
+- **Interactive**: propose specific PLAN.md edit, show before/after diff, ask user via `AskUserQuestion` ("Approve edit" / "Modify edit" / "Re-plan from scratch"). Write ONLY after explicit approval.
+- **Autonomous**: log rationale in Decisions Made, apply the edit, continue.
+- Append to SESSION.log: `[<timestamp>] DEVIATION_MINOR: <milestone>/<task> — <description>`
+
+**Major deviation** — wrong approach, missing phase, scope change, fundamental rethink:
+- Detection: implementer reports approach is infeasible, or discovery invalidates multiple downstream tasks
+- **Both modes**: stop the current batch immediately, append to SESSION.log: `[<timestamp>] DEVIATION_MAJOR: <description>`
+- Present the issue to the user with full evidence
+- Recommend return to PLAN_DRAFT for re-planning
+- Do NOT continue executing tasks under a plan you know is wrong
+
+After resolving any deviation, re-read the latest PLAN.md before resuming — it may have changed.
+Log all deviations in both SESSION.log and the Surprises and Discoveries section of FEATURE.md.
 
 **Never:**
-- Dispatch multiple implementer subagents in parallel (causes conflicts)
+- Dispatch multiple implementer subagents for tasks within the SAME milestone in parallel (causes conflicts)
 - Skip either review stage (spec compliance OR code quality)
 - Proceed to the next task while review issues remain open
 - Start code quality review before spec compliance passes
 - Let implementer self-review replace the external reviews (both are needed)
 - Continue past a batch boundary without reporting (even in autonomous mode)
+- Continue executing tasks after a DEVIATION_MAJOR without user acknowledgment
 
 **Task execution rules:**
 - Update Progress section in FEATURE.md after each task (in `<workdir_path>/.plans/`)
@@ -1036,7 +1125,11 @@ AskUserQuestion(
 | **Discard** | Require typed confirmation "discard". Then `git worktree remove`, `git branch -D`. |
 
 5. Update state with outcome (PR URL, merge commit, or discard note)
-6. Archive state (move to `runs/completed/`)
+6. Append `SESSION_COMPLETE` to SESSION.log with grand totals:
+   ```
+   [<timestamp>] SESSION_COMPLETE | total_tokens: <N>k | total_duration: <N>s | commits: <N> | milestones: <completed>/<total>
+   ```
+7. Archive state (move to `runs/completed/`)
 
 **PR Title Guidelines:**
 - Keep under 70 characters

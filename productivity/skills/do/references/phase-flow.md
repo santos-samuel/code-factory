@@ -5,19 +5,24 @@ Reference for detailed phase behaviors. Loaded by the orchestrator when executin
 ## EXECUTE Batch Loop
 
 ```
-Plan Critical Review -> Pre-flight (build + test baseline) -> Execute Batch (3 tasks) -> Batch Report -> Feedback -> Next Batch
-                                                                    |                                        ^
-                                                                    v                                        |
-                                                              Per-task loop:                           (loop batches)
-                                                              Dispatch implementer -> Shift-left (lint/format/typecheck)
-                                                                    -> Spec review (max 2 fix cycles)
-                                                                    -> Code quality review (max 2 fix cycles)
-                                                                    -> Next task
-                                                              At MILESTONE BOUNDARY:
-                                                              Run /atcommit -> groups changes by concept -> 3-5 atomic commits
+Plan Critical Review -> Pre-flight (build + test baseline) -> Initialize SESSION.log
+  -> Identify ready milestones (dependency graph) -> Execute round -> Batch Report -> Feedback -> Next round
+
+Execute round:
+  1. Find READY milestones (all dependencies completed, status = pending or in_progress)
+  2. If multiple ready milestones have NO file overlap (per File Impact Map) -> run in PARALLEL
+     Otherwise -> run SEQUENTIALLY (current behavior)
+  3. For each active milestone, pick next task:
+     - Dispatch implementers (parallel across milestones, sequential within)
+     - Shift-left (lint/format/typecheck) per task
+     - Spec review (max 2 fix cycles) per task
+     - Code quality review (max 2 fix cycles) per task
+     - Append TASK_COMPLETE to SESSION.log with tokens/duration
+  4. At MILESTONE BOUNDARY: Run /atcommit, append MILESTONE_COMPLETE to SESSION.log
 
 STOP on: missing deps, test failures, unclear instructions, repeated failures, plan-invalidating discoveries
-RE-PLAN on: fundamental plan changes needed
+DEVIATION_MINOR: propose plan edit, ask user (interactive) or log and adjust (autonomous)
+DEVIATION_MAJOR: pause execution, recommend re-planning
 ```
 
 ## DONE Finalization
@@ -83,29 +88,81 @@ Tests pass -> /atcommit (remaining) -> git push -> /pr (create PR) -> /pr-fix (v
 - **Autonomous**: Auto-approve if no critical issues, loop back for required changes only
 
 ## EXECUTE Phase
-**Working directory is already set up.** Branch and worktree (if applicable) were created in Step 4 before any phase work began. The orchestrator works from `<workdir_path>` and writes all state to `~/docs/plans/do/<short-name>/`.
+**Working directory is already set up.** Branch and worktree (if applicable) were created in Step 4 before any phase work began.
+The orchestrator works from `<workdir_path>` and writes all state to `~/docs/plans/do/<short-name>/`.
+
+**Session Activity Log:**
+
+Initialize `SESSION.log` in the state directory on EXECUTE entry.
+Append timestamped entries after every significant action (see state-file-schema.md for entry types and format).
+The log is append-only — never rewrite or truncate.
+Tell the user the log path so they can open it in their editor to watch progress in real-time.
 
 **Plan critical review — before implementing anything:**
 
-The orchestrator re-reads the entire plan with fresh eyes, verifies task ordering and dependencies, checks the worktree has what the plan expects. Raises concerns before any code is written.
+The orchestrator re-reads the entire plan with fresh eyes,
+verifies task ordering and dependencies,
+checks the worktree has what the plan expects.
+Raises concerns before any code is written.
 
-**Batch execution with two-stage review:**
+**Context Preparation:**
 
-The orchestrator reads the plan once, extracts all tasks with full text, then executes tasks in **batches of 3** (adjustable). After each batch: report progress, collect feedback (interactive) or log summary (autonomous), then continue.
+Read PLAN.md and extract ALL tasks with their full text,
+acceptance criteria, dependencies, risk levels, and the File Impact Map.
+Build the milestone dependency graph.
+Store this extracted context — you will inline it into each subagent dispatch.
+Never make subagents read plan files; provide full context directly in the prompt.
 
-Per-task sequence within each batch:
-1. **Dispatch fresh implementer** with full task text + scene-setting context inlined (milestone position, prior task summary, upcoming tasks, relevant discoveries, architectural context)
+**Milestone-Level Parallelism:**
+
+After context preparation, identify **ready milestones** — milestones whose dependencies are all completed.
+When multiple milestones are ready simultaneously, check the File Impact Map for file overlap:
+
+| Condition | Execution Mode |
+|-----------|---------------|
+| Ready milestones have **no file overlap** in File Impact Map | Run in **parallel** — one task per milestone dispatched in a single message |
+| Ready milestones **share modified files** | Run **sequentially** — one milestone at a time (current behavior) |
+
+Parallel dispatch: spawn one implementer Task per ready milestone in a single response message.
+After all return, run shift-left checks and reviews for each.
+Within a single milestone, tasks always run sequentially (they share files by definition).
+
+Log parallel milestones in SESSION.log: `MILESTONE_START: M-002 (Title) [parallel with M-003]`
+
+**Per-task sequence** (same whether running one or multiple milestones):
+
+1. **Dispatch fresh implementer** with full task text + scene-setting context inlined
+   (milestone position, prior task summary, upcoming tasks, relevant discoveries, architectural context)
 2. Implementer asks questions → answers provided → implements → self-reviews → reports (NO commit)
-3. **Shift-left validation** (deterministic — orchestrator runs directly, no subagent): lint + format + type-check. Auto-fix formatting. Return to implementer if lint/type errors persist. Only proceed to reviews after shift-left passes.
-4. **Spec compliance review** — fresh reviewer acknowledges strengths, then verifies implementation matches spec (nothing missing, nothing extra, nothing misunderstood)
+3. **Shift-left validation** (deterministic — orchestrator runs directly, no subagent):
+   lint + format + type-check. Auto-fix formatting.
+   Return to implementer if lint/type errors persist.
+   Only proceed to reviews after shift-left passes.
+4. **Spec compliance review** — fresh reviewer acknowledges strengths,
+   then verifies implementation matches spec (nothing missing, nothing extra, nothing misunderstood)
 5. If issues → implementer fixes → re-review (max 2 fix cycles, then escalate)
-6. **Code quality review** — fresh reviewer receives plan context, reports strengths first, then assesses code quality, architecture, plan alignment, patterns, testing
+6. **Code quality review** — fresh reviewer receives plan context,
+   reports strengths first, then assesses code quality, architecture, plan alignment, patterns, testing
 7. If critical issues → implementer fixes → re-review (max 2 fix cycles, then escalate)
-8. If plan deviations found → orchestrator updates PLAN.md if warranted
-9. Mark task complete, update state, proceed to next task in batch (do NOT commit yet)
+8. If plan deviations found → handle per **Structured Deviation Handling** below
+9. Mark task complete, update state, append `TASK_COMPLETE` to SESSION.log with token/duration metrics
 
-After each batch:
-- Report: tasks completed, test status, discoveries
+**Token and Timing Tracking:**
+
+After each subagent Task completes, extract `total_tokens` and `duration_ms` from the Task result.
+Track cumulatively at three levels:
+
+| Level | What's tracked | When reported |
+|-------|---------------|--------------|
+| Per-task | Sum of implementer + spec reviewer + code quality reviewer | TASK_COMPLETE log entry |
+| Per-milestone | Sum of all tasks in the milestone | MILESTONE_COMPLETE log entry |
+| Grand total | Sum of all milestones + overhead (research, planning, validation) | SESSION_COMPLETE log entry |
+
+Include token/duration data in batch reports so the user can see resource consumption.
+
+**Batch reporting** (after every batch or parallel round):
+
+Report: tasks completed, test status, discoveries, token usage, duration.
 - **Interactive**: Ask to continue, adjust, review code, or stop
 - **Autonomous**: Log summary and continue (stop only on blockers)
 
@@ -113,11 +170,24 @@ At milestone boundary (all tasks in milestone complete + tests pass):
 - Run `/atcommit` to organize ALL accumulated changes into atomic commits grouped by concept
 - `/atcommit` builds dependency graphs and groups files that belong together (e.g., package + tests, wiring + config)
 - Typical result: 3-5 commits per feature instead of one per task
-- Verify all commits build in isolation before proceeding to next milestone
+- Append `MILESTONE_COMPLETE` to SESSION.log with milestone totals and commit count
 
-**Mid-batch stop conditions**: missing dependencies, systemic test failures, unclear instructions, repeated verification failures, or discoveries that invalidate the plan's assumptions.
+**Mid-batch stop conditions**: missing dependencies, systemic test failures,
+unclear instructions, repeated verification failures,
+or discoveries that invalidate the plan's assumptions.
 
-**Re-plan trigger**: If a discovery during execution reveals the plan needs fundamental changes, stop the batch, log the discovery with evidence, and re-read the plan before proceeding.
+**Structured Deviation Handling:**
+
+When an implementer or reviewer reports that something doesn't match the plan's assumptions,
+classify the deviation by severity and handle accordingly:
+
+| Severity | Detection | Handling |
+|----------|-----------|---------|
+| **Minor** — wrong assumption, step needs adjusting, small addition | Implementer says "this won't work because..." or "this already exists" or reviewer flags plan misalignment as justified | **Interactive**: propose specific PLAN.md edit, show before/after, ask user approval via `AskUserQuestion` before writing. **Autonomous**: log rationale in Decisions Made, apply edit, continue. |
+| **Major** — wrong approach, missing phase, scope change, fundamental rethink | Implementer reports approach is infeasible, or discovery invalidates multiple downstream tasks | **Both modes**: stop the current batch, log with evidence in SESSION.log (`DEVIATION_MAJOR`), present the issue to the user. Recommend re-planning (return to PLAN_DRAFT). |
+
+After resolving a deviation, re-read the latest PLAN.md before resuming — it may have changed.
+Log all deviations in SESSION.log and in the Surprises and Discoveries section of FEATURE.md.
 
 **TDD-first execution for behavior-changing tasks:**
 When a task introduces or changes behavior, follow this exact sequence — no exceptions:

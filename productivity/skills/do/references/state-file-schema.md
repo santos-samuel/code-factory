@@ -11,6 +11,7 @@ Reference for the /do skill's state file format. Load when creating or parsing s
   PLAN.md                 # Milestones, tasks, validation strategy (written after PLAN_DRAFT)
   REVIEW.md               # Review feedback (written after PLAN_REVIEW)
   VALIDATION.md           # Validation results with evidence (written after VALIDATE)
+  SESSION.log             # Append-only activity log (written from EXECUTE onward)
 ```
 
 ## FEATURE.md (main state file)
@@ -169,6 +170,59 @@ interaction_mode: interactive  # or "autonomous"
 - (Questions that need answers before or during planning)
 - (Mark as BLOCKING if it prevents planning)
 ```
+
+## SESSION.log
+
+Append-only activity log for transparency and debugging.
+The orchestrator appends entries after each significant action.
+Users can open this file in their editor to watch progress in real-time.
+
+```
+--- SESSION START ---
+feature: <short-name>
+date: <ISO date>
+branch: <branch name>
+workdir: <workdir path>
+interaction_mode: <interactive|autonomous>
+---
+
+[2025-02-12T09:45:00Z] PHASE_ENTER: EXECUTE
+[2025-02-12T09:45:05Z] PLAN_REVIEW: Pre-flight build OK (0 errors), test baseline 142 pass / 0 fail (12.3s)
+[2025-02-12T09:46:00Z] MILESTONE_START: M-001 (Core Authentication)
+[2025-02-12T09:46:30Z] TASK_START: T-001 (Set up project structure)
+[2025-02-12T09:48:00Z] TASK_COMPLETE: T-001 | tokens: 23.4k | duration: 90s | spec: COMPLIANT | quality: APPROVED
+[2025-02-12T09:48:30Z] TASK_START: T-002 (Implement login endpoint)
+[2025-02-12T09:51:00Z] TASK_COMPLETE: T-002 | tokens: 45.1k | duration: 150s | spec: ISSUES (1 fix cycle) | quality: APPROVED
+[2025-02-12T09:51:30Z] TASK_START: T-003 (Add JWT generation)
+[2025-02-12T09:53:00Z] TASK_COMPLETE: T-003 | tokens: 31.2k | duration: 90s | spec: COMPLIANT | quality: APPROVED
+[2025-02-12T09:53:05Z] BATCH_COMPLETE: T-001..T-003 | batch_tokens: 99.7k | batch_duration: 395s
+[2025-02-12T09:53:10Z] MILESTONE_COMPLETE: M-001 | milestone_tokens: 99.7k | milestone_duration: 395s | commits: 3
+[2025-02-12T09:53:30Z] MILESTONE_START: M-002 (Protected Routes) [parallel with M-003]
+[2025-02-12T09:53:30Z] MILESTONE_START: M-003 (Rate Limiting) [parallel with M-002]
+[2025-02-12T09:55:00Z] TASK_COMPLETE: T-004 (M-002) | tokens: 28.3k | duration: 88s | spec: COMPLIANT | quality: APPROVED
+[2025-02-12T09:55:00Z] TASK_COMPLETE: T-006 (M-003) | tokens: 22.1k | duration: 85s | spec: COMPLIANT | quality: APPROVED
+[2025-02-12T09:57:00Z] DEVIATION_MINOR: M-003/T-007 — rate limiter needs Redis, plan assumed in-memory. Adjusted approach.
+[2025-02-12T10:02:00Z] PHASE_ENTER: VALIDATE
+[2025-02-12T10:05:00Z] PHASE_ENTER: DONE
+[2025-02-12T10:05:30Z] SESSION_COMPLETE | total_tokens: 289.4k | total_duration: 1230s | commits: 8 | milestones: 3/3
+```
+
+Entry types:
+
+| Entry | When |
+|-------|------|
+| `PHASE_ENTER` | Entering a new phase |
+| `PLAN_REVIEW` | Pre-flight check results |
+| `MILESTONE_START` | Starting a milestone (notes parallel milestones if applicable) |
+| `MILESTONE_COMPLETE` | All tasks in milestone done + committed |
+| `TASK_START` | Dispatching implementer for a task |
+| `TASK_COMPLETE` | Task passes both reviews (includes token/duration/review outcomes) |
+| `BATCH_COMPLETE` | Batch boundary reached (includes batch totals) |
+| `DEVIATION_MINOR` | Plan adjustment needed (logged with description) |
+| `DEVIATION_MAJOR` | Fundamental plan change — execution paused |
+| `SESSION_COMPLETE` | All phases done (includes grand totals) |
+
+Token and duration values are per-agent cumulative (implementer + spec reviewer + code quality reviewer summed for each task).
 
 ## PLAN.md
 
