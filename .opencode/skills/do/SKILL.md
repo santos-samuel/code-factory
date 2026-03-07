@@ -283,6 +283,71 @@ This grounds all downstream phases in actual content rather than link-only refer
 If no external references found, skip this step.
 Pass all hydrated content to the orchestrator via `<hydrated_context>` tags in the dispatch prompt.
 
+## Step 4d: Brainstorm Option (Interactive Mode Only)
+
+**Skip this step entirely in autonomous mode.**
+
+Before dispatching the orchestrator, ask whether the user wants to brainstorm the idea first:
+
+```
+AskUserQuestion(
+  header: "Brainstorm?",
+  question: "Would you like to brainstorm this idea before starting refinement?",
+  options: [
+    "Start refinement (Recommended)" -- Jump straight into refining the feature specification,
+    "Brainstorm first" -- Explore and sharpen the idea with a thinking partner before committing to building it
+  ]
+)
+```
+
+**If "Start refinement":** proceed to Step 5 with no changes.
+
+**If "Brainstorm first":**
+
+1. Create the brainstorm directory and file:
+
+```bash
+mkdir -p ~/docs/brainstorms
+TODAY=$(date +%Y-%m-%d)
+```
+
+Derive a brainstorm slug from the feature description (kebab-case, max 40 chars).
+Create `~/docs/brainstorms/<slug>.md` with the initial idea (same template as `/brainstorm` skill).
+
+2. Dispatch the brainstormer agent:
+
+```
+Task(
+  subagent = "brainstormer",
+  description = "Brainstorm before /do: <slug>",
+  prompt = "
+<brainstorm_file>
+<path>~/docs/brainstorms/<slug>.md</path>
+<content>
+<full file content>
+</content>
+</brainstorm_file>
+
+<idea>
+<the user's feature description>
+</idea>
+
+<today><TODAY></today>
+
+<task>
+Start a new brainstorm. The file has been created with the initial idea.
+Analyze whether the idea is problem-shaped or solution-shaped, then begin the diagnostic progression.
+Ask one question at a time. Update the brainstorm file after each exchange.
+This brainstorm feeds into a /do workflow — the sharpened problem will inform the REFINE phase.
+</task>
+"
+)
+```
+
+3. After the brainstormer completes, read `~/docs/brainstorms/<slug>.md`.
+4. Store the brainstorm content to include as `<brainstorm_context>` in the orchestrator dispatch.
+5. Proceed to Step 5.
+
 ## Step 5: Dispatch Orchestrator (New Mode)
 
 Dispatch to orchestrator with workdir already set up:
@@ -307,6 +372,11 @@ Task(
 <workdir_path>
 <WORKDIR_PATH>
 </workdir_path>
+
+<brainstorm_context>
+<contents of ~/docs/brainstorms/<slug>.md if brainstorming was done in Step 4d, otherwise omit this block>
+Pre-brainstormed problem analysis. The user already sharpened this idea — use it to accelerate REFINE.
+</brainstorm_context>
 
 <hydrated_context>
 <contents of all files in ~/docs/plans/do/<short-name>/CONTEXT/, if any>
