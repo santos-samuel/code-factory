@@ -114,6 +114,10 @@ If changes affect functionality, configuration, or behavior:
 - Update metadata files:
   - `plugin.json` in the affected plugin's `.claude-plugin/` directory.
   - `.claude-plugin/marketplace.json` if plugins are added or removed.
+- Keep `settings.json` skill permissions in sync:
+  - When adding a new skill: add a `Skill(<name>)` entry to `permissions.allow`.
+  - When removing a skill: remove its `Skill(<name>)` entry from `permissions.allow`.
+  - Only repo-defined skills get entries — never use `Skill(*)`.
 - Bump version numbers following [semantic versioning](https://semver.org/):
   - **patch** — bug fixes, typo corrections.
   - **minor** — new skills, new features, backward-compatible changes.
