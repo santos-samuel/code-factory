@@ -75,7 +75,7 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 
 ## `/do` Lifecycle
 
-Full lifecycle feature orchestration — from vague idea to merged PR. Supports interactive (approve at each phase) or autonomous (`--auto`) modes. All state persists in `~/docs/plans/do/<name>/` for cross-session resume.
+Full lifecycle feature orchestration — from vague idea to merged PR. Supports interactive (approve at each phase) or autonomous (`--auto`) modes. Pre-fetches external references (URLs, tickets, PRs) from the feature description before orchestration begins. All state persists in `~/docs/plans/do/<name>/` for cross-session resume.
 
 ### Phase Diagram
 
@@ -98,35 +98,35 @@ REFINE ──→ RESEARCH ──→ PLAN_DRAFT ──→ PLAN_REVIEW ──→ E
 | **RESEARCH** | `explorer` + `researcher` (parallel) | Explorer maps local codebase (modules, patterns, conventions). Researcher searches Confluence + external docs. Both mandatory. | Context, assumptions, constraints, risks, open questions |
 | **PLAN_DRAFT** | `planner` | Convert research into milestones and tasks. Plan embeds relevant context inline (not links only). | Milestones, task breakdown (TDD-first), validation strategy, recovery plan |
 | **PLAN_REVIEW** | `consistency-checker` → `reviewer` | **Step 1:** Consistency checker fixes contradictions, mismatched IDs, path inconsistencies, terminology drift (edits directly, max 10 iterations, `sonnet` model). **Step 2:** Reviewer critiques coverage, paths, dependencies, safety, executability. May loop back to PLAN_DRAFT. | Review report, required changes |
-| **EXECUTE** | `implementer` + `spec-reviewer` + `code-quality-reviewer` | Batched execution with two-stage review (see below). TDD enforced for behavioral tasks. Atomic commits at milestone boundaries via `/atcommit`. | Implemented code, atomic commits |
+| **EXECUTE** | `implementer` + `spec-reviewer` + `code-quality-reviewer` | Batched execution with shift-left validation and two-stage review (see below). TDD enforced for behavioral tasks. Atomic commits at milestone boundaries via `/atcommit`. | Implemented code, atomic commits |
 | **VALIDATE** | `validator` | Run automated checks + quality scorecard (1-5 per dimension). All dimensions must score ≥ 3/5. May loop back to EXECUTE. | Validation report, acceptance evidence, quality scorecard |
 | **DONE** | — | Write retrospective, run final test suite. Create PR (interactive: user chooses; autonomous: auto-creates). | PR URL or merge commit |
 
 ### EXECUTE Phase — Batch Loop
 
 ```
-Plan Critical Review → Execute Batch (3 tasks) → Batch Report → Feedback → Next Batch
-                             |                                       ^
-                             v                                       |
-                       Per-task loop:                          (loop batches)
-                       Dispatch implementer → Spec review → Code quality review → Next task
-                             ^                    |                  |
-                             +── Fix gaps ←── ISSUES           Fix issues
-                             +── Fix quality ←──────────────── ISSUES
-
-                       At MILESTONE BOUNDARY (all milestone tasks done + tests pass):
-                       Run /atcommit → group changes by concept → 3-5 atomic commits
+Plan Critical Review → Pre-flight (build + test baseline) → Execute Batch (3 tasks) → Batch Report → Feedback → Next Batch
+                                                                  |                                       ^
+                                                                  v                                       |
+                                                            Per-task loop:                          (loop batches)
+                                                            Dispatch implementer → Shift-left (lint/format/typecheck)
+                                                                  → Spec review (max 2 fix cycles)
+                                                                  → Code quality review (max 2 fix cycles)
+                                                                  → Next task
+                                                            At MILESTONE BOUNDARY:
+                                                            Run /atcommit → group changes by concept → 3-5 atomic commits
 ```
 
 **Per-task sequence:**
 
 1. Dispatch fresh `implementer` with full task text + scene-setting context (milestone position, prior task summary, upcoming tasks, discoveries, architecture)
 2. Implementer asks questions → answers provided → implements → self-reviews → reports (no commit)
-3. `spec-reviewer` verifies implementation matches spec (nothing missing, nothing extra, nothing misunderstood)
-4. If issues → implementer fixes → re-review (loop until compliant)
-5. `code-quality-reviewer` assesses maintainability, testing, conventions, plan alignment
-6. If critical issues → implementer fixes → re-review (loop until approved)
-7. Mark task complete, update state, proceed to next task in batch (no commit yet)
+3. **Shift-left validation** (deterministic — orchestrator runs directly): lint + format + type-check. Auto-fixes formatting. Returns to implementer if errors persist.
+4. `spec-reviewer` verifies implementation matches spec (nothing missing, nothing extra, nothing misunderstood)
+5. If issues → implementer fixes → re-review (max 2 fix cycles, then escalate)
+6. `code-quality-reviewer` assesses maintainability, testing, conventions, plan alignment
+7. If critical issues → implementer fixes → re-review (max 2 fix cycles, then escalate)
+8. Mark task complete, update state, proceed to next task in batch (no commit yet)
 
 **TDD enforcement** (behavioral tasks only):
 
