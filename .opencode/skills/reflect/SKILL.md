@@ -99,7 +99,8 @@ Apply directly to the target knowledge file:
 1. Identify the correct section in the target file (or create a new section if needed)
 2. Append the learning as a concise imperative bullet point
 3. Use the Edit tool — never restructure or reorganize the file
-4. Report: "Auto-applied: [learning] → [file]:[section]"
+4. Format all written Markdown with semantic line breaks: one sentence per line, break after clause-separating punctuation. Target 120 characters per line.
+5. Report: "Auto-applied: [learning] → [file]:[section]"
 
 **Medium confidence (0.5–0.79):**
 

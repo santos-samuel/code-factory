@@ -80,6 +80,8 @@ fi
 
 Generate a session ID: `<timestamp>-<slug>` (slug from the bug description, kebab-case, max 30 chars).
 
+Format all Markdown written to state files with semantic line breaks: one sentence per line, break after clause-separating punctuation (commas, semicolons, colons). Target 120 characters per line.
+
 Create `$STATE_ROOT/<session-id>/DEBUG.md`:
 
 ```markdown

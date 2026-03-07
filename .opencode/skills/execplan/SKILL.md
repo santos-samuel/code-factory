@@ -146,6 +146,8 @@ AskUserQuestion(
 
 Include the chosen approach in the dispatch to the plan author.
 
+**Semantic line feeds:** All prose in authored plans must use semantic line breaks — one sentence per line, break after clause-separating punctuation (commas, semicolons, colons, em dashes). Target 120 characters per line. Rendered output is unchanged; this produces cleaner diffs and per-sentence review. Include this rule in the dispatch prompt.
+
 Generate a slug from the task description: lowercase, hyphens, max 50 chars.
 
 Read [references/author-instructions.md](references/author-instructions.md) and use the `<instructions>` block from it.

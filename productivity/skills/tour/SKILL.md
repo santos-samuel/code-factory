@@ -160,6 +160,17 @@ Write the tour to a file (default: `/tmp/tour-{topic}.md`) or print inline if sh
     component A → component B → component C
 </output-format>
 
+#### Writing Style: Semantic Line Feeds
+
+Format the tour document source with semantic line breaks:
+- One sentence per line.
+- Break after commas, semicolons, colons, or em dashes separating substantial clauses.
+- Target 120 characters per line.
+- Never split hyphenated words or break inside a clause.
+
+Rendered output is unchanged — Markdown joins adjacent lines into paragraphs.
+Cleaner diffs, per-sentence review, natural editing units.
+
 #### Guidelines
 
 - Each stop covers one logical area (a type, a handler, an integration point)

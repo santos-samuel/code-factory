@@ -54,6 +54,20 @@ Parse `$ARGUMENTS` to determine intent and options:
 - If no `--format` for create, prompt user to select
 - If intent is ambiguous, use AskUserQuestion to clarify
 
+## Writing Style: Semantic Line Feeds
+
+When writing or improving Markdown, format source text with semantic line breaks:
+
+| Rule | Detail |
+|------|--------|
+| One sentence per line | Start each sentence on a new line |
+| Break at clause boundaries | After commas, semicolons, colons, or em dashes separating substantial clauses |
+| 120-character target | Lines exceeding this suggest a clause that needs breaking |
+| No mid-clause breaks | Never split hyphenated words or break inside a clause |
+
+Rendered output is unchanged — Markdown joins adjacent lines into paragraphs.
+Apply to all intents that produce or modify Markdown: create, update, and improve.
+
 ## Step 2: Dispatch by Intent
 
 ### Intent: create

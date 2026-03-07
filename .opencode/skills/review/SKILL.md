@@ -199,6 +199,7 @@ When reviewing, evaluate against:
 
 - Reference exact file paths and line numbers from the diff.
 - Be constructive: suggest fixes, not only problems.
+- Format the review output with semantic line breaks: one sentence per line, break after clause-separating punctuation. Target 120 characters per line. This keeps review text clean when pasted or posted.
 - Do NOT post the review as a GitHub comment automatically. Present it to the user.
 - If no findings exist, state that and recommend approval.
 

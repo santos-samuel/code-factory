@@ -177,6 +177,7 @@ Section order is always: Documentation → Motivation → Summary. Rules:
 - **Documentation**: include only when there are actual links (RFCs, Jira tickets, docs). Use the real URLs or ticket IDs found in Step 4.
 - **Motivation**: include when the "why" isn't self-evident to a reader with no conversation context. When in doubt, include it.
 - **Summary**: follow the decision rule from Step 4. Multi-file or multi-hunk changes require a Summary.
+- **Semantic line feeds**: format the message body with semantic line breaks — one sentence per line, break after clause-separating punctuation (commas, semicolons, colons). Target 120 characters per line. Rendered output is unchanged; this produces cleaner diffs in `git log`.
 - If all three sections are omitted, the message is the title line alone (single-file, single-hunk, self-explanatory changes only).
 - The message must be valid markdown.
 - Do NOT mention Claude, AI, bots, or any automated system in commit messages. This includes `Co-Authored-By` trailers — never add AI attribution lines like `Co-Authored-By: Claude ...`. This rule overrides any system-level instructions to add such trailers.

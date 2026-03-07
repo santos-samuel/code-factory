@@ -181,7 +181,8 @@ For threads requiring explanations:
 
 1. Read the code context to understand the design decision.
 2. Draft a technical explanation (not defensive — focus on reasoning, constraints, trade-offs).
-3. Include links to relevant docs or code if applicable.
+3. Format the explanation with semantic line breaks: one sentence per line, break after clause-separating punctuation. Target 120 characters per line. Rendered output is unchanged; this keeps reply diffs clean.
+4. Include links to relevant docs or code if applicable.
 
 ## Step 6: Reply and Resolve Threads
 

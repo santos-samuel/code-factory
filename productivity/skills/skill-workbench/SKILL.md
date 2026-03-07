@@ -144,6 +144,7 @@ Write `{plugin}/skills/{name}/SKILL.md` using the template from [new-skill-templ
 | Error handling | Final `## Error Handling` section as a table of failure modes and resolutions |
 | Description = triggers only | Description says WHEN to use the skill, never summarizes the workflow |
 | Concise | One sentence per concept. Tables over paragraphs. No filler words. |
+| Semantic line feeds | One sentence per line. Break after clause-separating punctuation (commas, semicolons, colons, em dashes). Target 120 characters per line. Rendered output is unchanged — cleaner diffs and per-sentence review. |
 | Specific commands | `Run make all` not "validate your changes" |
 | Under 500 lines | Move heavy reference material to separate files in the skill directory |
 | Self-contained | Works without external context. Duplication preferred over external dependencies. |
