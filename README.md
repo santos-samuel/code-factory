@@ -14,7 +14,7 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 | `/workspace` | productivity | Manage Datadog remote development workspaces |
 | `/reflect` | productivity | Capture session learnings into knowledge files |
 | `/brag` | productivity | Update brag document with recent accomplishments |
-| `/daily` | productivity | Daily work journal in Obsidian vault |
+| `/daily` | productivity | Daily work journal and weekly summaries in Obsidian vault |
 | `/notes` | productivity | Obsidian notes: 1:1s, meetings, career plans, promotions |
 | `/skill-workbench` | productivity | Create or improve skills and agents |
 | `/review` | productivity | Review a pull request with structured findings |
@@ -44,7 +44,7 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 - `/workspace` -- Datadog workspace lifecycle management (`create`, `list`, `delete`, `ssh`, `connect`, `validate`).
 - `/reflect` -- Session learning extraction with confidence-based auto-apply/queue behavior.
 - `/brag` -- Brag document management: auto-collects work from GitHub, Jira, Confluence, git, and daily logs; asks interactive questions for undiscoverable work; maintains monthly docs at `~/log/YYYY-MM/brag.md`.
-- `/daily` -- Daily work journal in Obsidian: captures work activity, meetings, achievements, team pulse, travel, learning, and kudos. Resolves people names via Obsidian People directory with wikilinks and backlinks. Feeds into `/brag` as a data source.
+- `/daily` -- Daily work journal and weekly summaries in Obsidian: captures work activity, meetings, achievements, team pulse, travel, learning, and kudos. Weekly summary mode (`/daily summary`) aggregates daily notes with GitHub PRs, Jira tickets, and Confluence pages into dual-format output (Confluence + Slack). Resolves people names via Obsidian People directory with wikilinks and backlinks. Feeds into `/brag` as a data source.
 - `/notes` -- Obsidian notes management: 1:1 records, meeting notes, per-person career plans, promotion proposals, achievements tracking, and general notes. Shares `~/docs/People/` directory with `/daily` for graph integration.
 - `/skill-workbench` -- Skill and agent creation/improvement toolkit.
 

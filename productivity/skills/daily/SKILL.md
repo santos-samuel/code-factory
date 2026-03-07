@@ -4,18 +4,21 @@ description: >
   Use when the user narrates what happened during their workday —
   even if they never say "daily note" or "log".
   The key signal is that they are reporting past or current work activity.
+  Also use when the user wants a weekly summary of their personal work.
   Triggers: "today I had 3 one-on-ones and merged DATA-1234",
   "eod update: reviewed PRs, booked travel, team seems burnt out",
   "standup: blocked on infra, made progress on benchmarks",
   "kudos to Sarah for jumping in on that production issue",
   "spent the day in meetings", "read a great blog post about real-time sync",
-  "daily log", "daily note", "log my day", "end of day update".
+  "daily log", "daily note", "log my day", "end of day update",
+  "weekly summary", "summarize my week", "what did I do this week",
+  "week in review", "last week", "prepare my weekly update".
   Does NOT handle: structured brag documents or performance review prep (use `/brag`),
   person-specific accomplishment tracking, feedback about a person's performance,
-  work planning or task breakdowns.
+  work planning or task breakdowns, team-level reporting.
 argument-hint: "[today's update or 'summary' for weekly summary]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date:*), Bash(mkdir:*), Bash(ls:*), AskUserQuestion
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date:*), Bash(mkdir:*), Bash(ls:*), Bash(gh:*), AskUserQuestion, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__searchConfluenceUsingCql
 ---
 
 # Daily Log
@@ -211,12 +214,169 @@ Keep the confirmation short — just enough so the user knows it worked.
 If the user provides updates spanning multiple days,
 create/update each day's file separately.
 
-### Weekly summaries
+### Weekly Summary
 
 If the user asks to summarize their week (or passes "summary" as argument),
-read all daily notes for the current (or specified) week
-and produce a coherent summary organized by theme rather than by day.
-This is a read-only operation — don't modify the daily notes.
+follow this workflow instead of the daily capture flow (Steps 2-7).
+
+#### W1: Determine Week Range
+
+Parse arguments to determine the target week:
+
+| Argument | Range |
+|----------|-------|
+| `summary` (no qualifier) | Most recently completed full week (Mon-Fri). If today is Friday, use current week. |
+| `summary this week` | Current Monday through today |
+| `summary last week` | Previous Monday through Friday |
+| `summary week of YYYY-MM-DD` | Monday through Friday of the week containing that date |
+
+Compute `WEEK_START` (Monday), `WEEK_END` (Friday or today if current week), and ISO week number:
+
+```bash
+# Example: get Monday of current week
+date -v-monday +%Y-%m-%d
+# ISO week number
+date +%V
+```
+
+Output file path: `~/docs/Daily/YYYY/Week NN.md`
+where `NN` is the zero-padded ISO week number (e.g., `Week 10.md`).
+
+#### W2: Collect Data
+
+Gather personal activity from multiple sources.
+Run independent queries in parallel where possible.
+Skip any source that isn't available — warn the user, continue with the rest.
+
+**W2a: Daily Notes**
+
+Read all daily note files for each weekday in the range:
+`~/docs/Daily/{YYYY}/{MM}/{YYYY-MM-DD}.md`
+
+A week can span two months (e.g., Jan 29 in `01/`, Feb 2 in `02/`) — compute each day's path individually.
+Extract all sections — these are the richest source of context.
+
+**W2b: Other Obsidian Notes**
+
+Search for notes modified during the target week:
+
+```bash
+# 1:1 notes
+ls ~/docs/1-1s/*/YYYY-MM-DD.md 2>/dev/null  # for each weekday
+# Meeting notes
+ls ~/docs/Meetings/YYYY-MM-DD-*.md 2>/dev/null  # for each weekday
+```
+
+Skim for highlights — important decisions, notable conversations.
+
+**W2c: GitHub PRs**
+
+Query PRs authored and merged during the week:
+
+```bash
+gh search prs --author=@me --created={WEEK_START}..{WEEK_END} \
+  --json title,url,state,repository,createdAt,mergedAt,additions,deletions --limit 30
+gh search prs --author=@me --merged={WEEK_START}..{WEEK_END} \
+  --json title,url,state,repository,createdAt,mergedAt,additions,deletions --limit 30
+```
+
+Deduplicate by URL across both queries.
+
+**W2d: Jira Tickets**
+
+```
+mcp__atlassian__searchJiraIssuesUsingJql(
+  jql = "assignee = currentUser() AND updated >= 'WEEK_START' AND updated <= 'WEEK_END' ORDER BY updated DESC",
+  limit = 50
+)
+```
+
+Note which tickets moved to Done/Resolved — those are accomplishments.
+
+**W2e: Confluence Pages**
+
+```
+mcp__atlassian__searchConfluenceUsingCql(
+  cql = "contributor = currentUser() AND lastmodified >= 'WEEK_START' AND lastmodified <= 'WEEK_END' AND type = page",
+  limit = 20
+)
+```
+
+#### W3: Synthesize
+
+Organize by theme, not by day or source.
+Cross-reference daily notes with PR/ticket data — a daily note may add context to a PR title.
+
+| Category | What to include |
+|----------|----------------|
+| **Key Accomplishments** | Things completed, shipped, merged, decided. Link to PRs/tickets. |
+| **In Progress** | Significant PRs opened, tickets advanced, ongoing projects |
+| **Collaboration** | PR reviews given, notable meetings, 1:1 takeaways, decisions made |
+| **Learning** | Articles, talks, workshops, new skills from daily Learning sections |
+| **Risks & Blockers** | Open blockers, risks flagged in daily notes |
+
+If a week was quiet, reflect that — don't pad.
+
+#### W4: Generate Outputs
+
+Produce two formats in the same file, separated by a horizontal rule.
+
+**Confluence format** (verbose, structured):
+
+```markdown
+---
+date_created: TODAY
+category: weekly-summary
+week: N
+week_start: WEEK_START
+week_end: WEEK_END
+tags: [weekly-summary, week-N]
+---
+
+# Week N Summary (Mon DD - Fri DD, YYYY)
+
+## Key Accomplishments
+- Accomplishment with context and [PR](url) / [TICKET-123](url) links
+
+## In Progress
+- Work items still underway with current status
+
+## Collaboration
+- PR reviews, notable meetings, decisions
+
+## Learning
+- Articles read, talks attended, new skills
+
+## Risks & Blockers
+- Open blockers or risks
+
+## Metrics
+- GitHub: X PRs merged, Y opened, Z reviews given
+- Jira: X tickets completed, Y in progress
+```
+
+**Slack format** (concise, max 15 bullets):
+
+```
+*Week N Summary (Mon DD - Fri DD)*
+
+*Highlights:*
+• Completed/shipped/merged X (TICKET-123)
+• Advanced Y — now in review
+• Key decision: Z
+
+*Metrics:* X tickets closed | Y PRs merged
+
+*Blockers:* (brief list or "None")
+```
+
+#### W5: Save and Present
+
+1. Compute path: `~/docs/Daily/{YYYY}/Week {NN}.md`
+2. Run `mkdir -p ~/docs/Daily/{YYYY}`
+3. Write the file with both formats (Confluence first, `---` divider, then Slack version)
+4. Show the Slack version in chat for easy copy-paste
+5. Report the file path and any data gaps (e.g., "Jira skipped — Atlassian MCP not available")
 
 ### Referring to past entries
 
@@ -238,3 +398,7 @@ The folder hierarchy (`YYYY/MM/`) naturally groups them.
 | Daily note has unexpected format | Append new items at the end rather than inserting into sections |
 | People file has unexpected format | Append `## Referenced In` section at the end |
 | User input is entirely empty | Ask what they'd like to log using AskUserQuestion |
+| `gh` CLI not installed or not authenticated | Skip GitHub collection in weekly summary, warn user, continue |
+| Atlassian MCP tools not available | Skip Jira/Confluence collection in weekly summary, warn user, continue |
+| No daily notes found for the target week | Proceed with GitHub/Jira/Confluence data only; warn user |
+| Weekly summary file already exists | Read it and ask whether to overwrite or skip |
