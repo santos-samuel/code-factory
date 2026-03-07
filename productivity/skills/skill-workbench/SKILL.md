@@ -16,16 +16,46 @@ Announce: "I'm using the skill workbench to work on skills in this repository."
 
 ## Path Safety
 
-**NEVER edit, write, or create files under `~/.claude` or `~/.config/opencode`.** These are managed directories — changes there are overwritten on plugin sync. Reading is fine for research purposes.
+Do not write to managed directories (`~/.claude` or `~/.config/opencode`) without explicit user approval.
+These directories are overwritten on plugin sync — changes made there are silently lost.
+Reading from them is fine for research.
 
-**Before every Write or Edit call**, verify the target path starts with `$REPO_ROOT`. If a file path contains `/.claude/` or `/.config/opencode/`, resolve it to the equivalent repo-relative path before writing.
+### Valid write targets
+
+| Target | When to use |
+|--------|------------|
+| `$REPO_ROOT/{plugin}/...` | Source skills and agents in the current repo |
+| `$REPO_ROOT/.opencode/...` | Generated OpenCode assets (via `sync-opencode.sh`, not direct edits) |
+| `~/.claude/projects/*/memory/` | MEMORY.md and pending-learnings (these are per-project, not managed by sync) |
+
+### Managed directories — resolve before writing
+
+**Before every Write or Edit call**, verify the target path is a valid write target above.
+If a path points to a managed directory, resolve it to the repo-relative equivalent:
 
 | Managed path prefix | Correct write target |
 |----------------------|-------------------|
 | `~/.claude/plugins/cache/{repo}/{plugin}/...` | `{repo-root}/{plugin}/...` |
 | `~/.config/opencode/skills/...` | `{repo-root}/.opencode/skills/...` |
+| `~/.claude/settings.*` | Ask the user before modifying |
 
-**Red flags — STOP if you think any of these:**
+### If you believe a managed directory needs editing
+
+Do not silently write there.
+Instead, explain why and ask the user:
+
+```
+AskUserQuestion(
+  header: "Write to managed directory?",
+  question: "I need to write to <path>, which is a managed directory (overwritten on sync). Reason: <why>. Proceed?",
+  options: [
+    "Yes — write there" -- I understand this may be overwritten,
+    "No — write to repo source instead" -- Resolve to the repo-relative path
+  ]
+)
+```
+
+### Red flags — STOP if you think any of these
 
 | Thought | Reality |
 |---------|---------|
@@ -404,4 +434,4 @@ Present a summary using the template in [references/report-template.md](referenc
 | Significant interface change | Describe the proposed change and ask the user before applying. |
 | Skill name conflicts with existing | Inform the user and suggest an alternative name. |
 | Reference file missing | Proceed with inline principles: concise, scannable, complete, consistent, self-contained. |
-| Write target under `~/.claude` or `~/.config/opencode` | NEVER write to managed directories. Resolve to the equivalent code-factory repo path. |
+| Write target under `~/.claude` or `~/.config/opencode` | Resolve to the repo-relative path. If resolution is not possible, ask the user before writing (see Path Safety section). |
