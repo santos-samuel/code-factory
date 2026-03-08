@@ -4,6 +4,11 @@ description: "Implementation agent. Executes code changes according to plan task
 model: "anthropic/claude-opus-4-6"
 skills: ["atcommit"]
 memory: "project"
+hooks:
+  PostToolUseFailure:
+    - type: command
+      command: "echo \"[$(date -u +%Y-%m-%dT%H:%M:%SZ)] TOOL_FAILURE: $TOOL_NAME\" >> /tmp/do-implementer-failures.log"
+      async: true
 mode: subagent
 tools:
   read: true

@@ -2,6 +2,7 @@
 name: reviewer
 description: "Plan review agent. Critically analyzes execution plans for completeness, safety, and executability. Identifies missing steps, risks, and suggests fixes."
 model: "anthropic/claude-opus-4-6"
+maxTurns: 15
 mode: subagent
 tools:
   read: true

@@ -4,8 +4,9 @@ description: >
   Use when the user wants to implement a feature with full lifecycle management.
   Triggers: "do", "implement feature", "build this", "create feature",
   "start new feature", "resume feature work", or references to FEATURE.md state files.
-argument-hint: "[feature description] [--auto to skip automation question]"
+argument-hint: "[feature description] [--auto] [--budget <USD>]"
 user-invocable: true
+allowed-tools: Read, Grep, Glob, Bash(git:*), Bash(gh:*), Bash(find:*), AskUserQuestion, WebFetch
 ---
 
 # Feature Development Orchestrator
@@ -104,6 +105,15 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 ```
 
 Check `$ARGUMENTS` for the `--auto` flag. If present, strip it from arguments and pre-select autonomous mode below.
+
+### 1b: Budget Configuration (Optional)
+
+Check arguments for `--budget <USD>`. If present:
+1. Strip `--budget <value>` from arguments
+2. Store in FEATURE.md frontmatter as `token_budget_usd: <value>`
+3. The orchestrator tracks cumulative token cost and pauses when approaching the budget
+
+If not present, `token_budget_usd` remains null (unlimited).
 
 ### 1a: Workspace and Automation Preferences
 
@@ -420,6 +430,14 @@ Run git reconciliation:
 3. Handle dirty working tree per `uncommitted_policy` in state
 
 Set `WORKDIR_PATH` from the state file's `worktree_path` (or `repo_root` if null).
+
+### State-Reality Verification
+
+Compare FEATURE.md Progress section against actual git history:
+1. For each "complete" task with a commit SHA: verify `git log --oneline | grep <SHA>` exists
+2. For each completed milestone: verify milestone commit exists in log
+3. Check if files from PLAN.md File Impact Map actually exist on disk
+4. If discrepancies found: include them in `<state_drift>` tags in the orchestrator dispatch prompt
 
 Dispatch to orchestrator with resume context:
 

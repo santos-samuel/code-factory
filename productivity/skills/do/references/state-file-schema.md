@@ -34,6 +34,7 @@ last_checkpoint: 2025-02-12T10:30:00Z
 last_commit: def456
 interaction_mode: interactive  # or "autonomous"
 ambiguity_score: 0.15  # weighted ambiguity from refiner (0.0-1.0, gate: <= 0.2)
+token_budget_usd: null  # optional, set via --budget flag (null = unlimited)
 ---
 
 # <Feature Name>

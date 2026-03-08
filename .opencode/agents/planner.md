@@ -2,6 +2,7 @@
 name: planner
 description: "Plan authoring agent. Converts research into actionable execution plans with milestones, tasks, and validation strategies. References both local codebase and external findings."
 model: "anthropic/claude-opus-4-6"
+memory: "project"
 mode: subagent
 tools:
   read: true

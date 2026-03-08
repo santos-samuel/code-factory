@@ -5,6 +5,11 @@ model: "opus"
 allowed_tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill"]
 skills: ["atcommit"]
 memory: "project"
+hooks:
+  PostToolUseFailure:
+    - type: command
+      command: "echo \"[$(date -u +%Y-%m-%dT%H:%M:%SZ)] TOOL_FAILURE: $TOOL_NAME\" >> /tmp/do-implementer-failures.log"
+      async: true
 ---
 
 # Implementer

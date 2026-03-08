@@ -43,6 +43,24 @@ These supplement the orchestrator's own agent rules with context only available 
 - If information cannot be verified, flag it as an open question — do not present it as fact
 - Each agent must stay in its designated role — refuse work outside its responsibility
 
+## Recommended Session Configuration
+
+For best results with /do, set effort level to High:
+- In Claude Code: run `/model` and select High effort
+- Via environment: set `CLAUDE_CODE_EFFORT_LEVEL=high`
+- Via settings.json: add `"effort": "high"` in the env block
+
+High effort enables full reasoning across all phases, reducing rework from shallow analysis.
+
+## Context Management
+
+/do is a long-running workflow that dispatches many subagents.
+Start with a fresh context (`/clear`) before invoking /do.
+The orchestrator manages its own context through subagent isolation —
+each subagent gets a fresh context with only the data it needs.
+If the orchestrator hits context limits, it uses state files as external memory
+and can re-load context from disk after compaction.
+
 ## Interaction Mode Rules
 
 - If interactive: Present a summary of outputs and STOP at every phase transition checkpoint.

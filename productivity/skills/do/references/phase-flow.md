@@ -181,7 +181,9 @@ Include token/duration data in batch reports so the user can see resource consum
 
 Report: tasks completed, test status, discoveries, token usage, duration.
 - **Interactive**: Ask to continue, adjust, review code, or stop
-- **Autonomous**: Log summary and continue (stop only on blockers)
+- **Autonomous**: Output a brief milestone progress line to the user at each MILESTONE_COMPLETE:
+  `Milestone M-XXX complete (<name>). Tasks: N/M done. Tokens: Xk. Duration: Xs. Next: M-YYY.`
+  Log summary and continue (stop only on blockers)
 
 At milestone boundary (all tasks in milestone complete + tests pass):
 - Run `/atcommit` to organize ALL accumulated changes into atomic commits grouped by concept
@@ -248,6 +250,17 @@ Finalization sequence — each step depends on the previous one succeeding.
 ### 1. Outcomes & Retrospective
 - Write Outcomes & Retrospective to FEATURE.md
 
+### 1.5 Documentation Update (Optional)
+
+Check if the feature affects user-facing behavior:
+- If API changes: update API docs
+- If new CLI flags: update README or help text
+- If behavior changes: update CHANGELOG.md entry
+
+If the plan included doc tasks, they were already done in EXECUTE.
+This step catches documentation that was missed by the plan.
+Skip if the feature is purely internal (no user-facing changes).
+
 ### 2. Final Test Suite
 - Run the full test suite one final time to confirm everything passes
 - If tests fail: loop back to EXECUTE to fix. Do NOT proceed with uncommitted broken code.
@@ -287,3 +300,4 @@ Finalization sequence — each step depends on the previous one succeeding.
 - Dispatch `memory-extractor` (haiku) with SESSION.log + Decisions Made + Surprises sections
 - Extracts reusable learnings (conventions, corrections, gotchas) into knowledge files
 - Runs after archival — cheap post-session knowledge capture
+- Dispatch with `run_in_background: true` — this is a non-blocking post-session task that should not delay completion reporting
