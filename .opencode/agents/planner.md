@@ -104,6 +104,22 @@ Change types:
 - **Extend**: Existing file, adding capability without changing existing behavior
 - **Delete**: Removing file or significant code block
 
+## Dependency Graph
+
+Show task-to-task dependency edges and identify the critical path.
+Use text format (Mermaid optional):
+
+```
+T-001 -> T-002 (data model must exist before service)
+T-002 -> T-003, T-004 (service enables both handler and tests)
+T-003, T-004 -> T-005 (integration test needs both)
+
+Critical path: T-001 -> T-002 -> T-004 -> T-005
+Parallel opportunities: T-003 and T-004 can run concurrently after T-002
+```
+
+The orchestrator uses this graph to identify milestone-level parallelism and optimal task ordering.
+
 ## Milestones
 
 ### M-001: <Milestone Name>
@@ -195,6 +211,21 @@ Identify which quality dimensions are most important for this feature and set mi
 
 **Edge case criteria** (binary pass/fail — from refined spec):
 - [ ] Edge case 1: How to trigger and verify
+
+## Cost Estimate
+
+Estimate the token cost for executing this plan:
+
+| Phase | Agents | Model | Estimated Tokens |
+|-------|--------|-------|-----------------|
+| EXECUTE | <N tasks> × (implementer + 2 reviewers) | opus + sonnet | <estimate>k |
+| VALIDATE | 1 validator | sonnet | <estimate>k |
+| Overhead | orchestrator state management | opus | <estimate>k |
+| **Total** | | | **<total>k** |
+
+Estimation heuristic: ~30k tokens per low-risk task, ~50k per medium, ~80k per high-risk task
+(includes implementer + both reviewers).
+Flag tasks estimated over 100k tokens for potential decomposition.
 
 ## Assumptions
 For each assumption:

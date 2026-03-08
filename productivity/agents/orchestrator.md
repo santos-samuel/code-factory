@@ -465,6 +465,11 @@ AskUserQuestion(
 
 **Autonomous mode:** Proceed directly to PLAN_REVIEW.
 
+3. After writing PLAN.md, report the cost estimate from the plan:
+   "Estimated execution cost: ~<N>k tokens across <M> tasks. <high-risk count> high-risk tasks."
+   **Interactive**: Include in the plan presentation before asking for approval.
+   **Autonomous**: Log in Decisions Made section of FEATURE.md.
+
 **Exit criteria:** Plan is complete enough for independent execution
 
 **Transition:** Update `current_phase: PLAN_REVIEW`, `phase_status: in_review`
@@ -678,6 +683,27 @@ Before implementing anything, re-read the entire PLAN.md with fresh eyes. Verify
 3. **Environment check** (deterministic): Verify build tools exist, dependencies are installed, and the test framework is available. Run a clean build from `<workdir_path>` to confirm the environment compiles.
 4. **Test baseline** (deterministic): Run the existing test suite to establish a green baseline. Record pass count and duration. This baseline is used for regression comparison during VALIDATE.
 
+**Pre-flight Validation Gate (deterministic — run directly, no subagent):**
+
+Before the first task, detect and run checks from `<workdir_path>`:
+
+| Check | Command Discovery | Gate |
+|-------|------------------|------|
+| Build/compile | Detect from `package.json` scripts, `Makefile`, `Cargo.toml`, `go.mod`, `pyproject.toml` | Must succeed (exit 0) |
+| Test suite | Run detected test command | Record baseline: pass count, fail count, duration |
+| Lint | Detect linter from config (`.eslintrc*`, `ruff.toml`, `.golangci.yml`, `clippy.toml`) | Must succeed |
+| Type check | Detect from `tsconfig.json`, `mypy.ini`, `pyproject.toml [tool.mypy]` | Must succeed |
+
+**Gate behavior:**
+- **Build fails**: STOP — the environment is broken. Interactive → report to user. Autonomous → stop and report.
+- **Tests fail**: Log pre-existing failures. These are NOT blamed on the implementer. Record as baseline.
+- **Lint/typecheck fail**: Log as warning, proceed. The implementer should not introduce new issues.
+
+Log results in SESSION.log:
+```
+[<timestamp>] PREFLIGHT: build OK | tests: <N> pass / <M> fail (<duration>) | lint OK | typecheck OK
+```
+
 If you have concerns, raise them NOW — before any code is written:
 - **Interactive mode**: Present concerns to the user and ask whether to proceed, adjust, or re-plan.
 - **Autonomous mode**: Log concerns in Decisions Made. Proceed if no critical issues; stop if the plan has fundamental gaps.
@@ -801,6 +827,20 @@ Task(
 
 If the implementer asks questions, answer clearly with full context, then let it proceed.
 
+**Cost-Aware Model Routing:**
+
+Select the model for each implementer dispatch based on task complexity from the plan:
+
+| Task Characteristics | Model Override | Rationale |
+|---------------------|---------------|-----------|
+| Risk: Low, single file, config/doc change | `model: "sonnet"` | Mechanical task, no deep reasoning needed |
+| Risk: Medium, 2-3 files, standard patterns | (default — opus) | Standard implementation complexity |
+| Risk: High, 4+ files, novel patterns, security | (default — opus) | Complex reasoning required |
+
+Override the implementer's default model by setting `model` in the Task call when routing to sonnet.
+Apply the same routing to reviewers: low-risk tasks get sonnet reviewers, medium/high get opus.
+When in doubt, use the agent's default model.
+
 **Step 1.5: Shift-Left Validation (Deterministic)**
 
 After the implementer reports completion, run fast local checks BEFORE dispatching review subagents.
@@ -865,7 +905,26 @@ Task(
 )
 ```
 
-**If spec reviewer finds issues:** Resume the implementer subagent to fix the specific gaps. Then re-run the spec review. **Max 2 fix cycles.** After 2 cycles without resolution, escalate to user (interactive) or log remaining issues as caveats and proceed (autonomous). Diminishing returns from repeated fix-review loops — invest tokens in getting it right the first time.
+**If spec reviewer finds issues:** Resume the implementer subagent to fix the specific gaps. Then re-run the spec review. **Max 2 fix cycles.** After 2 cycles without resolution, classify the stagnation pattern before escalating:
+
+**Stagnation Classification (when any fix cycle reaches max):**
+
+| Classification | Signal | Recovery Action |
+|---------------|--------|-----------------|
+| **Specification gap** | Reviewer keeps finding missing requirements not in the task | Return to REFINE — the spec is incomplete |
+| **Complexity underestimate** | Implementer cannot meet quality bar in 2 cycles | Split the task into 2-3 smaller tasks, re-plan the milestone |
+| **Environmental** | Tests fail due to infra, not code (flaky tests, missing deps) | Log as environmental blocker, skip to next task, defer fix |
+| **Fundamental mismatch** | Same issue recurs across multiple tasks in this milestone | DEVIATION_MAJOR — return to PLAN_DRAFT |
+
+Log classification in SESSION.log:
+```
+[<timestamp>] STAGNATION: T-XXX | classification: <type> | action: <taken>
+```
+
+- **Interactive**: Present classification and recommended action, ask user to confirm.
+- **Autonomous**: Auto-select recovery action based on classification.
+
+Diminishing returns from repeated fix-review loops — invest tokens in getting it right the first time.
 
 **Step 3: Code Quality Review**
 
@@ -1006,6 +1065,25 @@ At **milestone boundary** (all tasks in milestone complete + tests pass):
   ```
   [<timestamp>] MILESTONE_COMPLETE: M-XXX | milestone_tokens: <N>k | milestone_duration: <N>s | commits: <N>
   ```
+
+**Drift Measurement (deterministic — run at each milestone boundary after committing):**
+
+Measure implementation drift against the plan to detect scope creep or misalignment:
+
+| Dimension | Measurement | Threshold |
+|-----------|-------------|-----------|
+| File coverage | Compare File Impact Map planned files vs `git diff --name-only <base_ref>..HEAD` | >20% unplanned files → flag |
+| Scope creep | Count new public exports/functions not in plan tasks | Any unplanned public API → flag |
+| Test ratio | Lines of test code vs production code added this milestone | <0.3 ratio → flag |
+
+Log in SESSION.log:
+```
+[<timestamp>] DRIFT_CHECK: M-XXX | planned_files: N, actual_files: M, unplanned: K | test_ratio: 0.X | scope: OK/FLAGGED
+```
+
+**If drift is flagged:**
+- **Interactive**: Present drift findings and ask whether to continue, adjust, or re-plan.
+- **Autonomous**: Log drift in Surprises & Discoveries, continue. Stop only if >50% unplanned files.
 
 **Batch Report (after every batch or parallel round):**
 
@@ -1177,7 +1255,14 @@ Log all deviations in both SESSION.log and the Surprises and Discoveries section
    - Transition back to EXECUTE
    - **Max 2 validation-to-EXECUTE loops.** After 2 cycles, stop and report remaining issues to the user rather than continuing to iterate with diminishing returns.
 
-4. If validation passes (all checks pass AND quality gate passes):
+4. **Evolutionary feedback loop** — when acceptance criteria themselves are wrong (not just unmet):
+   - If validation evidence shows the criteria are fundamentally incorrect (e.g., the expected behavior described in the spec doesn't match how the system actually should work),
+     this is a spec problem, not an implementation problem.
+   - Interactive mode: present evidence to user, offer to loop back to REFINE to correct the criteria.
+   - Autonomous mode: log `EVOLUTIONARY_LOOP` entry in SESSION.log with evidence, loop back to REFINE automatically.
+   - This is rare — only trigger when evidence clearly shows the spec is wrong, not when implementation is merely incomplete.
+
+5. If validation passes (all checks pass AND quality gate passes):
    - Mark all criteria as verified in VALIDATION.md
 
 **User Checkpoint (if interactive mode):**
@@ -1247,6 +1332,56 @@ AskUserQuestion(
    [<timestamp>] SESSION_COMPLETE | total_tokens: <N>k | total_duration: <N>s | commits: <N> | milestones: <completed>/<total>
    ```
 7. Archive state (move to `runs/completed/`)
+
+### 7.5. Generate Workspace Handoff (Complex Features Only)
+
+For features with >= 3 milestones or any high-risk tasks, write `HANDOFF.md` in the state directory:
+
+```markdown
+# Handoff: <Feature Name>
+
+**Branch**: <branch name>
+**PR**: <PR URL>
+**Key Files Changed**: <list from File Impact Map>
+**Test Commands**: <from validation plan>
+**Risks**: <high-risk items and mitigation notes>
+**Decisions Made**: <summary from FEATURE.md>
+**Open Questions**: <any remaining from FEATURE.md>
+```
+
+Skip for simple features (< 3 milestones, no high-risk tasks) — the PR description is sufficient.
+
+### 7.6. Extract Session Learnings
+
+After archival, dispatch `memory-extractor` to capture reusable knowledge from the session:
+
+```
+Task(
+  subagent_type = "productivity:memory-extractor",
+  description = "Extract learnings: <short-name>",
+  prompt = "
+<session_log>
+<full SESSION.log content>
+</session_log>
+
+<decisions>
+<Decisions Made section from FEATURE.md>
+</decisions>
+
+<surprises>
+<Surprises and Discoveries section from FEATURE.md>
+</surprises>
+
+<task>
+Extract reusable learnings from this completed feature development session.
+Focus on: user corrections, codebase conventions discovered, patterns that worked or didn't,
+gotchas, and tool discoveries. Skip session-specific context and one-off debugging.
+</task>
+"
+)
+```
+
+This runs on the haiku model (cheap) and updates knowledge files for future sessions.
 
 **PR Title Guidelines:**
 - Keep under 70 characters

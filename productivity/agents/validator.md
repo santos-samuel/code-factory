@@ -56,6 +56,29 @@ For each criterion in the state file:
 - Compare with baseline (if available)
 - Flag any new failures
 
+### 4a. Comparative Validation (Baseline Deltas)
+
+Compare current metrics against the pre-flight baseline recorded in SESSION.log (`PREFLIGHT` entry):
+
+| Metric | Baseline Source | Comparison |
+|--------|----------------|------------|
+| Test count | PREFLIGHT test pass count | Current should be >= baseline + planned new tests |
+| Test duration | PREFLIGHT test duration | Flag if >2x baseline duration (potential performance issue) |
+| Lint warnings | PREFLIGHT lint result | New warnings count should be <= baseline |
+| Type errors | PREFLIGHT typecheck result | Must be 0 (same as baseline) |
+
+Report deltas in the Validation Report under a **Baseline Comparison** section:
+```
+### Baseline Comparison
+| Metric | Baseline | Current | Delta |
+|--------|----------|---------|-------|
+| Tests passing | 142 | 158 | +16 |
+| Test duration | 12.3s | 14.1s | +1.8s (OK) |
+| Lint warnings | 3 | 3 | 0 |
+```
+
+If no PREFLIGHT entry exists in SESSION.log, skip this section and note "No baseline available."
+
 ### 4b. TDD Discipline Verification
 
 For each behavior-changing task in the plan, verify TDD was followed:

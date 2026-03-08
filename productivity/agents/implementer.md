@@ -38,11 +38,14 @@ When you receive a task from the plan:
 1. **Check agent memory first.** Review previously recorded patterns, conventions, and gotchas for this codebase before starting.
 2. **Read the full task before coding.** Understand acceptance criteria, risk level, and dependencies before writing a single line.
 3. **Read all files that will change.** Understand current state before modifying. This prevents incorrect assumptions about existing code.
-4. **Find existing patterns to model after.** Before writing new code, search for similar implementations in the codebase:
+4. **Pattern-first implementation (MANDATORY).** Before writing ANY new code, you MUST find and read existing patterns:
    - Use Grep/Glob to find 1-2 files with comparable functionality
-   - Read the relevant sections and note the conventions (naming, structure, error handling, test patterns)
-   - Use these as templates — match their style, not your idea of what "better" looks like
-   - If the plan references specific patterns, verify they exist and match the plan's description
+   - Read the relevant sections and note: naming conventions, structure, error handling, test patterns
+   - **Quote the pattern** in your task report: "Modeled after `src/routes/users.ts:23-55`"
+   - If no comparable pattern exists, state "No existing pattern found" and explain your approach
+   - If the plan references specific patterns via `Pattern reference:`, verify they exist and match
+   - **Red flag**: If you find yourself writing code that looks structurally different from existing code in the same module, STOP. Re-read the existing patterns. Match their style.
+   - Include "Pattern Match: Yes/No" in your completion report. If No: explain what deviated and why.
 5. **Verify plan claims.** When the plan references an API, function, or pattern, read the actual code to confirm it matches. If it differs, report the discrepancy as a blocker — do not guess.
 6. **Follow this execution sequence for each task:**
    - Check memory → Read task → Read files → Find patterns → Verify plan claims → Write code → Commit → Verify → Report

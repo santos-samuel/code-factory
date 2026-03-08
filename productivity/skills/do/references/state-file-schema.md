@@ -12,6 +12,7 @@ Reference for the /do skill's state file format. Load when creating or parsing s
   REVIEW.md               # Review feedback (written after PLAN_REVIEW)
   VALIDATION.md           # Validation results with evidence (written after VALIDATE)
   SESSION.log             # Append-only activity log (written from EXECUTE onward)
+  HANDOFF.md              # Workspace handoff for complex features (written in DONE, optional)
 ```
 
 ## FEATURE.md (main state file)
@@ -32,6 +33,7 @@ milestone_current: M-002
 last_checkpoint: 2025-02-12T10:30:00Z
 last_commit: def456
 interaction_mode: interactive  # or "autonomous"
+ambiguity_score: 0.15  # weighted ambiguity from refiner (0.0-1.0, gate: <= 0.2)
 ---
 
 # <Feature Name>
@@ -220,6 +222,10 @@ Entry types:
 | `BATCH_COMPLETE` | Batch boundary reached (includes batch totals) |
 | `DEVIATION_MINOR` | Plan adjustment needed (logged with description) |
 | `DEVIATION_MAJOR` | Fundamental plan change — execution paused |
+| `PREFLIGHT` | Pre-flight validation gate results (build, tests, lint, typecheck baselines) |
+| `DRIFT_CHECK` | Milestone boundary drift measurement (planned vs actual files, test ratio, scope) |
+| `STAGNATION` | Fix cycle max reached — classification and recovery action taken |
+| `EVOLUTIONARY_LOOP` | Acceptance criteria found to be wrong — looping back to REFINE with evidence |
 | `SESSION_COMPLETE` | All phases done (includes grand totals) |
 
 Token and duration values are per-agent cumulative (implementer + spec reviewer + code quality reviewer summed for each task).
@@ -257,6 +263,19 @@ Change types:
 - **Modify**: Existing file, changing behavior
 - **Extend**: Existing file, adding capability without changing existing behavior
 - **Delete**: Removing file or significant code block
+
+## Dependency Graph
+
+Show task-to-task dependency edges and critical path:
+
+```
+T-001 -> T-002 (reason)
+T-002 -> T-003, T-004 (reason)
+T-003, T-004 -> T-005 (reason)
+
+Critical path: T-001 -> T-002 -> T-004 -> T-005
+Parallel opportunities: T-003 and T-004 can run concurrently
+```
 
 ## Milestones
 

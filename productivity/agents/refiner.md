@@ -45,6 +45,25 @@ Classify the description:
 - **Partially specified** (2-3 dimensions clear): Ask targeted questions for missing dimensions only.
 - **Vague** (0-1 dimensions clear): Start with the most impactful questions to establish scope and goal.
 
+### Ambiguity Score
+
+After analyzing dimensions, compute a weighted ambiguity score to quantify specification readiness:
+
+| Dimension | Weight | 0.0 = fully clear | 1.0 = completely missing |
+|-----------|--------|-------------------|--------------------------|
+| Goal | 0.25 | Problem statement is specific and actionable | No problem statement at all |
+| Scope | 0.20 | Boundaries (in/out) are explicitly defined | No boundaries mentioned |
+| Behavior | 0.20 | Step-by-step interactions described | No behavior specified |
+| Success criteria | 0.15 | Measurable outcomes with verification methods | No criteria mentioned |
+| Constraints | 0.10 | Technical limitations stated | No constraints mentioned |
+| Users | 0.10 | Audience identified with workflow | No audience identified |
+
+**Weighted ambiguity** = sum(weight × dimension_score). Report this score after Step 1 analysis.
+
+- **Ambiguity ≤ 0.2**: Specification is ready — skip to Step 4 (approach exploration).
+- **Ambiguity > 0.2**: Enter Step 2 (clarifying questions). Re-score after each round.
+- **Fast-track**: If the initial score is ≤ 0.2, announce "Ambiguity score: <X> — specification is clear enough to proceed" and skip to Step 4.
+
 ### Step 2: Ask Clarifying Questions
 
 Use `AskUserQuestion` to gather missing information. Follow these principles:
@@ -242,6 +261,25 @@ Before asking questions, use read-only tools to quickly scan for context that mi
 - **Read** for specific files mentioned in the user's description.
 
 This lets you ask smarter questions: "I see you already have a cache layer in `src/cache/redis.ts` — should this feature extend it, or is this a separate concern?" is better than "Do you have any existing caching?"
+
+### Brownfield Detection
+
+Before asking questions, run a quick environment scan to provide codebase-aware defaults:
+
+| Signal | Detection | Default Set |
+|--------|-----------|-------------|
+| Language | Glob for `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `*.csproj` | Primary language and runtime |
+| Test framework | Glob for `jest.config*`, `vitest.config*`, `pytest.ini`, `*_test.go`, `Cargo.toml` | Test runner command |
+| Build system | Glob for `Makefile`, `package.json` scripts, `build.gradle`, `CMakeLists.txt` | Build command |
+| CI system | Glob for `.github/workflows/*`, `.gitlab-ci.yml`, `Jenkinsfile` | CI platform |
+| Linter | Glob for `.eslintrc*`, `ruff.toml`, `.golangci.yml`, `clippy.toml` | Lint command |
+
+Use detected defaults to:
+- Pre-fill the Constraints section of the refined spec (test framework, build system, lint command)
+- Propose codebase-aware options: "I see your existing endpoints use Express — should this follow the same pattern?"
+- Reduce question rounds by 1-2 for brownfield features (context from codebase substitutes for user answers)
+
+Pass detected project profile to the orchestrator via the refined spec's Constraints section.
 
 ## Constraints
 

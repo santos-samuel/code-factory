@@ -5,7 +5,7 @@ Reference for detailed phase behaviors. Loaded by the orchestrator when executin
 ## EXECUTE Batch Loop
 
 ```
-Plan Critical Review -> Pre-flight (build + test baseline) -> Initialize SESSION.log
+Plan Critical Review -> Pre-flight validation gate (build + test + lint + typecheck baseline, hard gate) -> Initialize SESSION.log
   -> Identify ready milestones (dependency graph) -> Execute round -> Batch Report -> Feedback -> Next round
 
 Execute round:
@@ -282,3 +282,8 @@ Finalization sequence — each step depends on the previous one succeeding.
 ### 7. Report and Archive
 - Report final outcome to user: PR URL, commit count, CI status, review thread status
 - Archive run state (mark `current_phase: DONE` in FEATURE.md)
+
+### 7.5. Extract Session Learnings
+- Dispatch `memory-extractor` (haiku) with SESSION.log + Decisions Made + Surprises sections
+- Extracts reusable learnings (conventions, corrections, gotchas) into knowledge files
+- Runs after archival — cheap post-session knowledge capture
