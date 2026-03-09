@@ -141,13 +141,40 @@ Omit `--repo` if not in a git repo and user doesn't specify one.
 
 **Do NOT wait for the command to finish.** Report immediately after launching.
 
-### 3d: Report
+### 3d: Report Creation Status
+
+Report immediately after launching the background create:
 
 ```
 Workspace "<name>" is being created on branch "<branch-name>" (takes ~10-20 min).
+I'll start a tmux session when it's ready.
 
-Once ready:
-  SSH:     ssh workspace-<name>
+Status:  workspaces list
+```
+
+### 3e: Start Tmux Session
+
+When the background `workspaces create` task completes successfully,
+SSH into the workspace and start a detached tmux session in the repo directory on the correct branch:
+
+```bash
+ssh -A workspace-<name> "cd /workspaces/<repo> && git checkout <branch-name> && tmux new-session -d -s main"
+```
+
+The workspace is created with `--branch`, so the checkout is a no-op in the happy path
+but ensures correctness if the workspace defaulted to a different branch.
+
+If SSH fails, run `workspaces ssh-config <name>` first and retry.
+
+Then print the join command for the user:
+
+```
+Workspace "<name>" is ready on branch "<branch-name>".
+
+Join the tmux session:
+  ssh -A workspace-<name> -t "tmux -CC new-session -A -s main"
+
+Other commands:
   IDE:     workspaces connect <name> --editor intellij
   Status:  workspaces list
   Delete:  workspaces delete <name>
