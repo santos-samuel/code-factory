@@ -300,6 +300,10 @@
     "chrome-devtools": {
       "type": "local",
       "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--isolated=true"]
+    },
+    "slack": {
+      "type": "remote",
+      "url": "https://mcp.slack.com/mcp"
     }
   },
   // --- End MCP Servers ---
