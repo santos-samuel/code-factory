@@ -22,10 +22,12 @@ Parse `$ARGUMENTS` to determine the operation mode:
 | Argument | Mode |
 |----------|------|
 | `ready` (as first word) | **Ready mode** — mark existing draft PR as ready for review |
-| `--open` (anywhere) | **Create mode** with `open=true` — create a non-draft PR |
-| Anything else or empty | **Create mode** with `open=false` — create a draft PR (default) |
+| Anything else or empty | **Create mode** — always creates a draft PR |
 
-Strip `--open` and `ready` from `$ARGUMENTS` before further parsing (remaining text is treated as title or `--base` flags).
+Strip `ready` from `$ARGUMENTS` before further parsing (remaining text is treated as title or `--base` flags).
+
+**PRs are ALWAYS created as drafts.** There is no flag to create a non-draft PR directly.
+Use `/pr ready` after internal review to open the PR for team review.
 
 Run in parallel:
 - `git branch --show-current` (head branch name)
@@ -132,11 +134,23 @@ Also identify:
 
 ### Title
 
-Determine the PR title using this priority:
-1. If `$ARGUMENTS` provides a title (text that is not a `--base` flag), use it.
-2. If the branch name contains a ticket ID (e.g. `feat/PROJ-1234-add-widget`), derive a title from it by cleaning up slashes and hyphens into readable text.
+Determine the PR title in two stages.
+
+**Stage 1 — Determine the base title** using this priority:
+1. If `$ARGUMENTS` provides a title (text that is not a `--base` flag), use it as-is.
+2. If the branch name contains a ticket ID (e.g. `feat/PROJ-1234-add-widget`), strip the ticket ID and user prefix, then convert the remainder to readable text (e.g. `add-widget` → `Add widget`).
 3. If there is a single commit, use its subject as the title.
-4. Otherwise, synthesize a concise title from the commit subjects: identify the primary theme across commits, then write a single phrase capturing the overall change (e.g., commits "Add user model", "Add auth middleware", "Add login endpoint" -> "Add user authentication").
+4. Otherwise, synthesize a concise title from the commit subjects: identify the primary theme across commits, then write a single phrase capturing the overall change (e.g., commits "Add user model", "Add auth middleware", "Add login endpoint" → "Add user authentication").
+
+**Stage 2 — Prepend the ticket ID prefix:**
+Collect the ticket ID from (in priority order):
+1. The branch name — scan for patterns like `[A-Z]+-[0-9]+` (e.g. `RAWL-3408`, `PROJ-1234`).
+2. Commit messages scanned in Step 4.
+
+If a ticket ID is found AND the base title does not already start with `[TICKET-ID]`,
+prepend it: `[TICKET-ID] <base title>`.
+Example: base title `Add new feature xpto` with ticket `EXPL-1234`
+→ final title `[EXPL-1234] Add new feature xpto`.
 
 ### Body
 
@@ -260,17 +274,10 @@ Check if the branch has an upstream remote:
 - If no upstream exists, push the branch: `git push -u origin HEAD`
 - If upstream exists, check if local is ahead: `git status` should show up-to-date or ahead. If ahead, push with `git push`.
 
-Create the PR using a HEREDOC to pass the body. **PRs are created as drafts by default.** Only add `--draft` if `open=false` (the default). Omit `--draft` if `open=true` (user passed `--open`).
+Create the PR using a HEREDOC to pass the body. **PRs are ALWAYS created as drafts** — `--draft` is unconditional and must never be omitted.
 
 ```bash
-# Default (draft):
 gh pr create --draft --base <base> --head <head> --title "<title>" --body "$(cat <<'EOF'
-<constructed body>
-EOF
-)"
-
-# With --open (non-draft):
-gh pr create --base <base> --head <head> --title "<title>" --body "$(cat <<'EOF'
 <constructed body>
 EOF
 )"

@@ -121,7 +121,6 @@
       "/private/var/tmp"
     ]
   },
-  "model": "opus",
   "enabledMcpjsonServers": [
     "atlassian"
   ],
@@ -207,9 +206,9 @@
     }
   },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "autoUpdatesChannel": "latest",
   "skipDangerousModePermissionPrompt": true,
   "defaultMode": "default",
-  "bypassPermissionsModeAccepted": true,
-  "effortLevel": "high"
+  "bypassPermissionsModeAccepted": true
 }
