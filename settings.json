@@ -96,8 +96,7 @@
       "Bash(rm -fr:*)",
       "Bash(chmod -R:*)",
       "Bash(chown -R:*)",
-      "Bash(git push --force:*)",
-      "Bash(git push -f:*)",
+      "Bash(git push:*)",
       "Bash(git reset --hard:*)",
       "Bash(git clean -f:*)",
       "Bash(git branch -D:*)",
@@ -109,16 +108,9 @@
       "Bash(defaults write:*)"
     ],
     "additionalDirectories": [
-      "/Users/rodrigo.fernandes/go",
-      "/Users/rodrigo.fernandes/dev",
-      "/Users/rodrigo.fernandes/dd",
-      "/Users/rodrigo.fernandes/Downloads",
-      "~/dev",
       "~/dd",
       "~/go",
-      "~/Downloads",
-      "/tmp",
-      "/private/var/tmp"
+      "/tmp"
     ]
   },
   "enabledMcpjsonServers": [
