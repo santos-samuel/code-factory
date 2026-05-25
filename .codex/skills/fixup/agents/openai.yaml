@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fixup"
+  short_description: "Use when the user wants to fixup an existing commit on the current branch,."
+  default_prompt: "Use $fixup to fixup an existing commit on the current branch,."

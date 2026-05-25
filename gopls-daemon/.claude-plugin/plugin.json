@@ -1,0 +1,9 @@
+{
+  "name": "gopls-daemon",
+  "version": "0.1.0",
+  "description": "Go language server using gopls-rs. Replaces gopls-lsp@claude-plugins-official with the Rust implementation.",
+  "author": {
+    "name": "Rodrigo Fernandes",
+    "email": "rodrigo.fernandes@datadoghq.com"
+  }
+}

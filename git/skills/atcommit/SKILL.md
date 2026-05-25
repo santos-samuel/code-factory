@@ -13,7 +13,7 @@ allowed-tools: Bash(git:*), Read, Grep, Glob
 
 # Atomic Commits
 
-Announce: "I'm using the atomic-commits skill to validate and organize changes into self-contained commits."
+Announce: "I'm using the atcommit skill to validate and organize changes into self-contained commits."
 
 Every commit must build and function correctly when checked out in isolation. This means dependency closure — no commit may reference symbols introduced in later commits.
 
@@ -31,9 +31,6 @@ git branch --show-current  # check for ticket IDs like JIRA-1234
 ```
 
 Categorize every changed file into: **staged**, **unstaged**, **untracked**.
-
-**Automatic exclusions:** When staging files, always exclude:
-- `.plans/` directory and `*.plan.md` files (working documents for /do and /execplan)
 
 ## Step 2: Fixup Detection
 
@@ -63,7 +60,7 @@ For each branch commit, get its touched files:
 git diff-tree --no-commit-id --name-only -r <sha>
 ```
 
-Compute **direct file overlap** between the full change set (staged + unstaged + untracked, excluding `.plans/` and `*.plan.md`) and each commit's touched files. A commit is a **fixup candidate** if it has direct overlap with ≥50% of the change set files and has the highest overlap among all branch commits.
+Compute **direct file overlap** between the full change set (staged + unstaged + untracked) and each commit's touched files. A commit is a **fixup candidate** if it has direct overlap with ≥50% of the change set files and has the highest overlap among all branch commits.
 
 **If a fixup candidate is found:**
 
@@ -255,4 +252,4 @@ Never silently fix staging. Always explain what was wrong and what needs to chan
 - **Build failure after staging a group**: the group is missing a dependency. Re-run Step 3 for that group.
 - **User insists on committing a broken set**: warn explicitly that the commit will not build in isolation, explain the consequences for bisect/cherry-pick, and let the user decide.
 - **Commit hook failure**: report the error. Do NOT retry with `--no-verify`. Let the user decide how to proceed.
-- **Excluded files staged**: if `.plan.md` or `.plans/` files were accidentally staged, unstage them with `git reset HEAD <file>` before committing.
+

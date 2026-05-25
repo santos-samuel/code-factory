@@ -143,7 +143,7 @@ Determine from arguments and conversation:
 | **User-invocable?** | Should it appear in the `/` menu? Default: `true`. |
 | **Model-invocable?** | Should Claude auto-invoke it? Default: `false` for task skills, `true` for reference skills. |
 
-If the user's request is vague, ask clarifying questions before proceeding. For significant new features, suggest `/execplan` instead.
+If the user's request is vague, ask clarifying questions before proceeding. For significant new features, suggest `/do` instead.
 
 ### 2b: Research
 

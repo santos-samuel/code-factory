@@ -1,0 +1,6 @@
+{
+  "go": {
+    "command": "gopls-rs",
+    "extensionToLanguage": { ".go": "go" }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Simplify"
+  short_description: "Use when the user wants to simplify, clean up, or refactor code for clarity a..."
+  default_prompt: "Use $code-simplify to simplify, clean up, or refactor code for clarity and maintainability."

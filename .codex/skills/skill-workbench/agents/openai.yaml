@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Workbench"
+  short_description: "Use when the user wants to create new skills, audit existing skills, improve."
+  default_prompt: "Use $skill-workbench to create new skills, audit existing skills, improve."

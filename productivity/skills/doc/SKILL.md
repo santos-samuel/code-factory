@@ -118,18 +118,7 @@ AskUserQuestion(
 
 7. **Report** - Show the created file path and next steps.
 
-**Output:**
-
-```
-Created: <path>
-Format: <format>
-Title: <title>
-
-Next steps:
-- Edit the document to fill in content
-- Run `/doc improve --path <path>` to polish
-- Run `/doc sync --path <path>` to publish to Confluence (requires ddoc frontmatter)
-```
+Report the created file path. Suggest `/doc improve` and `/doc sync` as next steps.
 
 ---
 
@@ -165,22 +154,7 @@ AskUserQuestion(
 
 4. **Validate** - Check that the document still parses correctly as Markdown.
 
-5. **Show diff** - Present a structured diff summary:
-
-```markdown
-## Changes to <filename>
-
-### Added
-- Section: "New Section Title" (after "Previous Section")
-- 15 lines of content
-
-### Modified
-- Section: "Existing Section"
-- Changed: description of API endpoint
-
-### Removed
-- None
-```
+5. **Show diff** - Present a structured diff summary listing added, modified, and removed sections with line counts.
 
 6. **Confirm and write** - If not `--dry-run`, write changes after confirmation.
 

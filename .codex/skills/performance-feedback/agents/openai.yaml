@@ -1,0 +1,4 @@
+interface:
+  display_name: "Performance Feedback"
+  short_description: "Use when the user wants to write performance feedback, a performance review,."
+  default_prompt: "Use $performance-feedback to write performance feedback, a performance review,."

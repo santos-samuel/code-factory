@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tour"
+  short_description: "Use when user says \"code tour\", \"give me a tour\", \"walk me through\", \"show me..."
+  default_prompt: "Use $tour to \"code tour\", \"give me a tour\", \"walk me through\", \"show me how X works\",."

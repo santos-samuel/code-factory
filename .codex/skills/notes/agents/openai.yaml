@@ -1,0 +1,4 @@
+interface:
+  display_name: "Notes"
+  short_description: "Use when the user asks to create, look up, or edit a note in Obsidian —."
+  default_prompt: "Use $notes to create, look up, or edit a note in Obsidian —."

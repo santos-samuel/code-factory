@@ -1,7 +1,6 @@
 ---
 name: spec-reviewer
 description: "Spec compliance reviewer. Verifies implementation matches task specification — nothing missing, nothing extra, nothing misunderstood. Dispatched after implementer completes each task during EXECUTE phase."
-model: "anthropic/claude-sonnet-4-5"
 memory: "project"
 mode: subagent
 tools:

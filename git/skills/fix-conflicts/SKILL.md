@@ -42,18 +42,48 @@ ${CLAUDE_PLUGIN_ROOT}/skills/fix-conflicts/scripts/get-conflict-history.sh local
 ${CLAUDE_PLUGIN_ROOT}/skills/fix-conflicts/scripts/get-conflict-history.sh remote
 ```
 
+For each commit listed in the history output, inspect its actual diff to understand intent:
+
+```bash
+# Show the full diff for a specific commit touching the conflicted file
+git show <commit-sha> -- <conflicted-file>
+```
+
+Pay attention to:
+- **Additions**: new code, new functions, new parameters
+- **Removals**: deleted code, removed functions, removed parameters —
+  note whether the commit message explains the removal (refactor, deprecation, cleanup)
+  or whether the removal looks incidental to a larger change
+- **Modifications**: changed logic, renamed symbols, updated signatures
+
 For each conflict, determine:
 
 | Question | How to answer |
 |----------|---------------|
-| What did the local side change? | Read local history commits, inspect code between `<<<<<<< HEAD` and `=======` |
-| What did the remote side change? | Read remote history commits, inspect code between `=======` and `>>>>>>>` |
+| What did the local side change? | `git show` each local commit touching the file; inspect code between `<<<<<<< HEAD` and `=======` |
+| What did the remote side change? | `git show` each remote commit touching the file; inspect code between `=======` and `>>>>>>>` |
+| Did either side intentionally remove code? | Check if the removal was in a dedicated commit (refactor/cleanup/deprecation) vs. incidental to a larger change |
 | Are changes independent? | Different logical concerns = keep both |
 | Are changes contradictory? | Same logic changed differently = need judgment |
 
 ## Step 3: Resolve by Conflict Type
 
-**Rebase ours/theirs warning:** During `git rebase`, ours/theirs are reversed from merge. `HEAD` (ours) = the branch being rebased **onto** (e.g., main), and theirs = the commits being replayed (your feature branch). The conflict markers reflect this: `<<<<<<< HEAD` shows the upstream code during rebase.
+### Rebase conflict orientation (CRITICAL)
+
+During `git rebase`, ours/theirs are **reversed** from merge:
+
+| Side | Merge | Rebase |
+|------|-------|--------|
+| `<<<<<<< HEAD` (ours) | Your branch | **Upstream** (e.g., main) |
+| `=======` → `>>>>>>>` (theirs) | Incoming branch | **Your feature branch** |
+
+The code between `=======` and `>>>>>>>` is YOUR feature branch work.
+**Never discard it without explicit user confirmation** — doing so silently loses changes you wrote.
+
+Resolution posture during rebase:
+1. Treat the theirs section as the change you must land; treat the ours section as context to integrate around it.
+2. If both sides modified the same lines with incompatible intent, ask the user (see "When uncertain" below).
+3. "Upstream looks newer/cleaner" is NOT sufficient justification to drop theirs.
 
 ### Standard conflicts (UU — both modified, AA — both added)
 
@@ -65,20 +95,79 @@ For each conflict, determine:
 | Changes are independent (different functions, different lines) | Merge both — keep all changes |
 | Changes overlap but complement each other | Combine intelligently — integrate both intents |
 | Changes contradict each other | Ask the user (see "When uncertain" below) |
-| One side is strictly newer/better | Keep the better version |
+| One side is strictly newer/better | `git show` both sides' commits — only keep one side if the other's changes are already included or purely cosmetic. During rebase, verify "better" is not just upstream recency. |
 
 3. Remove ALL conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
 4. Verify the result is syntactically correct.
 
+### Intent preservation rules (apply to ALL conflict types)
+
+Before writing the resolved version of any conflict, complete this checklist:
+
+1. **List both sides' meaningful changes.**
+   For each side, write a one-line summary of what it intended (from Step 2's `git show` analysis).
+2. **Verify no silent drops.**
+   If you are keeping only one side's text, confirm the other side made no substantive changes
+   (logic, behavior, API) in that region. Formatting-only or whitespace-only differences are safe to drop.
+3. **Respect intentional removals.**
+   If one side removed code that the other side still has (or modified):
+   - `git show` the commit that performed the removal.
+   - If the commit message or diff shows a deliberate action (refactor, deprecation, dead-code cleanup,
+     feature removal), **do not re-add the removed code** — the removal wins.
+   - If the removal looks incidental (part of a large unrelated change, no mention in the commit message),
+     ask the user whether the removal was intentional.
+4. **Never re-add intentionally deleted code.**
+   Code that was removed in a dedicated cleanup or refactor commit must stay removed,
+   even if the other side's conflict block still contains it.
+
+| Rationalization | Reality |
+|----------------|---------|
+| "I'll keep both sides to be safe" | Re-adding intentionally deleted code is not safe — it reverses a deliberate decision |
+| "The other side still has it, so it must be needed" | The other side's branch may predate the removal |
+| "One side is newer so I'll take that whole block" | The older side may contain additions the newer side never saw |
+
+### Wholesale side selection guardrails
+
+Taking an entire side (`--ours` / `--theirs` or keeping one conflict block verbatim) is only safe when
+the other side's changes in that region are trivially reconcilable.
+
+| Safe to take one side wholesale | NOT safe — must merge manually |
+|-------------------------------|-------------------------------|
+| Other side's changes are formatting/whitespace only | Both sides have substantive logic changes |
+| Other side only reordered imports | Both sides added new code in the same region |
+| Conflict is in a generated or lock file (will be regenerated) | One side removed code the other side modified |
+| One side's change is a strict subset of the other | Both sides changed function signatures differently |
+
+Before selecting a whole side, run `git show <commit> -- <file>` for the side you would drop
+and confirm its changes are present elsewhere or are not meaningful.
+
 ### Modify/delete conflicts (UD — modified locally/deleted remotely, DU — deleted locally/modified remotely)
 
-1. Check history to understand why the file was deleted on one side.
-2. Ask the user:
+1. Identify which side deleted and which modified.
+2. Inspect the deletion commit to determine intent:
+
+```bash
+# Find the commit that deleted the file on the deleting side
+git log --diff-filter=D --oneline -1 -- <file>
+
+# Examine the commit to understand why
+git show <deletion-commit-sha>
+```
+
+3. Classify the deletion:
+
+| Deletion context | Resolution |
+|-----------------|------------|
+| Dedicated cleanup/refactor commit (message says "remove", "deprecate", "delete", "clean up") | Deletion was intentional — default to deleting unless the modification is critical new work |
+| Feature commit that reorganized code (moved, not removed) | Check where the code moved to; merge the modification into the new location |
+| Incidental to a large commit with no mention in the message | Ask the user — deletion may have been accidental |
+
+4. If still uncertain, ask the user:
 
 <interaction>
 AskUserQuestion(
   header: "Keep or delete?",
-  question: "<file> was modified on one side but deleted on the other. The modification: <brief description>. The deletion was in commit <sha>: <message>. Keep the modified version or delete?",
+  question: "<file> was modified on one side but deleted on the other. The modification: <brief description>. The deletion was in commit <sha>: <message>. The deletion appears <intentional|incidental>. Keep the modified version or delete?",
   options: [
     "Keep modified" -- Stage the modified version with git add,
     "Delete" -- Stage deletion with git rm
@@ -95,7 +184,9 @@ AskUserQuestion(
 
 ### When uncertain about any conflict
 
-**Do NOT guess about business logic.** Ask the user:
+**Do NOT guess about business logic.** Ask the user.
+
+For **merge** conflicts:
 
 <interaction>
 AskUserQuestion(
@@ -105,6 +196,21 @@ AskUserQuestion(
     "Keep local (ours)" -- Use the local/HEAD version,
     "Keep remote (theirs)" -- Use the incoming version,
     "Merge both" -- Combine changes from both sides,
+    "Leave unresolved" -- Skip this file for manual resolution
+  ]
+)
+</interaction>
+
+For **rebase** conflicts (ours = upstream, theirs = your feature branch):
+
+<interaction>
+AskUserQuestion(
+  header: "Conflict choice (rebase)",
+  question: "Conflict in <file> while replaying your commit '<commit message>'. Upstream (HEAD) has: <ours summary>. Your branch has: <theirs summary>. How should this be resolved?",
+  options: [
+    "Keep your branch change (theirs)" -- Preserve your feature branch work,
+    "Keep upstream (ours)" -- Discard your branch's version for this section,
+    "Merge both" -- Combine both sides,
     "Leave unresolved" -- Skip this file for manual resolution
   ]
 )
@@ -163,7 +269,47 @@ git status
 
 **If conflict markers remain:** go back to Step 3 for the affected files.
 
-**If the project has a type checker or linter available:** run it to catch semantic conflicts (code that merges cleanly but is logically broken — e.g., a function signature changed on one side while the other side calls it with old arguments).
+### Verify both sides' changes are preserved (ALL operation types)
+
+For **every** resolved conflict (not just during rebase), verify that both sides' meaningful changes survived:
+
+1. **Review the resolved file** against each side's intent (identified in Step 2).
+2. For each side, confirm:
+   - Additions from that side are present in the resolved file (or were intentionally excluded with justification).
+   - Modifications from that side are reflected in the resolved file.
+   - Intentional removals from that side are still removed — code was not re-added by the other side's block.
+3. If any meaningful change was silently dropped, re-open the file and restore it before continuing.
+
+**During rebase — additional check for the commit being replayed:**
+
+Get the SHA of the commit currently being applied:
+
+```bash
+git_dir=$(git rev-parse --git-dir)
+cat "$git_dir/rebase-merge/stopped-sha" 2>/dev/null \
+  || cat "$git_dir/rebase-apply/original-commit" 2>/dev/null
+```
+
+Then inspect what that commit intended:
+
+```bash
+git show <stopped-sha> --stat
+git show <stopped-sha> -- <conflicted-file>
+```
+
+Confirm the intent of the feature branch commit is present in the resolved version.
+
+| Rationalization | Reality |
+|----------------|---------|
+| "I checked the conflict markers, that's enough" | A conflict can be syntactically resolved but semantically wrong — one side's intent may be missing |
+| "The merge compiled, so it's correct" | Compilation doesn't verify that both sides' behavioral changes are present |
+| "I kept both sides' code so nothing was lost" | Keeping both sides can re-add intentionally deleted code, which is also a loss of intent |
+
+**Detect and run type checker or linter** to catch semantic conflicts
+(code that merges cleanly but is logically broken —
+e.g., a function signature changed on one side while the other side calls it with old arguments).
+Detection: check for `tsconfig.json` (-> `npx tsc --noEmit`), `mypy.ini`/`pyproject.toml` with mypy config (-> `mypy`),
+`Cargo.toml` (-> `cargo check`), or a `lint` target in the Makefile (-> `make lint`). If none found, skip.
 
 ## Step 6: Report Results
 

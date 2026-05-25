@@ -1,6 +1,6 @@
 # code-factory
 
-rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenCode](https://opencode.ai) marketplace. It packages reusable skills and agents for structured feature delivery, docs workflows, and git operations.
+rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [OpenCode](https://opencode.ai), [Codex](https://github.com/openai/codex), and [pi.dev](https://pi.dev). It packages reusable skills and agents for structured feature delivery, docs workflows, and git operations.
 
 ## Quick Reference
 
@@ -9,15 +9,18 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 | `/do` | productivity | Orchestrate feature delivery with phase/state tracking |
 | `/rfc` | productivity | Write RFCs and design docs with iterative research |
 | `/debug` | productivity | Systematic debugging with root-cause-first workflow |
-| `/execplan` | productivity | Author/review/execute/resume execution plans |
 | `/doc` | productivity | Create/update/improve/audit Markdown docs |
 | `/workspace` | productivity | Manage Datadog remote development workspaces |
 | `/reflect` | productivity | Capture session learnings into knowledge files |
+| `/wrap-up` | productivity | End-of-session checklist: ship, reflect, publish |
 | `/brag` | productivity | Update brag document with recent accomplishments |
 | `/daily` | productivity | Daily work journal and weekly summaries in Obsidian vault |
 | `/notes` | productivity | Obsidian notes: 1:1s, meetings, career plans, promotions |
 | `/performance-feedback` | productivity | Write evidence-backed performance reviews |
 | `/brainstorm` | productivity | Brainstorm and sharpen ideas into clear problem statements |
+| `/datadog` | productivity | Query Datadog products (logs, metrics, APM, monitors) via pup CLI |
+| `/code-simplify` | productivity | Simplify and refactor code for clarity without changing behavior |
+| `/ai-cli` | productivity | Evaluate and improve CLI design for AI agent usage |
 | `/skill-workbench` | productivity | Create or improve skills and agents |
 | `/review` | productivity | Review a pull request with structured findings |
 | `/tour` | productivity | Guided code walkthroughs (interactive or written) |
@@ -40,16 +43,20 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 - `/rfc` -- RFC authoring workflow with refinement, research, exploration, consistency check, and write phases.
 - `/debug` -- Root-cause-first debugging protocol (`REPRODUCE -> INVESTIGATE -> FIX -> VERIFY`) with persistent state.
 - `/doc` -- Documentation lifecycle management (create, update, improve, maintain, audit, sync, status) with templates.
-- `/execplan` -- Manage ExecPlans in four modes: author, review, execute, and resume.
+
 - `/review` -- Structured PR review across correctness, security, design, testing, and style.
 - `/tour` -- Codebase tours in interactive or written modes.
 - `/workspace` -- Datadog workspace lifecycle management (`create`, `list`, `delete`, `ssh`, `connect`, `validate`).
-- `/reflect` -- Session learning extraction with confidence-based auto-apply/queue behavior.
+- `/reflect` -- Session learning extraction with confidence-based auto-apply/queue behavior. Includes self-improvement analysis for skill gaps, friction, and automation opportunities.
+- `/wrap-up` -- End-of-session checklist: commits via `/atcommit`, deploys if available, cleans up tasks, runs `/reflect` for learnings, and drafts publishable content.
 - `/brag` -- Brag document management: auto-collects work from GitHub, Jira, Confluence, git, and daily logs; asks interactive questions for undiscoverable work; maintains monthly docs at `~/log/YYYY-MM/brag.md`.
 - `/daily` -- Daily work journal and weekly summaries in Obsidian: captures work activity, meetings, achievements, team pulse, travel, learning, and kudos. Weekly summary mode (`/daily summary`) aggregates daily notes with GitHub PRs, Jira tickets, and Confluence pages into dual-format output (Confluence + Slack). Resolves people names via Obsidian People directory with wikilinks and backlinks. Feeds into `/brag` as a data source.
 - `/notes` -- Obsidian notes management: 1:1 records, meeting notes, per-person career plans, promotion proposals, achievements tracking, and general notes. Shares `~/docs/People/` directory with `/daily` for graph integration.
 - `/performance-feedback` -- Evidence-backed performance review writer: gathers data from 1:1 notes, achievements, daily logs, brag docs, GitHub PRs, Jira tickets, and Confluence pages for a specific person over a review period, then synthesizes into structured feedback by dimension (impact, technical quality, collaboration, growth, communication).
 - `/brainstorm` -- Problem-focused brainstorming: sharpens vague ideas into clear problem statements through iterative diagnostic questions. Saves brainstorms to `~/docs/brainstorms/`. Integrated with `/do` as an optional pre-refinement step.
+- `/datadog` -- Datadog product query via pup CLI: APM, logs, metrics, monitors, error tracking, RUM, infrastructure, security signals, incidents, SLOs, synthetics, CI/CD, and 30+ other API domains.
+- `/code-simplify` -- Code simplification across any scope (file, directory, package, branch diff, staged changes, or entire repo). Preserves behavior while improving clarity and maintainability.
+- `/ai-cli` -- CLI design evaluation and improvement for AI agents: scores against 8 Agent DX axes aligned with the AXI (Agent eXperience Interface) framework (machine-readable output, raw payload input, schema introspection, context window discipline, input hardening, safety rails, agent knowledge packaging, efficiency & composition), recommends prioritized improvements, and guides implementation.
 - `/skill-workbench` -- Skill and agent creation/improvement toolkit.
 
 **Agents:**
@@ -65,10 +72,12 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 - `spec-reviewer` -- Verifies implementation matches spec exactly.
 - `code-quality-reviewer` -- Evaluates maintainability/testing/convention quality.
 - `validator` -- Runs checks and validates acceptance criteria with evidence.
-- `execplan` -- Specialized ExecPlan author/reviewer/executor persona.
+
 - `skill-grader` -- Scores evaluation runs with pass/fail evidence.
 - `skill-comparator` -- Blind A/B output comparator for skill evaluations.
 - `brainstormer` -- Problem-focused thinking partner for brainstorming sessions.
+- `red-teamer` -- Adversarial reviewer finding failure modes, flawed assumptions, and edge cases.
+- `code-simplifier` -- Single-file code simplification agent for clarity, consistency, and maintainability.
 - `memory-extractor` -- Extracts reusable learnings from session transcripts.
 
 ### git
@@ -80,7 +89,7 @@ rtfpessoa's personal [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 - `/fixup` -- Commit matching and autosquash-ready fixup creation.
 - `/pr` -- PR creation flow with base detection, commit analysis, and ready-mode support.
 - `/branch` -- Branch naming from ticket/description using local conventions.
-- `/pr-fix` -- Pull and resolve PR review threads, apply changes, and reply/resolve.
+- `/pr-fix` -- Pull and resolve PR review threads, apply changes, and reply/resolve. Supports `--auto` for bot/CI automation and `--auto-human` for fully autonomous mode.
 - `/fix-conflicts` -- Conflict-state-aware conflict resolution workflow.
 - `/worktree` -- Detached worktree creation from the default branch.
 
@@ -194,7 +203,6 @@ User descriptions are wrapped in `<feature_request>` tags to prevent prompt inje
 
    `init.sh` performs the full local setup:
 
-   - Installs or updates `rtk` via `cargo install --git https://github.com/rtk-ai/rtk --config net.git-fetch-with-cli=true`.
    - Symlinks root configs:
 
      | Source | Destination |
@@ -202,6 +210,7 @@ User descriptions are wrapped in `<feature_request>` tags to prevent prompt inje
      | `mcp.json` | `~/.mcp.json` |
      | `settings.json` | `~/.claude/settings.json` |
      | `opencode.jsonc` | `~/.config/opencode/opencode.jsonc` |
+     | `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` |
 
    - Symlinks files from `hooks/` into `~/.claude/hooks/`.
    - Regenerates `.opencode/` assets by running `./sync-opencode.sh`.
@@ -240,3 +249,16 @@ Declares Atlassian, Datadog, and chrome-devtools MCP servers for Claude Code.
 ### `sync-opencode.sh`
 
 Generates `.opencode/skills`, `.opencode/agents`, and `.opencode/commands` from plugin source definitions, including frontmatter/tool-name transformations and stale-check mode (`--check`).
+
+### `sync-codex.sh`
+
+Generates `.codex/skills` (with collapsed single-line frontmatter and per-skill `agents/openai.yaml` metadata) and `.codex/agents/*.toml` for [OpenAI Codex](https://github.com/openai/codex). Stale-check mode (`--check`).
+
+### `sync-pi.sh` and `pi-extensions/`
+
+Generates `.pi/skills`, `.pi/prompts` (slash-command templates for user-invocable skills), `.pi/agents` (for the `pi-subagents` extension), and `.pi/extensions/mcp-wrapper` (HTTP MCP wrapper built from `pi-extensions/mcp-wrapper/`) for [pi.dev](https://pi.dev). `init.sh` symlinks everything into `~/.pi/agent/` and installs Pi packages from two sources:
+
+- Community: `pi-rtk`, `pi-webfetch-to-markdown` (subagent runtime ships locally as `pi-extensions/subagent-runner/`, so no third-party dependency needed)
+- Datadog [`ddoghq-sandbox/datadog-pi-packages`](https://github.com/ddoghq-sandbox/datadog-pi-packages): cloned to `$DD_PI_REPO` (default `~/dd/datadog-pi-packages`), then `pi install` for `refresh-models` and `confluence-adf`
+
+If `ddtool` is authenticated and `models.json` has no AI Gateway provider, `init.sh` seeds `~/.pi/agent/models.json` from `pi.json` (providers and models, with `{{email}}` and `{{team}}` substituted at install time) so sessions route through the Datadog AI Gateway with `ml_app=pi` tagging. Edit `pi.json` to change providers or model lists, then run `make install`. After install, run `/refresh-models` from a Pi session to discover live model IDs (including Ollama) and migrate to the managed `ai-gw-*` provider layout. Opt out of the static seed with `PI_AUTOCONFIG=0`. OAuth-flowed MCP servers (slack) require `PI_MCP_<SERVER>_TOKEN` env vars; auto-approve writes with `PI_MCP_AUTOAPPROVE=1`. The `subagent-runner` extension registers a `subagent` tool that delegates to any agent under `~/.pi/agent/agents/` by spinning up an in-process `AgentSession` (shares the parent's auth and model registry, no fork/exec). Tune with `PI_SUBAGENT_MAX_CONCURRENCY` (default 4) and `PI_SUBAGENT_MAX_DEPTH` (default 2).

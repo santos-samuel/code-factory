@@ -11,5 +11,6 @@
 - Test names: "should [action] when [condition]".
 
 ## Verification
-- Give Claude a way to verify its work. Tests are the best verification mechanism.
-- After implementing, always run the relevant test command before considering work done.
+- Every code change must be verifiable. Write a test, run the linter, or check the build output.
+- After implementing, run the relevant test command before considering work done.
+- If no test framework exists, verify with a build command or a manual smoke test script.

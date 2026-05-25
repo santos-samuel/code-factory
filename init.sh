@@ -3,12 +3,12 @@
 # init.sh -- Bootstrap code-factory: symlink configs and install OpenCode assets globally.
 #
 # This script:
-#   1. Installs rtk (Rust Token Killer) via cargo if not already present.
-#   2. Symlinks configuration files into the user's home directory.
-#   3. Symlinks Claude Code hooks from hooks/ into ~/.claude/hooks/.
-#   4. Updates Claude Code CLI and all installed marketplace plugins.
-#   5. Runs sync-opencode.sh to generate OpenCode assets in the repo.
-#   6. Symlinks .opencode/{skills,agents,commands} into ~/.config/opencode/.
+#   1. Symlinks configuration files into the user's home directory.
+#   2. Syncs MCP servers into Claude Code.
+#   3. Symlinks Claude Code hooks, rules, and git hooks.
+#   4. Runs sync-opencode.sh to generate OpenCode assets in the repo.
+#   5. Symlinks .opencode/{skills,agents,commands} into ~/.config/opencode/.
+#   6. Updates Claude Code CLI and all installed marketplace plugins.
 #
 # Behavior:
 #   - If the destination is an existing symlink, it is removed and re-created.
@@ -26,41 +26,77 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 errors=()
 
-# Install or update rtk (Rust Token Killer) via cargo
-echo "Checking rtk installation..."
-if ! command -v cargo &>/dev/null; then
-    errors+=("rtk: cargo not found, install Rust toolchain first (https://rustup.rs)")
-    echo "FAIL  rtk requires cargo (install Rust via https://rustup.rs)"
+# Source local node env if previously installed (mirrors cargo env pattern)
+if [[ -f "$HOME/.local/node/env" ]]; then
+    . "$HOME/.local/node/env"
+fi
+
+# Install Node.js if not available (required by statusLine npx command and hooks)
+echo "Checking Node.js installation..."
+if command -v node &>/dev/null; then
+    echo "  OK  node already installed ($(node --version))"
 else
-    if command -v rtk &>/dev/null && rtk gain &>/dev/null; then
-        echo "  OK  rtk already installed ($(rtk --version 2>/dev/null || echo 'unknown version'))"
-        echo "  Checking for updates..."
-    else
-        echo "  Installing rtk via cargo..."
-    fi
-    if cargo install --git https://github.com/rtk-ai/rtk --config net.git-fetch-with-cli=true 2>&1; then
-        echo "  OK  rtk up-to-date ($(rtk --version 2>/dev/null || echo 'unknown version'))"
-    else
-        errors+=("rtk: cargo install failed")
-        echo "FAIL  rtk installation failed"
-    fi
+    case "$(uname -s)" in
+        Linux)
+            echo "  Installing Node.js..."
+            ARCH=$(uname -m)
+            NODE_ARCH=""
+            case "$ARCH" in
+                x86_64)  NODE_ARCH="x64" ;;
+                aarch64) NODE_ARCH="arm64" ;;
+                *)
+                    errors+=("node: unsupported architecture $ARCH")
+                    echo "  FAIL  unsupported architecture $ARCH"
+                    ;;
+            esac
+            if [[ -n "$NODE_ARCH" ]]; then
+                NODE_VERSION="v22.14.0"
+                NODE_DIST="node-${NODE_VERSION}-linux-${NODE_ARCH}"
+                TMP_DIR=$(mktemp -d)
+                if curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/${NODE_DIST}.tar.xz" -o "$TMP_DIR/node.tar.xz"; then
+                    tar -xJf "$TMP_DIR/node.tar.xz" -C "$TMP_DIR"
+                    rm -rf "$HOME/.local/node"
+                    mv "$TMP_DIR/$NODE_DIST" "$HOME/.local/node"
+                    # Create env file (mirrors ~/.cargo/env pattern)
+                    cat > "$HOME/.local/node/env" << 'NODEENV'
+# Node.js environment (installed by code-factory init.sh)
+case ":${PATH}:" in
+    *":$HOME/.local/node/bin:"*) ;;
+    *) export PATH="$HOME/.local/node/bin:$PATH" ;;
+esac
+NODEENV
+                    . "$HOME/.local/node/env"
+                    # Persist in shell profiles so future shells find node
+                    for profile in "$HOME/.bashrc" "$HOME/.profile"; do
+                        if [[ -f "$profile" ]] && ! grep -q '.local/node/env' "$profile"; then
+                            printf '\n# Node.js (installed by code-factory)\n[ -f "$HOME/.local/node/env" ] && . "$HOME/.local/node/env"\n' >> "$profile"
+                        fi
+                    done
+                    echo "  OK  node installed ($(node --version))"
+                else
+                    errors+=("node: download failed")
+                    echo "  FAIL  node download failed"
+                fi
+                rm -rf "$TMP_DIR"
+            fi
+            ;;
+        *)
+            echo "  SKIP  node not found, install manually from https://nodejs.org"
+            ;;
+    esac
 fi
 echo ""
 
 SRCS=(
     "$SCRIPT_DIR/settings.json"
     "$SCRIPT_DIR/opencode.jsonc"
+    "$SCRIPT_DIR/claude/CLAUDE.md"
 )
 DESTS=(
     "$HOME/.claude/settings.json"
     "$HOME/.config/opencode/opencode.jsonc"
+    "$HOME/.claude/CLAUDE.md"
 )
-
-# In workspace mode, force-remove settings.json so linking always succeeds
-# (workspaces may have a pre-existing regular file instead of a symlink)
-if [[ "${IN_WORKSPACE:-}" == "1" ]]; then
-    rm -f "$HOME/.claude/settings.json"
-fi
 
 for i in "${!SRCS[@]}"; do
     src="${SRCS[$i]}"
@@ -76,9 +112,28 @@ for i in "${!SRCS[@]}"; do
 
     if [[ -L "$dest" ]]; then
         rm "$dest"
+    elif [[ -f "$dest" && ! -s "$dest" ]]; then
+        # Empty stub (e.g. Claude Code default ~/.claude/CLAUDE.md) is safe to replace.
+        rm "$dest"
+    elif [[ -f "$dest" ]] && cmp -s "$dest" "$src"; then
+        # Regular file with identical content — Claude Code can rewrite the
+        # symlink as a regular copy. Safe to replace with a symlink.
+        rm "$dest"
+    elif [[ -f "$dest" ]]; then
+        # Regular file with different content — preserve user edits in .bak
+        # before relinking, then error so the user can reconcile manually.
+        backup="${dest}.bak.$(date +%Y%m%d%H%M%S)"
+        if mv "$dest" "$backup"; then
+            errors+=("$src -> $dest: dest differed from source; backed up to $backup")
+            echo "FAIL  $dest differed from source, backed up to $backup and skipped"
+        else
+            errors+=("$src -> $dest: dest differed from source and backup failed")
+            echo "FAIL  could not back up $dest, skipping"
+        fi
+        continue
     elif [[ -e "$dest" ]]; then
-        errors+=("$src -> $dest: destination already exists as a regular file")
-        echo "FAIL  $dest already exists as a regular file, cannot link"
+        errors+=("$src -> $dest: destination already exists (not a regular file)")
+        echo "FAIL  $dest already exists and is not a regular file, cannot link"
         continue
     fi
 
@@ -127,31 +182,6 @@ print(json.dumps(data['mcpServers']['$name']))
         echo "  FAIL  $name"
     fi
 done
-
-# Update Claude Code and marketplace plugins
-echo ""
-echo "Updating Claude Code and marketplace plugins..."
-if command -v claude &>/dev/null; then
-    if claude update 2>&1; then
-        echo "  OK  claude updated"
-    else
-        echo "  WARN  claude update failed (may already be up-to-date)"
-    fi
-    plugin_names=$(claude plugin marketplace list --json 2>/dev/null | jq -r '.[].name' 2>/dev/null || true)
-    if [[ -n "$plugin_names" ]]; then
-        while IFS= read -r plugin; do
-            if claude plugin marketplace update "$plugin" 2>&1; then
-                echo "  OK  plugin $plugin updated"
-            else
-                echo "  WARN  plugin $plugin update failed"
-            fi
-        done <<< "$plugin_names"
-    else
-        echo "  No marketplace plugins installed"
-    fi
-else
-    echo "  SKIP  claude CLI not found"
-fi
 
 # Symlink Claude Code hooks from hooks/ into ~/.claude/hooks/
 echo ""
@@ -301,6 +331,326 @@ echo "$sorted_manifest" > "$MANIFEST"
 echo ""
 echo "Linked ${#new_manifest[@]} files to ~/.config/opencode/. Cleaned $cleaned stale files."
 
+# Generate Codex assets in the repo
+echo ""
+echo "Syncing Codex skills and agents..."
+"$SCRIPT_DIR/sync-codex.sh"
+
+# Propagate .codex/{skills,agents} to ~/.codex/
+echo ""
+echo "Linking to ~/.codex/..."
+
+CODEX_GLOBAL_DIR="$HOME/.codex"
+CODEX_LOCAL_DIR="$SCRIPT_DIR/.codex"
+CODEX_MANIFEST="$CODEX_GLOBAL_DIR/.code-factory-managed"
+
+codex_new_manifest=()
+
+# Read old Codex manifest for cleanup
+codex_old_manifest=()
+if [[ -f "$CODEX_MANIFEST" ]]; then
+    while IFS= read -r line; do
+        codex_old_manifest+=("$line")
+    done < "$CODEX_MANIFEST"
+fi
+
+# Symlink each Codex skill directory
+if [[ -d "$CODEX_LOCAL_DIR/skills" ]]; then
+    mkdir -p "$CODEX_GLOBAL_DIR/skills"
+    for skill_src in "$CODEX_LOCAL_DIR/skills"/*/; do
+        [[ -d "$skill_src" ]] || continue
+        skill_name=$(basename "$skill_src")
+        skill_dest="$CODEX_GLOBAL_DIR/skills/$skill_name"
+        if ! ln -sfn "$skill_src" "$skill_dest"; then
+            errors+=("$skill_src -> $skill_dest: ln -sfn failed")
+            echo "  FAIL  skills/$skill_name/"
+        else
+            codex_new_manifest+=("$skill_dest")
+            echo "  LINK  skills/$skill_name/"
+        fi
+    done
+fi
+
+# Symlink each Codex agent file
+if [[ -d "$CODEX_LOCAL_DIR/agents" ]]; then
+    mkdir -p "$CODEX_GLOBAL_DIR/agents"
+    while IFS= read -r agent_src; do
+        agent_name=$(basename "$agent_src")
+        agent_dest="$CODEX_GLOBAL_DIR/agents/$agent_name"
+        if ! ln -sf "$agent_src" "$agent_dest"; then
+            errors+=("$agent_src -> $agent_dest: ln -sf failed")
+            echo "  FAIL  agents/$agent_name"
+        else
+            codex_new_manifest+=("$agent_dest")
+            echo "  LINK  agents/$agent_name"
+        fi
+    done < <(find "$CODEX_LOCAL_DIR/agents" -name "*.toml" | sort)
+fi
+
+# Codex manifest cleanup: remove stale global files
+if [[ ${#codex_new_manifest[@]} -gt 0 ]]; then
+    codex_sorted_manifest=$(printf '%s\n' "${codex_new_manifest[@]}" | sort)
+else
+    codex_sorted_manifest=""
+fi
+codex_cleaned=0
+for old_file in "${codex_old_manifest[@]+"${codex_old_manifest[@]}"}"; do
+    [[ -z "$old_file" ]] && continue
+    if ! echo "$codex_sorted_manifest" | grep -qxF "$old_file"; then
+        if [[ -e "$old_file" || -L "$old_file" ]]; then
+            rm -f "$old_file"
+            echo "  CLEAN  $old_file"
+            codex_cleaned=$((codex_cleaned + 1))
+        fi
+        parent=$(dirname "$old_file")
+        rmdir "$parent" 2>/dev/null || true
+    fi
+done
+
+# Write new Codex manifest
+if [[ -n "$codex_sorted_manifest" ]]; then
+    echo "$codex_sorted_manifest" > "$CODEX_MANIFEST"
+else
+    : > "$CODEX_MANIFEST"
+fi
+
+echo ""
+echo "Linked ${#codex_new_manifest[@]} entries to ~/.codex/. Cleaned $codex_cleaned stale entries."
+
+# Generate Pi assets in the repo
+echo ""
+echo "Syncing Pi skills, prompts, agents, and MCP extension..."
+"$SCRIPT_DIR/sync-pi.sh"
+
+# Propagate .pi/{skills,prompts,agents,extensions} to ~/.pi/agent/
+echo ""
+echo "Linking to ~/.pi/agent/..."
+
+PI_GLOBAL_DIR="$HOME/.pi/agent"
+PI_LOCAL_DIR="$SCRIPT_DIR/.pi"
+PI_MANIFEST="$PI_GLOBAL_DIR/.code-factory-managed"
+
+pi_new_manifest=()
+
+pi_old_manifest=()
+if [[ -f "$PI_MANIFEST" ]]; then
+    while IFS= read -r line; do
+        pi_old_manifest+=("$line")
+    done < "$PI_MANIFEST"
+fi
+
+# Symlink each Pi skill directory
+if [[ -d "$PI_LOCAL_DIR/skills" ]]; then
+    mkdir -p "$PI_GLOBAL_DIR/skills"
+    for skill_src in "$PI_LOCAL_DIR/skills"/*/; do
+        [[ -d "$skill_src" ]] || continue
+        skill_name=$(basename "$skill_src")
+        skill_dest="$PI_GLOBAL_DIR/skills/$skill_name"
+        if ! ln -sfn "$skill_src" "$skill_dest"; then
+            errors+=("$skill_src -> $skill_dest: ln -sfn failed")
+            echo "  FAIL  skills/$skill_name/"
+        else
+            pi_new_manifest+=("$skill_dest")
+            echo "  LINK  skills/$skill_name/"
+        fi
+    done
+fi
+
+# Symlink each Pi prompt file
+if [[ -d "$PI_LOCAL_DIR/prompts" ]]; then
+    mkdir -p "$PI_GLOBAL_DIR/prompts"
+    while IFS= read -r prompt_src; do
+        prompt_name=$(basename "$prompt_src")
+        prompt_dest="$PI_GLOBAL_DIR/prompts/$prompt_name"
+        if ! ln -sf "$prompt_src" "$prompt_dest"; then
+            errors+=("$prompt_src -> $prompt_dest: ln -sf failed")
+            echo "  FAIL  prompts/$prompt_name"
+        else
+            pi_new_manifest+=("$prompt_dest")
+            echo "  LINK  prompts/$prompt_name"
+        fi
+    done < <(find "$PI_LOCAL_DIR/prompts" -name "*.md" | sort)
+fi
+
+# Symlink each Pi agent file
+if [[ -d "$PI_LOCAL_DIR/agents" ]]; then
+    mkdir -p "$PI_GLOBAL_DIR/agents"
+    while IFS= read -r agent_src; do
+        agent_name=$(basename "$agent_src")
+        agent_dest="$PI_GLOBAL_DIR/agents/$agent_name"
+        if ! ln -sf "$agent_src" "$agent_dest"; then
+            errors+=("$agent_src -> $agent_dest: ln -sf failed")
+            echo "  FAIL  agents/$agent_name"
+        else
+            pi_new_manifest+=("$agent_dest")
+            echo "  LINK  agents/$agent_name"
+        fi
+    done < <(find "$PI_LOCAL_DIR/agents" -name "*.md" | sort)
+fi
+
+# Symlink each Pi extension directory
+if [[ -d "$PI_LOCAL_DIR/extensions" ]]; then
+    mkdir -p "$PI_GLOBAL_DIR/extensions"
+    for ext_src in "$PI_LOCAL_DIR/extensions"/*/; do
+        [[ -d "$ext_src" ]] || continue
+        ext_name=$(basename "$ext_src")
+        ext_dest="$PI_GLOBAL_DIR/extensions/$ext_name"
+        if ! ln -sfn "$ext_src" "$ext_dest"; then
+            errors+=("$ext_src -> $ext_dest: ln -sfn failed")
+            echo "  FAIL  extensions/$ext_name/"
+        else
+            pi_new_manifest+=("$ext_dest")
+            echo "  LINK  extensions/$ext_name/"
+        fi
+    done
+fi
+
+# Pi manifest cleanup
+if [[ ${#pi_new_manifest[@]} -gt 0 ]]; then
+    pi_sorted_manifest=$(printf '%s\n' "${pi_new_manifest[@]}" | sort)
+else
+    pi_sorted_manifest=""
+fi
+pi_cleaned=0
+for old_file in "${pi_old_manifest[@]+"${pi_old_manifest[@]}"}"; do
+    [[ -z "$old_file" ]] && continue
+    if ! echo "$pi_sorted_manifest" | grep -qxF "$old_file"; then
+        if [[ -e "$old_file" || -L "$old_file" ]]; then
+            rm -f "$old_file"
+            echo "  CLEAN  $old_file"
+            pi_cleaned=$((pi_cleaned + 1))
+        fi
+        parent=$(dirname "$old_file")
+        rmdir "$parent" 2>/dev/null || true
+    fi
+done
+
+mkdir -p "$PI_GLOBAL_DIR"
+if [[ -n "$pi_sorted_manifest" ]]; then
+    echo "$pi_sorted_manifest" > "$PI_MANIFEST"
+else
+    : > "$PI_MANIFEST"
+fi
+
+echo ""
+echo "Linked ${#pi_new_manifest[@]} entries to ~/.pi/agent/. Cleaned $pi_cleaned stale entries."
+
+# Install curated pi.dev packages
+echo ""
+echo "Installing Pi packages..."
+if command -v pi &>/dev/null; then
+    # Datadog packages: clone-or-update the marketplace repo, then install by local path.
+    # The repo root is intentionally a catalog, not a pi package -- each subdir under
+    # packages/ must be installed individually.
+    DD_PI_REPO="${DD_PI_REPO:-$HOME/dd/datadog-pi-packages}"
+    DD_PI_REMOTE="git@github.com:ddoghq-sandbox/datadog-pi-packages.git"
+    mkdir -p "$(dirname "$DD_PI_REPO")"
+    if [[ -d "$DD_PI_REPO/.git" ]]; then
+        if git -C "$DD_PI_REPO" pull --ff-only 2>&1 | tail -1; then
+            echo "  OK  $DD_PI_REPO updated"
+        else
+            echo "  WARN  $DD_PI_REPO update failed"
+        fi
+    elif [[ ! -e "$DD_PI_REPO" ]]; then
+        if git clone --depth 1 "$DD_PI_REMOTE" "$DD_PI_REPO" 2>&1 | tail -1; then
+            echo "  OK  $DD_PI_REPO cloned"
+        else
+            echo "  WARN  $DD_PI_REPO clone failed (need access to ddoghq-sandbox; see https://github.com/ddoghq-sandbox/datadog-pi-packages/blob/main/docs/github-auth.md)"
+        fi
+    fi
+
+    if [[ -d "$DD_PI_REPO/packages" ]]; then
+        DD_PI_PACKAGES=(
+            "refresh-models"
+            "confluence-adf"
+        )
+        for pkg in "${DD_PI_PACKAGES[@]}"; do
+            pkg_path="$DD_PI_REPO/packages/$pkg"
+            if [[ ! -d "$pkg_path" ]]; then
+                echo "  WARN  $pkg not found at $pkg_path"
+                continue
+            fi
+            if pi install "$pkg_path" 2>&1 | tail -1; then
+                echo "  OK  datadog-pi-packages/$pkg"
+            else
+                echo "  WARN  datadog-pi-packages/$pkg install failed"
+            fi
+        done
+    fi
+else
+    echo "  SKIP  pi CLI not found (install via: npm i -g @earendil-works/pi-coding-agent)"
+fi
+
+# Configure Pi to use Datadog AI Gateway (opt out via PI_AUTOCONFIG=0)
+echo ""
+echo "Configuring Pi AI Gateway..."
+configure_pi_aigateway() {
+    if [[ "${PI_AUTOCONFIG:-1}" == "0" ]]; then
+        echo "  SKIP  PI_AUTOCONFIG=0"
+        return 0
+    fi
+    if ! command -v pi &>/dev/null && [[ ! -d "$HOME/.pi" ]]; then
+        echo "  SKIP  pi not installed"
+        return 0
+    fi
+    if ! command -v ddtool &>/dev/null; then
+        echo "  SKIP  ddtool not installed (see https://datadoghq.atlassian.net/wiki/spaces/~5e9d84f05f50bf0c0b460b93/pages/6699122806)"
+        return 0
+    fi
+    if ! ddtool auth token rapid-ai-platform --datacenter us1.prod.dog >/dev/null 2>&1; then
+        echo "  SKIP  ddtool not authed (run: ddtool auth login rapid-ai-platform --datacenter us1.prod.dog)"
+        return 0
+    fi
+
+    local cfg="$PI_GLOBAL_DIR/models.json"
+    local pi_config="$SCRIPT_DIR/pi.json"
+    local email team
+    email=$(git config --global user.email 2>/dev/null || echo "$USER@datadoghq.com")
+    team="${DD_TEAM:-unknown}"
+
+    mkdir -p "$(dirname "$cfg")"
+
+    if [[ ! -f "$pi_config" ]]; then
+        errors+=("pi: $pi_config not found")
+        echo "  FAIL  $pi_config not found"
+        return 1
+    fi
+
+    # Skip if any Datadog AI Gateway provider is already present. Detects both
+    # our static seed names ("datadog-ai-gateway", "datadog-ai-gateway-anthropic")
+    # and the /refresh-models-managed "ai-gw-*" names. Lets users adopt
+    # /refresh-models as the source of truth without us clobbering their config.
+    if [[ -f "$cfg" ]] && jq -e '(.providers // {}) | keys | map(select(startswith("ai-gw-") or startswith("datadog-ai-gateway"))) | length > 0' "$cfg" >/dev/null 2>&1; then
+        echo "  OK  $cfg already configured"
+        return 0
+    fi
+
+    local template
+    if ! template=$(jq --arg email "$email" --arg team "$team" \
+        '(.. | strings) |= (gsub("\\{\\{email\\}\\}"; $email) | gsub("\\{\\{team\\}\\}"; $team))' \
+        "$pi_config" 2>/dev/null); then
+        errors+=("pi: failed to render $pi_config")
+        echo "  FAIL  could not render $pi_config"
+        return 1
+    fi
+
+    if [[ -f "$cfg" ]]; then
+        cp "$cfg" "$cfg.bak.$(date +%s)"
+        echo "$template" | jq --slurpfile existing "$cfg" '.providers + $existing[0].providers as $merged | $existing[0] | .providers = $merged' > "$cfg.tmp"
+        mv "$cfg.tmp" "$cfg"
+        echo "  OK  merged Datadog AI Gateway providers into $cfg"
+    else
+        echo "$template" > "$cfg"
+        echo "  OK  wrote $cfg"
+    fi
+
+    if ! jq . "$cfg" >/dev/null 2>&1; then
+        errors+=("pi: models.json is invalid JSON after autoconfig")
+        echo "  FAIL  $cfg invalid JSON"
+    fi
+}
+configure_pi_aigateway
+
 # Install git hooks from .githooks/
 for HOOK_SRC in "$SCRIPT_DIR/.githooks"/*; do
     [[ -f "$HOOK_SRC" ]] || continue
@@ -323,28 +673,63 @@ for HOOK_SRC in "$SCRIPT_DIR/.githooks"/*; do
     fi
 done
 
-# In workspace mode, patch settings.json with workspace-specific keys
-if [[ "${IN_WORKSPACE:-}" == "1" ]]; then
-    settings_file="$HOME/.claude/settings.json"
-    if [[ -f "$settings_file" ]]; then
-        python3 -c "
-import json, os
-path = os.path.expanduser('$settings_file')
-# Resolve symlink so we write to the actual file
-real = os.path.realpath(path)
-with open(real) as f:
-    data = json.load(f)
-data['apiKeyHelper'] = 'workspace_secret ANTHROPIC_APIKEY1'
-data['forceLoginMethod'] = 'console'
-with open(real, 'w') as f:
-    json.dump(data, f, indent=2)
-    f.write('\n')
-"
-        echo "PATCH  $settings_file (workspace: apiKeyHelper, forceLoginMethod)"
+# Update Claude Code and marketplace plugins (after all setup is complete)
+echo ""
+echo "Updating Claude Code and marketplace plugins..."
+if command -v claude &>/dev/null; then
+    if claude update 2>&1; then
+        echo "  OK  claude updated"
     else
-        errors+=("workspace: $settings_file not found after linking, cannot patch")
-        echo "FAIL  workspace patch: $settings_file not found"
+        echo "  WARN  claude update failed (may already be up-to-date)"
     fi
+    marketplace_repos=$(jq -r '.extraKnownMarketplaces | to_entries[].value.source.repo' "$SCRIPT_DIR/settings.json" 2>/dev/null || true)
+    if [[ -n "$marketplace_repos" ]]; then
+        while IFS= read -r repo; do
+            if claude plugin marketplace add "$repo" 2>&1; then
+                echo "  OK  marketplace $repo added"
+            else
+                echo "  WARN  marketplace $repo add failed (may already exist)"
+            fi
+        done <<< "$marketplace_repos"
+    fi
+    enabled_plugins=$(jq -r '.enabledPlugins | keys[]' "$SCRIPT_DIR/settings.json" 2>/dev/null || true)
+    if [[ -n "$enabled_plugins" ]]; then
+        while IFS= read -r plugin; do
+            if claude plugin install "$plugin" 2>&1; then
+                echo "  OK  plugin $plugin installed"
+            else
+                echo "  WARN  plugin $plugin install failed (may already be installed)"
+            fi
+        done <<< "$enabled_plugins"
+    fi
+    # Update installed marketplaces
+    marketplace_names=$(claude plugin marketplace list --json 2>/dev/null | jq -r '.[].name' 2>/dev/null || true)
+    if [[ -n "$marketplace_names" ]]; then
+        while IFS= read -r marketplace; do
+            if claude plugin marketplace update "$marketplace" 2>&1; then
+                echo "  OK  marketplace $marketplace updated"
+            else
+                echo "  WARN  marketplace $marketplace update failed"
+            fi
+        done <<< "$marketplace_names"
+    else
+        echo "  No marketplaces installed"
+    fi
+    # Update installed plugins (preserve each plugin's installation scope)
+    installed_plugins=$(claude plugin list --json 2>/dev/null | jq -r '.[] | "\(.id)\t\(.scope)"' 2>/dev/null || true)
+    if [[ -n "$installed_plugins" ]]; then
+        while IFS=$'\t' read -r plugin scope; do
+            if claude plugin update "$plugin" --scope "$scope" 2>&1; then
+                echo "  OK  plugin $plugin updated (scope $scope)"
+            else
+                echo "  WARN  plugin $plugin update failed (scope $scope)"
+            fi
+        done <<< "$installed_plugins"
+    else
+        echo "  No plugins installed"
+    fi
+else
+    echo "  SKIP  claude CLI not found"
 fi
 
 # Final error summary

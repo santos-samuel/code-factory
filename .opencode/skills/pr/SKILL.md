@@ -45,14 +45,71 @@ Run in parallel:
 
 ## Step 2: Determine Base Branch
 
+Base branch resolution, in order:
+
+1. **Explicit override**: if `$ARGUMENTS` contains `--base <branch>`, use that value, set `STACKED=false`, and skip to Step 3.
+2. **Stack parent detection** (Step 2a) — if a parent is found, use it as the base.
+3. **Default branch detection** (Step 2b) — fall back to `main` / `master`.
+
+### Step 2a: Detect Stack Parent
+
+Find the branch whose tip commit is an ancestor of HEAD and has not yet merged into the default branch — that is the immediate parent in a branch stack.
+
+First, tentatively determine the default branch using the same commands as Step 2b.
+Keep the result for filtering and fallback.
+
+Enumerate candidate branches reachable from HEAD:
+
+```bash
+git branch -a --merged HEAD --format='%(refname:short)'
+```
+
+Filter the list:
+
+- Drop the current branch and `origin/<current>`.
+- Drop the default branch and `origin/<default>`.
+- Drop `origin/HEAD`.
+- Drop any ref whose tip is already reachable from `origin/<default>` — `git merge-base --is-ancestor <ref> origin/<default>` returning 0 means that ref is already on default and is not a stack parent.
+- When both `<name>` and `origin/<name>` remain, keep only `origin/<name>` (stacks are coordinated via remote tips).
+
+For each remaining candidate, compute its distance from HEAD:
+
+```bash
+git rev-list <candidate>..HEAD --count
+```
+
+Pick the candidate with the **smallest positive** distance — that is the immediate parent.
+
+Tie-breaking (multiple candidates at the same distance):
+
+1. Prefer a candidate with an open PR: `gh pr list --head <branch> --state open --json number --limit 1`.
+2. If still tied, ask the user via AskUserQuestion to pick the parent.
+
+If no candidate remains, there is no stack — fall through to Step 2b.
+
+**When a parent is found:**
+
+- Strip any `origin/` prefix from the candidate before recording — downstream steps (`gh pr create --base`, the Motivation template, the user-facing message) all expect a plain branch name.
+- Set `BASE_BRANCH=<parent>` and `PARENT_BRANCH=<parent>` using the stripped name.
+- Set `STACKED=true`.
+- Look up the parent PR:
+
+  ```bash
+  gh pr list --head <parent> --state open --json number,url,title --limit 1
+  ```
+
+  If a PR is returned, record `PARENT_PR_NUMBER`, `PARENT_PR_URL`, `PARENT_PR_TITLE`.
+  If the lookup fails (e.g. `gh` cannot resolve the remote to a GitHub host, or returns an empty array), leave those unset and continue — the stack reference will fall back to the "no PR yet" form.
+- Inform the user in one line: `Detected stacked branch. Targeting <parent> as base (parent PR: #<num> | no PR yet).`
+
+### Step 2b: Detect Default Branch
+
 Determine the default branch:
 
 1. `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null` — extract branch name (e.g. `origin/main` → `main`).
 2. If that fails: `git remote set-head origin --auto 2>/dev/null` and retry step 1.
 3. If still unresolved: fall back to `main` if `origin/main` exists, then `master` if `origin/master` exists.
 4. If nothing works: ask the user (see fallback below).
-
-If `$ARGUMENTS` contains `--base <branch>`, use that as the base branch instead.
 
 **If no base branch can be determined:**
 
@@ -164,6 +221,8 @@ Construct the PR body using this template. **Omit any section entirely (heading 
 
 ## 🎯 Motivation
 
+> Stacked on #{PARENT_PR_NUMBER} — [{PARENT_PR_TITLE}]({PARENT_PR_URL})
+
 - {why this change is needed}
 
 ## 📋 Summary
@@ -175,6 +234,11 @@ Section order is always: Documentation -> Motivation -> Summary. Rules:
 
 - **Documentation**: include only if JIRA IDs or URLs were found in commit messages (Step 4). If none found, omit entirely.
 - **Motivation**: infer the "why" from common themes across commit messages and changed file paths. Omit if obvious from the title.
+- **Stack reference** (only when `STACKED=true` from Step 2a): the Motivation section MUST begin with a single blockquote line pointing at the parent.
+  - If the parent has an open PR: `> Stacked on #<PARENT_PR_NUMBER> — [<PARENT_PR_TITLE>](<PARENT_PR_URL>)`
+  - Otherwise: `` > Stacked on branch `<PARENT_BRANCH>` (no PR yet) ``
+  - The stack reference is always the first content under `## 🎯 Motivation`, with a blank line separating it from the `{why}` bullets.
+  - When stacked, the Motivation section is NEVER omitted — even if the "why" is obvious from the title, the section is still emitted with just the stack reference so reviewers see the relationship.
 - **Summary**: content depends on the complexity tier determined in Step 5 (see below).
 - **Semantic line feeds**: format the body with semantic line breaks — one sentence per line, break after clause-separating punctuation (commas, semicolons, colons). Target 120 characters per line. Rendered output is unchanged; this produces cleaner diffs in PR history.
 - If all three sections are omitted, the body is empty.
@@ -313,8 +377,11 @@ This step runs when the mode is **Ready** (user invoked `/pr ready`).
 - **On the base branch**: inform the user they need to be on a feature branch. Stop.
 - **No diverging commits**: inform the user there are no new commits for a PR. Stop.
 - **Default branch not detected**: follow the Default Branch Detection procedure in Step 2, then ask the user if all fallbacks fail.
+- **Stack detection ambiguous**: multiple candidate parents at the same distance, none with an open PR — ask the user via AskUserQuestion to pick the parent.
+- **Parent branch not on remote**: the detected parent has no `origin/<parent>` ref, so `gh pr create --base` would fail. Inform the user and suggest pushing the parent first; then skip stacking and fall through to default branch detection.
 - **Push failure**: report the push error. Do NOT force-push. Let the user decide how to proceed.
 - **PR already exists**: if `gh pr create` fails because a PR already exists for this branch, report the existing PR URL using `gh pr view --web` or `gh pr view --json url`. Let the user decide whether to update it.
 - **Mark ready fails**: if `gh pr ready` fails, report the error. Common causes: PR not found, PR already merged, insufficient permissions.
 - **No PR for current branch** (Ready mode): inform the user no PR exists and suggest creating one with `/pr`.
+- **Push succeeds but `gh pr create` fails**: check repository permissions (fork vs direct access). Verify `gh auth status`. Report error.
 - **Network or API failure**: report the error from `gh`. Let the user retry.

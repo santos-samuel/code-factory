@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc"
+  short_description: "Use when the user wants to create, update, improve, maintain, or audit Markdo..."
+  default_prompt: "Use $doc to create, update, improve, maintain, or audit Markdown documentation."

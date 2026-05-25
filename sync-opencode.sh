@@ -173,7 +173,7 @@ transform_agent() {
 
     # Validate transformed output
     local valid=true
-    for field in "name:" "description:" "mode:" "model:" "tools:"; do
+    for field in "name:" "description:" "mode:" "tools:"; do
         if ! head -30 "$dest" | grep -q "^${field}" 2>/dev/null; then
             # tools: may be absent if agent had no allowed_tools
             if [[ "$field" == "tools:" ]]; then continue; fi
@@ -208,6 +208,10 @@ rewrite_body() {
     sed "${sed_i[@]}" 's/subagent_type=\([A-Za-z0-9_-]*\)/subagent=\1/g' "$file"
     # MCP tool name references: mcp__<server>__<tool> -> <server>_<tool>
     sed "${sed_i[@]}" 's/mcp__\([^_]*\)__/\1_/g' "$file"
+    # CLAUDE_PLUGIN_ROOT paths: ${CLAUDE_PLUGIN_ROOT}/skills/<name>/<rest> -> ./<rest>
+    # Handles both ${CLAUDE_PLUGIN_ROOT} and $CLAUDE_PLUGIN_ROOT forms
+    sed "${sed_i[@]}" 's|\${CLAUDE_PLUGIN_ROOT}/skills/[^/]*/|./|g' "$file"
+    sed "${sed_i[@]}" 's|\$CLAUDE_PLUGIN_ROOT/skills/[^/]*/|./|g' "$file"
 }
 
 # ---------------------------------------------------------------------------
@@ -223,7 +227,9 @@ main() {
     if [[ "$CHECK_MODE" == "true" ]]; then
         local tmpdir
         tmpdir=$(mktemp -d)
-        trap 'rm -rf "$tmpdir"' EXIT
+        # Expand $tmpdir at trap-set time: it is `local` to main(), so the trap
+        # cannot resolve it later when EXIT fires after main() returns.
+        trap "rm -rf '$tmpdir'" EXIT
 
         # Override output dirs to temp
         local real_skills_dir="$SKILLS_DIR"
@@ -246,10 +252,10 @@ main() {
         # --- Skills ---
         if [[ -d "$plugin_dir/skills" ]]; then
             while IFS= read -r skill_path; do
-                local skill_name
+                local skill_name skill_src_dir
                 skill_name=$(basename "$(dirname "$skill_path")")
-                mkdir -p "$SKILLS_DIR/$skill_name"
-                cp "$skill_path" "$SKILLS_DIR/$skill_name/SKILL.md"
+                skill_src_dir=$(dirname "$skill_path")
+                cp -R "$skill_src_dir" "$SKILLS_DIR/$skill_name"
                 rewrite_body "$SKILLS_DIR/$skill_name/SKILL.md"
 
                 skill_count=$((skill_count + 1))

@@ -16,7 +16,7 @@ paths:
 ## Style
 - PEP 8 conventions. Type annotations on all function signatures.
 - Prefer frozen dataclasses or NamedTuples for immutable data.
-- Do not duplicate ruff config in rules; it lives in `pyproject.toml`.
+- Ruff config lives in `pyproject.toml [tool.ruff]`. Check it before adding rules inline.
 
 ## Commands
 - Test: `uv run pytest tests/ -x -q`

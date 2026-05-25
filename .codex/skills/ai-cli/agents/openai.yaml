@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ai Cli"
+  short_description: "Use when the user wants to make a CLI AI-friendly, evaluate a CLI's agent rea..."
+  default_prompt: "Use $ai-cli to make a CLI AI-friendly, evaluate a CLI's agent readiness,."

@@ -1,7 +1,6 @@
 ---
 name: researcher
 description: "Domain research agent. Investigates APIs, libraries, patterns, and best practices. Searches Confluence, documentation, and web resources."
-model: "sonnet"
 allowed_tools: ["Read", "Grep", "Glob", "Bash", "WebSearch", "WebFetch", "mcp__atlassian__searchConfluenceUsingCql", "mcp__atlassian__getConfluencePage"]
 memory: "project"
 ---
@@ -165,6 +164,25 @@ When you find relevant pages, fetch the full content:
 ```
 mcp__atlassian__getConfluencePage(pageId="<id>")
 ```
+
+### Step 2.5 — Personal Google Drive Documents
+
+Search `~/google-drive/` for documents related to the research topic:
+
+```bash
+find ~/google-drive/ -maxdepth 3 \( -name "*.gdoc" -o -name "*.gslides" -o -name "*.gsheet" \) 2>/dev/null | grep -i "<keywords>"
+```
+
+These are Google Workspace stub files — filenames are searchable but contents are not readable.
+If a relevant document is found (design doc, RFC, architecture slides, meeting notes),
+note the filename as a reference and ask the user for details if needed.
+
+Key subdirectories:
+- `~/google-drive/code/` — code-related documents
+- `~/google-drive/interviews/` — interview materials
+- Top-level `.gslides` and `.gdoc` files — presentations, design docs, RFCs
+
+If `~/google-drive/` doesn't exist, skip and continue.
 
 ### Step 3 — External Documentation (General Web Search)
 

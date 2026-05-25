@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debug"
+  short_description: "Use when encountering any bug, test failure, unexpected behavior, or producti..."
+  default_prompt: "Use $debug to any bug, test failure, unexpected behavior, or production issue."

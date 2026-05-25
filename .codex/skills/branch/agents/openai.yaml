@@ -1,0 +1,4 @@
+interface:
+  display_name: "Branch"
+  short_description: "Use when the user wants to create a well-named feature branch from a."
+  default_prompt: "Use $branch to create a well-named feature branch from a."

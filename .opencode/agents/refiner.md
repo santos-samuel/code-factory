@@ -1,7 +1,6 @@
 ---
 name: refiner
 description: "Refinement agent. Takes vague requests and iteratively clarifies them with the user into detailed, actionable specifications with problem statement, scope, behavior, and acceptance criteria."
-model: "anthropic/claude-sonnet-4-5"
 maxTurns: 25
 mode: subagent
 tools:

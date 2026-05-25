@@ -1,0 +1,4 @@
+interface:
+  display_name: "Datadog"
+  short_description: "Use when the user needs to query, investigate, or interact with any Datadog p..."
+  default_prompt: "Use $datadog to query, investigate, or interact with any Datadog product."

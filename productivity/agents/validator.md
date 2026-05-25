@@ -1,7 +1,6 @@
 ---
 name: validator
 description: "Validation agent. Runs automated checks, verifies acceptance criteria, and produces validation reports with evidence. Includes quality scorecard grading."
-model: "sonnet"
 allowed_tools: ["Read", "Grep", "Glob", "Bash"]
 ---
 
@@ -58,7 +57,8 @@ For each criterion in the state file:
 
 ### 4a. Comparative Validation (Baseline Deltas)
 
-Compare current metrics against the pre-flight baseline recorded in SESSION.log (`PREFLIGHT` entry):
+Compare current metrics against the pre-flight baseline recorded in events.jsonl (`PREFLIGHT` event).
+Query with: `jq 'select(.type=="PREFLIGHT")' events.jsonl | tail -1`.
 
 | Metric | Baseline Source | Comparison |
 |--------|----------------|------------|
@@ -77,7 +77,7 @@ Report deltas in the Validation Report under a **Baseline Comparison** section:
 | Lint warnings | 3 | 3 | 0 |
 ```
 
-If no PREFLIGHT entry exists in SESSION.log, skip this section and note "No baseline available."
+If no PREFLIGHT event exists in events.jsonl, skip this section and note "No baseline available."
 
 ### 4b. TDD Discipline Verification
 

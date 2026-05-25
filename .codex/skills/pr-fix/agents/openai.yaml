@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pr Fix"
+  short_description: "Use when the user wants to address PR review feedback, fix PR comments, resol..."
+  default_prompt: "Use $pr-fix to address PR review feedback, fix PR comments, resolve review threads,."

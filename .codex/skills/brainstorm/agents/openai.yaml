@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brainstorm"
+  short_description: "Use when the user wants to brainstorm an idea, explore a problem space,."
+  default_prompt: "Use $brainstorm to brainstorm an idea, explore a problem space,."

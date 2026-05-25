@@ -116,10 +116,8 @@ Record choices:
 
 Search for all RFC runs and completed outputs:
 
-```bash
-find ~/docs/plans/rfc -maxdepth 2 -name "RFC-STATE.md" 2>/dev/null
-ls ~/docs/rfcs/*.md 2>/dev/null
-```
+- Glob for `RFC-STATE.md` under `~/docs/plans/rfc/` (max depth 2)
+- Glob for `*.md` under `~/docs/rfcs/`
 
 For each discovered `RFC-STATE.md`, read it and check `current_phase`:
 - **Active**: `current_phase` is not `DONE` — can be resumed

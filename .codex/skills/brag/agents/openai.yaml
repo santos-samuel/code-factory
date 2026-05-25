@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brag"
+  short_description: "Use when the user wants to update their brag document, log accomplishments,."
+  default_prompt: "Use $brag to update their brag document, log accomplishments,."

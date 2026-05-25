@@ -1,0 +1,4 @@
+interface:
+  display_name: "Daily"
+  short_description: "Use when the user narrates what happened during their workday —."
+  default_prompt: "Use $daily to narrates what happened during their workday —."

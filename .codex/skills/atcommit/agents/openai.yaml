@@ -1,0 +1,4 @@
+interface:
+  display_name: "Atcommit"
+  short_description: "Use when committing changes that span multiple files, when organizing."
+  default_prompt: "Use $atcommit to committing changes that span multiple files, when organizing."

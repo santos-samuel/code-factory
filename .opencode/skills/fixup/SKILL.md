@@ -8,7 +8,7 @@ description: >
   "fold into commit", "fix earlier commit".
 argument-hint: "[optional: commit hash or description to target]"
 user-invocable: true
-allowed-tools: Bash(git:*), Read, Grep, Glob
+allowed-tools: Bash(git:*), Read, Grep, Glob, AskUserQuestion
 ---
 
 # Fixup Commit
@@ -62,9 +62,7 @@ Determine the **change set** — the files to match against branch commits:
 | Staged files exist | Staged files only |
 | No staged files | All modified + untracked files |
 
-**Automatic exclusions:** Remove `.plans/` directory and `*.plan.md` files from the change set.
-
-**If nothing remains after exclusions:** inform the user and stop.
+**If nothing remains:** inform the user and stop.
 
 ## Step 3: Match Changes to a Commit
 
@@ -95,7 +93,7 @@ Rank commits by direct overlap first, then directory overlap as tiebreaker.
 | Situation | Action |
 |-----------|--------|
 | One commit has the highest direct overlap (> 0) | Use that commit |
-| Multiple commits tied on direct overlap | Show candidates, ask user to choose |
+| Multiple commits tied on direct overlap | Use `AskUserQuestion` to pick — one option per tied commit (`<sha> <subject>`) plus a "Cancel" option |
 | No commit has any direct overlap | Go to Step 3b |
 
 ### Step 3b: Semantic Matching (No File Overlap)
@@ -106,7 +104,7 @@ When no commit shares files with the change set, check for logical relationships
 2. Read each branch commit's message and diff summary (`git log -1 --stat <sha>`).
 3. Look for: new test files for code introduced in a commit, new files imported by files in a commit, documentation for a feature added in a commit.
 
-**If a logical match is found:** present it to the user with the reasoning and ask for confirmation.
+**If a logical match is found:** confirm via `AskUserQuestion` with options "Yes, fixup into `<sha>`" / "No, create a new commit instead" / "Pick a different commit".
 
 **If no match is found:** inform the user:
 
@@ -132,12 +130,6 @@ Stop.
 
 ```bash
 git add <file1> <file2> ...
-```
-
-Unstage any accidentally included exclusions:
-
-```bash
-git reset HEAD -- '.plans/' '*.plan.md' 2>/dev/null || true
 ```
 
 Create the fixup commit:

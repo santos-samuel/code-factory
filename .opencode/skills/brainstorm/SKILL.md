@@ -38,12 +38,28 @@ Parse `$ARGUMENTS` to determine new vs resume:
 
 ### List mode
 
-```bash
-ls -1t ~/docs/brainstorms/*.md 2>/dev/null
+Use `Glob(pattern="*.md", path="~/docs/brainstorms")` to find existing brainstorm files.
+
+For each file, read the frontmatter to extract `status` and the `# Title`. Display the list as a table (slug, title, status, date_modified) so the user can see what exists, then ask via `AskUserQuestion`:
+
+```
+AskUserQuestion(
+  questions: [{
+    header: "Brainstorm",
+    question: "Which brainstorm do you want to work on?",
+    options: [
+      {label: "<slug-1>", description: "<title-1> — <status-1>"},
+      {label: "<slug-2>", description: "<title-2> — <status-2>"},
+      {label: "Start new", description: "Create a new brainstorm — I'll ask for the idea"}
+    ],
+    multiSelect: false
+  }]
+)
 ```
 
-For each file, read the frontmatter to extract `status` and the `# Title`.
-Present as a table and ask whether to resume one or start a new brainstorm.
+Cap the options at 3 existing brainstorms plus "Start new". If there are more than 3 brainstorms, prefer the most recently modified. The auto-injected "Other" option lets the user name a different brainstorm by hand.
+
+If the user picks "Start new", ask a follow-up open question for the idea description, then continue with Step 3 (New brainstorm).
 
 ## Step 3: Create or Load Brainstorm File
 
@@ -97,7 +113,9 @@ Pass the full content to the brainstormer agent for continuation.
 
 ## Step 4: Dispatch Brainstormer
 
-Dispatch the brainstormer agent to drive the conversation:
+Dispatch the brainstormer agent to drive the conversation.
+The brainstormer is a problem-focused thinking partner that sharpens vague ideas into clear problem statements through iterative diagnostic questions.
+It asks one question at a time, pushes back on solution-shaped thinking, and updates the brainstorm file after each exchange.
 
 ```
 Task(
@@ -136,7 +154,7 @@ After the brainstormer agent completes, read the brainstorm file and report:
 |-------|-------|
 | **File** | `~/docs/brainstorms/<slug>.md` |
 | **Status** | `draft` / `developing` / `sharp` / `parked` |
-| **Problem sharp?** | Yes/No (apply the Sharp Problem Test) |
+| **Problem sharp?** | Yes/No — apply the Sharp Problem Test: Can you state WHO has the problem, WHAT the problem is, and WHY it matters in one sentence each? If any answer is vague ("users", "it's slow", "it would be nice"), the problem is not sharp yet. |
 | **Next steps** | Suggested actions based on status |
 
 Suggested next steps by status:
@@ -153,7 +171,8 @@ Suggested next steps by status:
 | Error | Action |
 |-------|--------|
 | `~/docs/brainstorms/` not writable | Report error and exit |
-| No arguments and no existing brainstorms | Ask for an idea description |
+| No arguments and no existing brainstorms | Ask for an idea description via a plain open-ended prompt (no `AskUserQuestion` — the answer is free-form) |
 | Slug conflicts with existing file | Append a number suffix (e.g., `my-idea-2.md`) |
 | Brainstormer agent fails | Save current file state, report error, suggest manual resume |
+| Brainstorm file corrupted or unreadable | Re-create the file with the last known content from conversation history. |
 | User wants to stop mid-conversation | Update file with current state, set status to `developing` or `parked` |

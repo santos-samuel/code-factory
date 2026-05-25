@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Conflicts"
+  short_description: "Use when git reports merge conflicts, rebase conflicts, cherry-pick conflicts,."
+  default_prompt: "Use $fix-conflicts to git reports merge conflicts, rebase conflicts, cherry-pick conflicts,."

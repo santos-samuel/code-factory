@@ -1,7 +1,6 @@
 ---
 name: code-quality-reviewer
 description: "Code quality reviewer. Assesses whether implementation is well-built: clean, tested, maintainable, following codebase conventions. Includes plan alignment and architecture review. Dispatched after spec compliance passes during EXECUTE phase."
-model: "opus"
 allowed_tools: ["Read", "Grep", "Glob", "Bash"]
 memory: "project"
 ---

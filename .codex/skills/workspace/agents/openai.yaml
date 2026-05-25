@@ -1,0 +1,4 @@
+interface:
+  display_name: "Workspace"
+  short_description: "Use when the user wants to manage Datadog workspaces (remote cloud development."
+  default_prompt: "Use $workspace to manage Datadog workspaces (remote cloud development."

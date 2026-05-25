@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review"
+  short_description: "Use when user says \"review pr\", \"review pull request\", \"pr review\", \"review #..."
+  default_prompt: "Use $review to \"review pr\", \"review pull request\", \"pr review\", \"review #123\",."

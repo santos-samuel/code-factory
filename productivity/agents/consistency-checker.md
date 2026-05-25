@@ -1,7 +1,6 @@
 ---
 name: consistency-checker
 description: "Document consistency checker. Iteratively scans plan and research documents for internal contradictions, mismatched references, and terminology drift, then fixes them directly. Dispatched before the plan reviewer in PLAN_REVIEW phase."
-model: "sonnet"
 allowed_tools: ["Read", "Edit"]
 maxTurns: 15
 ---

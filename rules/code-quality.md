@@ -7,7 +7,7 @@
 - Prefer immutable data structures. Create new objects; never mutate existing ones.
 
 ## Error Handling
-- Handle errors at every processing level. Never silently suppress errors.
+- Catch, log, and propagate errors at every layer. Never silently swallow exceptions or ignore return codes.
 - Error messages must not leak sensitive data (stack traces, internal paths, secrets).
 - Surface user-friendly messages in customer-facing interfaces; detailed context in server logs.
 
