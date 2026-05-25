@@ -354,7 +354,8 @@
     "writing@datadog-claude-plugins": true,
     "common-mistakes@mat-brown-contrib": true,
     "learning-skills@mrlee-plugins": true,
-    "permissions-setup@mrlee-plugins": true
+    "permissions-setup@mrlee-plugins": true,
+    "compute@datadog-claude-plugins": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
@@ -389,5 +390,7 @@
     }
   },
   "alwaysThinkingEnabled": false,
-  "autoUpdatesChannel": "stable"
+  "autoUpdatesChannel": "stable",
+  "skipDangerousModePermissionPrompt": true,
+  "model": "sonnet[1m]"
 }
