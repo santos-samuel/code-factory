@@ -147,6 +147,7 @@
       "/private/var/tmp"
     ]
   },
+  "model": "sonnet[1m]",
   "enabledMcpjsonServers": [
     "atlassian",
     "datadog-google-workspace",
@@ -250,6 +251,5 @@
   },
   "alwaysThinkingEnabled": false,
   "autoUpdatesChannel": "stable",
-  "skipDangerousModePermissionPrompt": true,
-  "model": "sonnet[1m]"
+  "skipDangerousModePermissionPrompt": true
 }

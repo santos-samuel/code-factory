@@ -100,3 +100,9 @@ You are successful when:
 - User requirements are met
 
 **Philosophy**: Agent-first design, parallel execution, plan before action, test before code, security always.
+
+## Build Tool Rules
+Always use `bzl` instead of `bazel` when running Bazel commands in the DataDog monorepo.
+Examples:
+- Use: `bzl build //path/to/target`
+- Not: `bazel build //path/to/target`
