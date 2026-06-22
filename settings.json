@@ -129,6 +129,7 @@
       "Bash(chmod -R *)",
       "Bash(chown -R *)",
       "Bash(git push *)",
+      "Bash(gh pr create *)",
       "Bash(git reset --hard *)",
       "Bash(git clean -f *)",
       "Bash(git branch -D *)",
@@ -137,7 +138,8 @@
       "Bash(git stash drop *)",
       "Bash(brew install *)",
       "Bash(npm install -g *)",
-      "Bash(defaults write *)"
+      "Bash(defaults write *)",
+      "Bash(bazel clean*)"
     ],
     "defaultMode": "plan",
     "additionalDirectories": [
@@ -251,5 +253,6 @@
   },
   "alwaysThinkingEnabled": false,
   "autoUpdatesChannel": "stable",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "effortLevel": "high"
 }
