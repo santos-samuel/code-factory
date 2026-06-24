@@ -110,5 +110,6 @@ Examples:
 ## Git Safety
 
 - Never `git push` when in detached HEAD state (`git symbolic-ref HEAD` fails) or when a rebase is in progress (`.git/rebase-merge/` or `.git/rebase-apply/` exists).
-- Committing is allowed in both states.
-- When either condition is detected, stop and tell the user: the repo is in detached HEAD or mid-rebase state, so pushing is blocked. Wait for the user to finish the rebase and push manually.
+- Never run `git rebase --continue`, `git rebase --skip`, or `git rebase --abort`. Rebases belong to the user. If a rebase is in progress, stop immediately and tell the user. Do not advance it.
+- Committing is allowed in both states (e.g. amending the current rebase stop-point when the user asks).
+- When a rebase is detected, stop and tell the user: the repo is mid-rebase. Make the requested code changes and stage them, but do not continue or push. Wait for the user to run `git rebase --continue` and push.
