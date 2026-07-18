@@ -17,7 +17,7 @@ TMP_DIR="$(make_temp_dir)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 cat > "$TMP_DIR/config.toml" <<'EOF'
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
 approval_policy = "on-request"
 sandbox_mode = "read-only"
 default_permissions = "stale-profile"
@@ -105,7 +105,7 @@ required = [
     'default_tools_approval_mode = "auto"',
     "[mcp_servers.unrelated]",
     '[projects."/tmp/code-factory-preserve"]',
-    'model = "gpt-5.5"',
+    'model = "gpt-5.6-sol"',
 ]
 
 missing = [item for item in required if item not in content]

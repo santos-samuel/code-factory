@@ -263,7 +263,7 @@ Generates `.codex/skills` (with collapsed single-line frontmatter and per-skill 
 
 ### `codex/config.toml` and `codex/rules/`
 
-Managed Codex defaults. `codex/config.toml` uses granular approval policy settings so Codex does not pause for sandbox approval prompts during non-interactive runs.
+Managed Codex defaults. `codex/config.toml` sets `gpt-5.6-sol` with high reasoning effort and uses granular approval policy settings so Codex does not pause for sandbox approval prompts during non-interactive runs.
 Filesystem and network access come from the `code-factory` permission profile: Codex can read most files, write only selected development roots (`~/dev`, `~/dd`, `~/go`, `~/docs`, `~/Downloads`, `/tmp`, and `/private/tmp`), write narrow Datadog auth/cache paths, and allow `~/.ssh/known_hosts` write access for git host key updates.
 Managed shell environments set `TMPDIR`, `TMP`, and `TEMP` to `/tmp` so command temp files are created under an approved writable root.
 
