@@ -1,3 +1,3 @@
-<!-- Use when the user wants to implement an OpenSpec change, apply OPSX tasks, continue OpenSpec implementation work, or work through tasks from `openspec/changes/<name>/tasks.md`. -->
+<!-- Use when the user wants to implement or continue implementation of an -->
 
 Use the `openspec-apply-change` skill to handle this request: $ARGUMENTS

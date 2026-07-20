@@ -1,7 +1,10 @@
 ---
 name: openspec-apply-change
-description: Use when the user wants to implement an OpenSpec change, apply OPSX tasks, continue OpenSpec implementation work, or work through tasks from `openspec/changes/<name>/tasks.md`. Triggers include openspec apply, opsx apply, implement openspec change, continue OpenSpec change, and apply change.
-argument-hint: "[change name]"
+description: >
+  Use when the user wants to implement or continue implementation of an
+  OpenSpec change. Triggers: "openspec apply", "opsx apply", "implement
+  OpenSpec change", "continue OpenSpec tasks".
+argument-hint: "[change name] [--store <id>]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, MultiEdit, Glob, Grep, Bash, TodoWrite, AskUserQuestion, Task
 ---
@@ -10,92 +13,81 @@ allowed-tools: Read, Write, Edit, MultiEdit, Glob, Grep, Bash, TodoWrite, AskUse
 
 Announce: "I'm using the openspec-apply-change skill to implement an OpenSpec change."
 
-Implement pending tasks from an OpenSpec change while keeping the task artifact current.
+Implement pending tasks while keeping canonical artifacts and task state accurate.
 
-## Step 1: Select the Change
+## Step 1: Select the Change and Planning Root
 
-Parse `$ARGUMENTS` for a change name.
+Parse `$ARGUMENTS` for a change and optional store.
+When a store is named, run `openspec store list --json`, resolve the id, and carry `--store "<id>"` on OpenSpec commands.
 
-If no name was provided:
-
-1. Infer the change only when the conversation clearly names one.
-2. Otherwise run `openspec list --json`.
-3. Auto-select only when exactly one active change exists.
-4. If multiple active changes exist, ask the user which one to apply.
-
+If no change is provided, infer it only from clear conversation context.
+Otherwise run `openspec list --json [--store "<id>"]`.
+Auto-select only when exactly one active change exists; ask when several remain.
 Announce `Using change: <name>` before reading artifacts.
 
-## Step 2: Load OpenSpec Context
+## Step 2: Load Live OpenSpec Context
 
 Run:
 
 ```bash
-openspec status --change "<name>" --json
-openspec instructions apply --change "<name>" --json
+openspec status --change "<name>" --json [--store "<id>"]
+openspec instructions apply --change "<name>" --json [--store "<id>"]
 ```
 
-Use the instruction output as the source of truth for:
+Use status for `schemaName`, `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`.
+Use apply instructions for `contextFiles`, progress, task state, and dynamic instructions.
+Respect allowed edit roots and affected-area constraints.
 
-- `schemaName`
-- `contextFiles`
-- total, completed, and remaining tasks
-- current dynamic implementation instruction
-- blocked or all-done state
-
-If the state is `blocked`, report the missing artifacts and stop.
-If the state is `all_done`, report completion and suggest `openspec-archive-change`.
+If apply state is `blocked`, report missing artifacts and suggest `/openspec-continue-change`.
+If state is `all_done`, report completion and suggest `/openspec-verify-change`.
 
 ## Step 3: Read Required Files
 
-Read every file listed in `contextFiles`.
-Do not assume a fixed schema layout.
-
-Create a concise implementation checklist from the pending tasks.
-Preserve the task wording from the artifact so progress updates map back cleanly.
+Read every concrete path in `contextFiles` from disk.
+Create a checklist from the pending tasks while preserving their wording.
+Re-read affected context files after user edits, artifact changes, or any deviation before continuing.
 
 ## Step 4: Implement Pending Tasks
 
-Work through pending tasks in order unless dependencies require a different order.
+Work through tasks in dependency order:
 
-For each task:
+1. State the task.
+2. Make the smallest scoped implementation change.
+3. Run focused validation for that task.
+4. Mark its checkbox complete only after validation passes.
+5. Continue until complete or blocked.
 
-1. State the task being implemented.
-2. Make the minimal scoped code or documentation changes required.
-3. Run the relevant focused validation for that task.
-4. Mark the task complete in the task artifact by changing `- [ ]` to `- [x]`.
-5. Continue until all tasks are complete or a blocker is reached.
+When evidence contradicts an artifact, classify the deviation:
 
-When implementation evidence contradicts a planned path or assumption, classify the deviation before editing further:
-
-- **Reversible and behavior-preserving**: the intended scope and observable behavior remain unchanged, and the choice is easy to undo. Select the easiest-to-reverse valid option. Update every affected canonical proposal, design, spec, or task artifact with the evidence and rationale. Run focused validation proving the substitute preserves the contract, record the command and result in the affected canonical task or design artifact, then continue from the updated artifacts.
-- **Behavior-changing, irreversible, or scope-expanding**: the choice changes user-visible or system-visible behavior, commits to a difficult migration or contract, or adds work outside the approved scope. Stop at a safe checkpoint. Do not change canonical artifacts, implementation, or completion markers for the disputed work until the user gives direction.
+- **Reversible and behavior-preserving:** update every affected canonical artifact with evidence and rationale, record the focused validation command and result in the affected task or design artifact, re-read changed artifacts, then continue.
+- **Behavior-changing, irreversible, or scope-expanding:** stop safely and request user direction without changing disputed artifacts or completion markers.
 
 Do not create a separate implementation-notes file.
-Record deviations where a future apply or archive run will read them: update the affected canonical artifacts and keep task wording current.
-After a reversible deviation, re-read the changed artifacts before resuming and include the focused validation evidence in the progress report.
 
-Pause and ask if a task is ambiguous, contradicts another artifact, or reveals a design issue that cannot be resolved as behavior-preserving and reversible.
+## Step 5: Validate and Report
 
-## Step 5: Report Progress
+Run the focused project checks required by completed tasks.
+Run `openspec validate "<name>" --strict [--store "<id>"]` when artifact content changed.
 
-At completion or pause, report:
+Report:
 
-- Change name and schema.
-- Tasks completed this session.
-- Overall task progress.
-- Validation performed.
+- Change and schema.
+- Tasks completed this session and overall progress.
+- Validation commands and results.
+- Canonical deviations recorded.
 - Remaining blocker, if any.
 
-If every task is complete, suggest `openspec-archive-change`.
+When all tasks are complete, recommend `/openspec-verify-change`.
 
 ## Error Handling
 
 | Failure | Resolution |
 |-|-|
-| No active change can be selected | Run `openspec list --json` and ask the user to choose. |
-| Apply instructions report `blocked` | Report the missing artifacts and stop before coding. |
-| Task contradicts artifacts | Classify the contradiction first: follow the reversible path without a confirmation round-trip, or pause for user direction when behavior, scope, or irreversibility is affected. |
-| Deviation preserves behavior and is reversible | Update affected canonical artifacts with evidence and rationale, validate the substitute, then continue. |
-| Deviation changes behavior, scope, or an irreversible decision | Stop at a safe checkpoint without marking the task complete and request user direction. |
-| Validation fails | Fix the failure before marking the task complete. |
-| User interrupts | Leave completed task checkboxes accurate and report the current progress. |
+| No change can be selected | List active changes and ask the user to choose. |
+| Store id is unknown | Show registered stores and ask for a valid id. |
+| Apply instructions are blocked | Report missing artifacts and stop before implementation. |
+| Action context disallows an edit | Stop and report the permitted roots or required selection. |
+| Reversible deviation appears | Update canonical artifacts, validate, re-read, and continue. |
+| Behavior or scope would change | Stop at a safe checkpoint and request direction. |
+| Validation fails | Fix the failure before checking off the task. |
+| User interrupts | Leave task checkboxes accurate and report current progress. |

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Ff Change"
+  short_description: "Use when an OpenSpec request says every/all remaining artifacts,."
+  default_prompt: "Use $openspec-ff-change to an OpenSpec request says every/all remaining artifacts,."

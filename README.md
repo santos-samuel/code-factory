@@ -23,9 +23,17 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 | `/code-simplify` | productivity | Simplify and refactor code for clarity without changing behavior |
 | `/ai-cli` | productivity | Evaluate and improve CLI design for AI agent usage |
 | `/openspec-propose` | productivity | Create OpenSpec changes and generate proposal/design/spec/task artifacts |
-| `/openspec-apply-change` | productivity | Implement pending tasks from an OpenSpec change |
-| `/openspec-archive-change` | productivity | Archive completed OpenSpec changes |
 | `/openspec-explore` | productivity | Explore OpenSpec ideas and artifacts without implementation |
+| `/openspec-new-change` | productivity | Create an OpenSpec change scaffold without writing artifacts |
+| `/openspec-continue-change` | productivity | Create the next ready artifact for an OpenSpec change |
+| `/openspec-ff-change` | productivity | Generate all artifacts required for OpenSpec implementation |
+| `/openspec-update-change` | productivity | Reconcile existing OpenSpec planning artifacts without editing code |
+| `/openspec-apply-change` | productivity | Implement pending tasks from an OpenSpec change |
+| `/openspec-sync-specs` | productivity | Merge delta specs into main specs without archiving |
+| `/openspec-verify-change` | productivity | Verify implementation against OpenSpec artifacts |
+| `/openspec-archive-change` | productivity | Archive completed OpenSpec changes |
+| `/openspec-bulk-archive-change` | productivity | Preflight and archive a selected batch of OpenSpec changes |
+| `/openspec-onboard` | productivity | Learn OpenSpec through a guided real change |
 | `/skill-workbench` | productivity | Create or improve skills and agents |
 | `/review` | productivity | Review a pull request with structured findings |
 | `/tour` | productivity | Guided code walkthroughs (interactive or written) |
@@ -63,7 +71,7 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 - `/datadog` -- Datadog product query via pup CLI: APM, logs, metrics, monitors, error tracking, RUM, infrastructure, security signals, incidents, SLOs, synthetics, CI/CD, and 30+ other API domains.
 - `/code-simplify` -- Code simplification across any scope (file, directory, package, branch diff, staged changes, or entire repo). Preserves behavior while improving clarity and maintainability.
 - `/ai-cli` -- CLI design evaluation and improvement for AI agents: scores against 8 Agent DX axes aligned with the AXI (Agent eXperience Interface) framework (machine-readable output, raw payload input, schema introspection, context window discipline, input hardening, safety rails, agent knowledge packaging, efficiency & composition), recommends prioritized improvements, and guides implementation.
-- `/openspec-propose`, `/openspec-apply-change`, `/openspec-archive-change`, `/openspec-explore` -- OpenSpec/OPSX workflows for decision-first proposals, canonical task implementation and deviation handling, archive/finalization, and read-only blindspot/reference exploration. The OpenSpec CLI stays npm-managed by `init.sh`; the skills are vendored here so Claude Code, Codex, and Pi receive the same versioned workflow instructions.
+- `/openspec-*` -- The complete 12-workflow OpenSpec suite: propose, explore, scaffold, one-artifact continuation, fast-forward, planning reconciliation, implementation, spec sync, verification, single/bulk archive, and guided onboarding. The [MIT-licensed upstream workflows](https://github.com/Fission-AI/OpenSpec/tree/main/skills) are adapted to local conventions with store-aware paths, decision-first reviews, evidence-backed verification, deviation handling, and CLI-driven archiving. The CLI command `openspec update` regenerates assistant instructions; `/openspec-update-change` instead revises one change's existing planning artifacts.
 - `/skill-workbench` -- Skill and agent creation/improvement toolkit.
 
 The exploration, planning, brainstorming, implementation, and PR workflows share an unknowns-aware layer:
@@ -241,7 +249,7 @@ User descriptions are wrapped in `<feature_request>` tags to prevent prompt inje
 ## Development Notes
 
 - Source of truth is under `productivity/` and `git/`; do not edit generated files under `.codex/` or `.pi/` directly.
-- OpenSpec uses a hybrid model: `init.sh` keeps the CLI up to date through npm, while this repo owns the workflow skills so generated global agent assets remain deterministic. Set `OPENSPEC_INSTALL=0` to skip CLI installation, `OPENSPEC_NPM_PACKAGE=@fission-ai/openspec@1.3.1` to pin a package, or `OPENSPEC_NPM_CACHE=<path>` to override the npm cache used by bootstrap.
+- OpenSpec uses a hybrid model: `init.sh` keeps the CLI up to date through npm, while this repo owns adapted copies of the 12 upstream workflow skills so generated global agent assets remain deterministic. Do not run project-level `openspec update` to refresh these copies; edit the canonical OpenSpec skill directories under `productivity/skills/` and run the repository sync targets. Set `OPENSPEC_INSTALL=0` to skip CLI installation, `OPENSPEC_NPM_PACKAGE=@fission-ai/openspec@1.3.1` to pin a package, or `OPENSPEC_NPM_CACHE=<path>` to override the npm cache used by bootstrap.
 - `make all` runs checks (`make check`) and config linting (`make lint`).
 - `make check` also verifies Codex/Pi sync freshness and managed Codex config/rules.
 - Re-run `./init.sh` after changing local bootstrap-managed files.

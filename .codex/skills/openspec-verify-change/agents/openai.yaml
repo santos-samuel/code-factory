@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Verify Change"
+  short_description: "Use whenever the user wants a read-only evidence audit that checked OpenSpec."
+  default_prompt: "Use $openspec-verify-change to Use whenever the user wants a read-only evidence audit that checked OpenSpec."

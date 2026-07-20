@@ -1,72 +1,73 @@
 ---
 name: "openspec-archive-change"
-description: "Use when the user wants to archive or finalize an OpenSpec change after implementation, merge OpenSpec delta specs into main specs, or complete an OPSX workflow. Triggers include openspec archive, opsx archive, archive OpenSpec change, and finalize OpenSpec change."
+description: "Use when the user wants to finalize and archive one OpenSpec change. Triggers: \"openspec archive\", \"opsx archive\", \"archive OpenSpec change\", \"finalize OpenSpec change\"."
 ---
 
 # OpenSpec Archive Change
 
 Announce: "I'm using the openspec-archive-change skill to archive an OpenSpec change."
 
-Archive a completed OpenSpec change using the OpenSpec CLI lifecycle command.
+Archive through the OpenSpec CLI so validation, spec merging, and paths remain authoritative.
 
-## Step 1: Select the Change
+## Step 1: Select the Change and Planning Root
 
-Parse the user's invocation prompt for a change name and optional OpenSpec archive flags.
+Parse the user's invocation prompt for a change, store, and explicit archive flags.
+When a store is named, run `openspec store list --json`, resolve the id, and carry `--store "<id>"`.
 
-If no change name was provided, run:
+If no change is provided, run:
 
 ```bash
-openspec list --json
+openspec list --json [--store "<id>"]
 ```
 
 Ask the user to choose from active changes.
-Do not guess when multiple active changes exist.
+Do not guess when multiple changes exist.
 
 ## Step 2: Check Readiness
 
 Run:
 
 ```bash
-openspec status --change "<name>" --json
-openspec instructions apply --change "<name>" --json
+openspec status --change "<name>" --json [--store "<id>"]
+openspec instructions apply --change "<name>" --json [--store "<id>"]
 ```
 
-Report incomplete artifacts or tasks before archiving.
-If work is incomplete, ask the user to confirm before continuing.
+Use `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext` for reporting.
+List incomplete artifacts or tasks.
+If work is incomplete, ask for confirmation before proceeding.
 
-Run validation unless the user explicitly passed `--no-validate`:
+Unless the user explicitly passed `--no-validate`, run:
 
 ```bash
-openspec validate "<name>"
+openspec validate "<name>" --strict [--store "<id>"]
 ```
 
-## Step 3: Archive
+Stop on validation failure.
 
-Archive with the CLI so spec merging and archive naming follow OpenSpec behavior:
+## Step 3: Archive with the CLI
+
+Run:
 
 ```bash
-openspec archive "<name>"
+openspec archive "<name>" --json [--store "<id>"] [--yes] [--skip-specs] [--no-validate]
 ```
 
-Pass through explicit user flags such as `--yes`, `--skip-specs`, or `--no-validate`.
-Use `--yes` only when the user requested non-interactive archiving.
+Pass only flags the user supplied.
+Use `--yes` only after explicit non-interactive authorization.
+The CLI owns spec merging and the archive move; do not reproduce either with manual file edits or `mv`.
 
-## Step 4: Report Outcome
+## Step 4: Report the Outcome
 
-Report:
-
-- Change name.
-- Archive command used.
-- Whether specs were merged or skipped.
-- Archive location if the CLI reports it.
-- Any warnings about incomplete tasks or skipped validation.
+Report the schema, archive path, spec merge or skip result, validation state, and warnings returned by the CLI.
+If archiving fails, confirm the active change remains at `changeRoot`.
 
 ## Error Handling
 
 | Failure | Resolution |
 |-|-|
-| Multiple active changes exist | Ask the user to choose before archiving. |
-| Incomplete tasks remain | Warn and ask for confirmation before proceeding. |
-| Validation fails | Stop and report the validation failure unless the user explicitly requested `--no-validate`. |
-| Archive command prompts unexpectedly | Pause and ask the user instead of assuming confirmation. |
-| Archive target already exists | Report the conflicting archive path and leave the active change untouched. |
+| Multiple changes exist | Ask the user to choose before archiving. |
+| Store id is unknown | Show registered stores and ask for a valid id. |
+| Incomplete work remains | Warn and require confirmation. |
+| Validation fails | Stop unless the user explicitly requests `--no-validate`. |
+| CLI prompts unexpectedly | Pause instead of assuming confirmation. |
+| Archive target or spec merge conflicts | Report the CLI error and leave the active change untouched. |

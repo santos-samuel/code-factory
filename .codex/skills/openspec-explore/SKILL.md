@@ -1,98 +1,80 @@
 ---
 name: "openspec-explore"
-description: "Use when the user wants to explore an idea, investigate a problem, inspect an existing OpenSpec change, or think through requirements before or during spec-driven work. Triggers include openspec explore, opsx explore, explore OpenSpec change, think through OpenSpec, and investigate before proposal."
+description: "Use when the user wants to investigate an idea, problem, or existing OpenSpec change without implementing. Triggers: \"openspec explore\", \"opsx explore\", \"think through OpenSpec\", \"inspect OpenSpec change\"."
 ---
 
 # OpenSpec Explore
 
 Announce: "I'm using the openspec-explore skill to explore OpenSpec context without implementing."
 
-Explore ideas and existing OpenSpec artifacts without changing code.
+Explore ideas and artifacts without changing code or files.
 
-## Step 1: Establish Context
+## Step 1: Resolve Context
 
-Run when available:
+Run `openspec list --json` in the nearest root.
+When the user names a store, run `openspec store list --json`, resolve the id, and repeat list/status/show commands with `--store "<id>"`.
 
-```bash
-openspec list --json
-```
-
-Use the result to identify active changes and specs.
-If the user's invocation prompt names a change, inspect its status:
+If a change is relevant, run:
 
 ```bash
-openspec status --change "<name>" --json
+openspec status --change "<name>" --json [--store "<id>"]
 ```
 
-Read relevant artifacts under `openspec/changes/<name>/` or `openspec/specs/`.
+Use `changeRoot`, `artifactPaths.<id>.existingOutputPaths`, and `actionContext` rather than hardcoded repository paths.
+Re-read relevant existing artifacts from their reported concrete paths.
 
 ## Step 2: Explore Without Implementing
 
-Use read-only investigation only.
-You may search the repo, read files, compare artifacts, and ask clarifying questions.
-Do not edit code, mark tasks complete, archive changes, or run mutating OpenSpec commands.
+Search the repository, inspect history, compare artifacts, and ask questions that materially change the direction.
+Do not edit code or artifacts, mark tasks complete, sync specs, or archive changes.
+When the user requests implementation, route to `/openspec-apply-change`.
+When the user requests a new complete proposal, route to `/openspec-propose`.
+When the user requests artifact reconciliation, route to `/openspec-update-change`.
 
-When the user asks for implementation, explain that implementation should use `openspec-apply-change`.
-When the user asks to create a new change, use `openspec-propose`.
+Run a blindspot pass when missing context could change scope, architecture, behavior, or review strategy.
+Report only consequential findings:
 
-Run a blindspot pass when the request crosses an unfamiliar area or when missing context could change scope, architecture, behavior, or review strategy.
-Ground each finding in repository, OpenSpec, domain, or reference evidence.
-Report only consequential findings under this structure:
+1. Landmines with evidence.
+2. Hidden constraints already encoded in the repository or artifacts.
+3. Quality examples that calibrate the target.
+4. High-impact questions, with provisional answers when evidence supports them.
+5. A revised request or decision summary.
 
-1. **Landmines**: likely failure modes and their evidence.
-2. **Hidden constraints**: conventions, history, or decisions already embedded in the repository or domain.
-3. **Quality examples**: examples that calibrate what good looks like.
-4. **High-impact questions**: unresolved questions in architecture, behavior, then polish order, with evidence-backed provisional answers when possible.
-5. **Revised request**: a concise request or decision summary incorporating the findings.
-
-Retrieve answers available from code, documentation, history, OpenSpec artifacts, or supplied references instead of asking the user.
-Ask one question at a time only when the answer materially changes the direction.
-Stop asking when the remaining uncertainty is cheaper and safe to resolve during implementation.
-If the evidence shows the area is straightforward, state `No significant blindspots found` and do not pad the result with trivia.
+If no consequential blindspots exist, state `No significant blindspots found`.
 
 ## Step 3: Analyze References by Semantics
 
-When the user supplies code, a repository, documentation, or another implementation as a reference, treat it as a behavioral specification rather than source to transliterate.
+For supplied code, documentation, or another implementation, report:
 
-Before recommending target changes, report:
+- Behaviors and guarantees.
+- Deliberate decisions and supporting evidence.
+- Incidental framework or repository details.
+- Native equivalents under this repository's conventions.
+- Translation gaps.
+- Reference license and whether text may be reused.
 
-- Behaviors and guarantees the reference provides.
-- Decisions that appear deliberate and the evidence for that interpretation.
-- Incidental details tied to the reference language, framework, or repository.
-- Native equivalents under the target repository's conventions.
-- Translation gaps where the target environment cannot preserve the same semantics directly.
-- The reference license and whether implementation text may be reused.
+Use behavioral semantics rather than transliterating source.
+If the license is unclear, do not copy implementation text.
 
-Use target-repository conventions to determine implementation shape.
-When the license is missing or unclear, restrict the work to behavioral analysis, label the uncertainty, and do not copy implementation text.
-When the reference is unavailable, separate verified facts from assumptions and ask for an accessible source only if its semantics are decision-critical.
+## Step 4: Offer the Correct Capture Path
 
-## Step 4: Capture Decisions When Asked
+Exploration is read-only.
+When a decision should be recorded, identify the affected existing artifact and suggest `/openspec-update-change`.
+When an artifact does not exist, suggest `/openspec-continue-change`.
+Do not write it from this skill.
 
-If the user asks to capture an explored decision into OpenSpec artifacts, update only the relevant proposal, design, spec, or task artifact.
-Treat that as documentation of the exploration, not implementation.
+## Step 5: Summarize
 
-Before writing, state which artifact will change and why.
-
-## Step 5: Summarize Findings
-
-Summarize:
-
-- Current OpenSpec state.
-- Relevant existing artifacts or specs.
-- Options and trade-offs discussed.
-- Open questions.
-- Recommended next skill, if the user is ready to proceed.
+Summarize the current OpenSpec state, relevant artifacts, options and trade-offs, unresolved questions, and recommended next skill.
 
 ## Error Handling
 
 | Failure | Resolution |
 |-|-|
-| `openspec` is missing | Continue with repo file inspection and tell the user to run `./init.sh` to install the CLI. |
-| No OpenSpec directory exists | Explore the idea normally and suggest `openspec-propose` when ready. |
-| Multiple changes match | Ask which change the user wants to inspect. |
-| User requests implementation | Stop exploration and route to `openspec-apply-change`. |
-| Artifact write is requested but unclear | Ask what decision should be captured and where. |
-| Reference source is unavailable | Report what could not be verified, continue only with independently supported semantics, and request an accessible source if the missing evidence changes the decision. |
-| Reference license is unclear | Limit the result to behavioral analysis and do not copy source or instruction text. |
-| Evidence is insufficient for a blindspot claim | Label it as an open question or omit it; never promote speculation to a landmine or hidden constraint. |
+| `openspec` is missing | Continue with repository inspection and tell the user to run `./init.sh`. |
+| Store id is unknown | Show registered stores and ask for a valid id. |
+| No OpenSpec root exists | Explore normally and suggest `/openspec-propose` when ready. |
+| Multiple changes match | Ask which change to inspect. |
+| Reference is unavailable | Separate verified facts from assumptions and request it only when decision-critical. |
+| Reference license is unclear | Limit the result to behavioral analysis and do not copy text. |
+| Evidence is insufficient | Label the point as an open question or omit it. |

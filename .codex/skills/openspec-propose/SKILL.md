@@ -1,103 +1,98 @@
 ---
 name: "openspec-propose"
-description: "Use when the user wants to create an OpenSpec change proposal, generate OpenSpec artifacts, start an OPSX/spec-driven change, or turn a feature idea into proposal, design, specs, and tasks. Triggers include openspec propose, opsx propose, create openspec change, new OpenSpec proposal, and spec-driven proposal."
+description: "Use when the user wants to create a complete OpenSpec proposal from a feature, fix, or change description. Triggers: \"openspec propose\", \"opsx propose\", \"create OpenSpec change\", \"spec-driven proposal\"."
 ---
 
 # OpenSpec Propose
 
-Announce: "I'm using the openspec-propose skill to create an OpenSpec change proposal."
+Announce: "I'm using the openspec-propose skill to create a complete OpenSpec proposal."
 
-Create an OpenSpec change and generate every artifact required before implementation.
+Create a change and every artifact required before implementation.
 
-## Step 1: Resolve the Change
+## Step 1: Resolve the Request and Planning Root
 
-Parse the user's invocation prompt for a kebab-case change name or a feature description.
+Parse the user's invocation prompt for a kebab-case change name, feature description, and optional store.
+Retrieve answers available from the repository, existing OpenSpec artifacts, history, or supplied references before asking.
+Ask one question at a time in architecture, behavior, then polish order.
 
-Retrieve answers available from the repository, existing OpenSpec artifacts, documentation, history, or supplied references before asking the user.
-If no clear input was provided, ask the user what change they want to build.
-Derive a kebab-case name from the answer.
-Do not proceed until the requested change is understandable.
+When the user names a store, run:
 
-Ask one question at a time in this order: architecture-changing, behavior-defining, then polish.
-For consequential choices, provide concrete options, a recommendation, and the trade-off.
-Stop asking when the remaining uncertainty has a safe default and is cheaper to validate during implementation.
+```bash
+openspec store list --json
+```
 
-If `openspec/changes/<name>/` already exists, inspect it before writing anything.
-Continue that change only when the user's intent clearly matches it; otherwise ask for a different name.
+Resolve the store id and add `--store "<id>"` to `new change`, `status`, `instructions`, `list`, and later validation commands.
+Without a store, use the nearest OpenSpec root.
 
-## Step 2: Create the Change
+If the selected root already contains the change, inspect it and ask whether to continue or choose another name.
+Do not assume `openspec/changes/<name>` is the planning path.
+
+## Step 2: Create and Inspect the Change
 
 Run:
 
 ```bash
-openspec new change "<name>"
+openspec new change "<name>" [--store "<id>"]
+openspec status --change "<name>" --json [--store "<id>"]
 ```
 
-Then inspect the workflow graph:
+Use the JSON fields as the source of truth:
 
-```bash
-openspec status --change "<name>" --json
-```
+- `schemaName` and `applyRequires`
+- artifact status and dependencies
+- `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`
 
-Use the JSON fields instead of assuming file names:
+Respect `actionContext.allowedEditRoots` and any affected-area requirement before writing.
 
-- `schemaName` identifies the active workflow.
-- `applyRequires` lists the artifacts needed before implementation.
-- `artifacts` lists each artifact, status, dependencies, and output path.
+## Step 3: Generate Apply-Required Artifacts
 
-## Step 3: Generate Artifacts
+Track artifact progress with `TodoWrite`.
+Loop until every artifact in `applyRequires` is `done`:
 
-Use `TodoWrite` to track artifacts from the current graph.
+1. Select the next `ready` artifact from the live status graph.
+2. Run `openspec instructions <artifact-id> --change "<name>" --json [--store "<id>"]`.
+3. Re-read every dependency path returned by the instructions from disk, even if it appeared earlier in the conversation.
+4. Follow the returned `instruction`, `template`, `context`, and `rules`.
+5. Write to the returned `resolvedOutputPath`; when it is a glob, choose a concrete path using the schema instruction.
+6. Verify the file exists, then re-run status before selecting the next artifact.
 
-Loop until every artifact in `applyRequires` is complete:
-
-1. Pick the next artifact whose dependencies are satisfied.
-2. Run `openspec instructions <artifact-id> --change "<name>" --json`.
-3. Read completed dependency files listed by the instruction output.
-4. Write the artifact to the exact `outputPath` from the instruction output.
-5. Use the returned template and instruction as the artifact contract.
-6. Apply `context` and `rules` as constraints for writing, but do not copy those wrapper fields into the artifact.
-7. Re-run `openspec status --change "<name>" --json` and continue.
-
-If an artifact needs product or technical context that cannot be inferred from the repo or conversation, ask one focused question using the same blast-radius order before writing it.
+Treat `context` and `rules` as authoring constraints, never as artifact content.
+If required product or technical context cannot be inferred, ask one focused question and then resume.
 
 ## Step 4: Present a Decision-First Review
 
-Read the completed canonical artifacts and present their user-tweakable decisions before mechanical implementation details.
-Do not create a separate summary artifact.
+Re-read the completed artifacts and present:
 
-Lead with:
+1. Outcome and chosen approach.
+2. Riskiest assumption.
+3. Expensive-to-change interfaces, data models, types, and user-visible behavior.
+4. One considered alternative for each tweakable decision.
+5. Known unknowns with a safe default and pivot signal.
+6. A compressed artifact and task summary.
 
-1. **Outcome**: what will be built and the intended behavior.
-2. **Chosen approach**: why it was selected.
-3. **Riskiest assumption**: the assumption most likely to invalidate the plan.
-4. **Tweakable decisions**: expensive-to-change interfaces, data models, types, or user-visible behavior; for each, give one considered alternative and the cost of changing later.
-5. **Known unknowns**: the safe default for each non-blocking ambiguity and the observable signal that would trigger a pivot.
-6. **Mechanical work**: a compressed artifact and task summary.
-
-If the review exposes a blocking decision, ask one question and update the affected canonical artifact before declaring readiness.
+If review feedback changes an artifact, update it and regenerate or reconcile affected downstream artifacts from fresh disk content before declaring readiness.
 
 ## Step 5: Verify Readiness
 
 Run:
 
 ```bash
-openspec status --change "<name>"
+openspec validate "<name>" --strict [--store "<id>"]
+openspec status --change "<name>" [--store "<id>"]
 ```
 
-Report:
-
-- Change name and location.
-- Schema name.
-- Artifacts created.
-- Whether the change is ready for `openspec-apply-change`.
+Fix artifact validation failures before reporting readiness.
+Report the change name, resolved location, schema, artifacts created, validation, and readiness for `/openspec-apply-change`.
 
 ## Error Handling
 
 | Failure | Resolution |
 |-|-|
-| `openspec` is missing | Tell the user to run this repo's `./init.sh`, or install `@fission-ai/openspec` with npm. |
-| Existing change name conflicts | Inspect the existing change and ask whether to continue it or choose a new name. |
-| Artifact instructions are blocked | Report missing dependencies from `openspec status --json` and create those first. |
-| Required context is unclear | Ask one focused question, then continue artifact generation. |
-| Validation fails | Show the failing artifact and fix the artifact before reporting readiness. |
+| `openspec` is missing | Tell the user to run this repository's `./init.sh` or install `@fission-ai/openspec`. |
+| Store id is unknown | Show `openspec store list --json` results and ask for a valid store. |
+| Existing change name conflicts | Inspect the existing change and ask whether to continue or rename. |
+| Artifact instructions are blocked | Report missing dependencies and create those first. |
+| Output path is a glob | Use the schema instruction to choose a concrete file; never write to the glob string. |
+| Action context disallows a write | Stop and report the allowed roots or required area selection. |
+| Context remains decision-critical | Ask one focused question before writing the affected artifact. |
+| Validation fails | Fix the affected artifact and re-run strict validation. |

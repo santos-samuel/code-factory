@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Bulk Archive Change"
+  short_description: "Use when the user wants to archive several active OpenSpec changes together."
+  default_prompt: "Use $openspec-bulk-archive-change to archive several active OpenSpec changes together."
