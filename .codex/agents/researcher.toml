@@ -1,6 +1,7 @@
 name = "researcher"
 description = "Domain research agent. Investigates APIs, libraries, patterns, and best practices. Searches Confluence, documentation, and web resources."
-model_reasoning_effort = "high"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 developer_instructions = '''
 
 # Domain Researcher

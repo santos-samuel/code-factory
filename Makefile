@@ -1,4 +1,4 @@
-.PHONY: all install lint check check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-codex-sync sync-codex check-codex-config check-codex-rules check-pi-sync sync-pi help
+.PHONY: all install lint check check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-do-evals check-reflect-analyzer check-codex-sync check-codex-agent-routing sync-codex check-codex-config check-codex-rules check-pi-sync sync-pi help
 
 all: check lint ## Run all checks (frontmatter, agents, refs, structure, plugins, lint)
 
@@ -175,11 +175,20 @@ check-versions: ## Warn if plugin content changed since last commit without a ve
 	done
 	@echo "Done."
 
+check-reflect-analyzer: ## Run deterministic Codex session analyzer fixtures
+	@python3 -B -m unittest productivity/skills/reflect/tests/test_analyze_codex_session.py
+
+check-do-evals: ## Run persisted /do regression assertions
+	@python3 -B productivity/skills/do/evals/check-evals.py
+
 sync-codex: ## Sync skills and agents to Codex config directory
 	@./sync-codex.sh
 
 check-codex-sync: ## Validate Codex sync is up-to-date
 	@./sync-codex.sh --check
+
+check-codex-agent-routing: check-codex-sync ## Validate Codex agent model and effort tiers
+	@bash ./scripts/check-codex-agent-routing.sh
 
 check-codex-config: ## Validate managed Codex config generation
 	@bash ./scripts/check-codex-config.sh
@@ -193,7 +202,7 @@ sync-pi: ## Sync skills, prompts, agents, extensions, and MCP config to Pi confi
 check-pi-sync: ## Validate Pi sync is up-to-date
 	@./sync-pi.sh --check
 
-check: check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-codex-sync check-codex-config check-codex-rules check-pi-sync ## Run all validation checks (frontmatter, agents, refs, structure, plugins)
+check: check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-do-evals check-reflect-analyzer check-codex-agent-routing check-codex-config check-codex-rules check-pi-sync ## Run all validation checks (frontmatter, agents, refs, structure, plugins)
 	@echo "Checking plugin references..."
 	@ok=true; \
 	for source in $$(python3 -c "import json; data=json.load(open('.claude-plugin/marketplace.json')); print('\n'.join(p['source'] for p in data['plugins']))"); do \

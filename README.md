@@ -117,58 +117,46 @@ These behaviors adapt ideas from the MIT-licensed
 
 ## `/do` Lifecycle
 
-Full lifecycle feature orchestration — from vague idea to merged PR. Supports interactive (approve at each phase) or autonomous (`--auto`) modes. Pre-fetches external references (URLs, tickets, PRs) from the feature description before orchestration begins. All state persists in `~/docs/plans/do/<name>/` for cross-session resume.
+Full lifecycle feature orchestration — from vague idea to merged PR. Supports interactive (approve at each phase) or autonomous (`--auto`) modes. Phase gates reuse complete, user-approved evidence instead of repeating refinement, research, or planning. Review depth and agent count scale with task risk, and compact task bundles keep nested prompts bounded. All state persists in `~/docs/plans/do/<name>/` for cross-session resume.
 
 ### Phase Diagram
 
 ```
 REFINE ──→ RESEARCH ──→ PLAN_DRAFT ──→ PLAN_REVIEW ──→ EXECUTE ──→ VALIDATE ──→ DONE
-                            ^               |    |           ^          |
-                            |               v    v           |          v
-                            |          consistency  +--------+-- (fix forward) ──+
-                            |            check      |
-                            |               |       |
-                            |               v       |
-                            +──── (changes requested)
+                            ^               |                ^          |
+                            |               v                |          v
+                            +──── (changes requested)        +-- (focused fix)
 ```
 
 ### Phase Details
 
 | Phase | Agents | What Happens | Output |
 |-|-|-|-|
-| **REFINE** | `refiner` | Retrieve discoverable answers, then clarify by architecture, behavior, and polish impact. Propose 2-3 approaches with trade-offs and get user preference. | Refined spec: problem statement, chosen approach, scope, acceptance criteria |
-| **RESEARCH** | `explorer` + `researcher` (parallel) | Map local code and search internal/external sources. Reference implementations are analyzed as semantic specifications with translation and license gaps. | Context, assumptions, constraints, risks, open questions |
-| **PLAN_DRAFT** | `planner` | Convert research into milestones and tasks. Plan embeds relevant context inline (not links only). | Milestones, task breakdown (TDD-first), validation strategy, recovery plan |
-| **PLAN_REVIEW** | `consistency-checker` → `reviewer` | Review correctness while presenting users with the outcome, chosen bet, riskiest assumption, tweakable decisions, alternatives, and pivot signals before task mechanics. | Review report, required changes |
-| **EXECUTE** | `implementer` + `spec-reviewer` + `code-quality-reviewer` | Batched execution with shift-left validation and two-stage review (see below). TDD enforced for behavioral tasks. Atomic commits at milestone boundaries via `/atcommit`. | Implemented code, atomic commits |
-| **VALIDATE** | `validator` | Run automated checks + quality scorecard (1-5 per dimension). All dimensions must score ≥ 3/5. May loop back to EXECUTE. | Validation report, acceptance evidence, quality scorecard |
+| **REFINE** | `refiner` when evidence is incomplete | Validate that the prepared context has a clear problem, scope, behavior, and acceptance criteria; reuse it when complete. | Refined spec or evidence-reuse record |
+| **RESEARCH** | `explorer` and/or `researcher` for specific gaps | Fill only missing local, internal, or external evidence. Reference implementations are analyzed as semantic specifications with translation and license gaps. | Context, assumptions, constraints, risks, open questions |
+| **PLAN_DRAFT** | `planner` | Convert research into milestones and tasks. The plan summarizes decision-relevant evidence and cites artifact paths without copying full research. | Milestones, task breakdown (TDD-first), validation strategy, recovery plan |
+| **PLAN_REVIEW** | `reviewer`; optional risk-specific `red-teamer` | Review correctness once, adding an independent challenge only for a named high-risk assumption. | Review report, required changes |
+| **EXECUTE** | `implementer`; `task-critic` for Medium/High risk | Batched execution with deterministic shift-left checks and a cumulative review budget. TDD is enforced for behavioral tasks. Atomic commits happen at milestone boundaries via `/atcommit`. | Implemented code, atomic commits |
+| **VALIDATE** | `validator` | Run automated checks and acceptance validation. Reuse an integrated review when `HEAD` has not changed. May loop back to EXECUTE for a focused fix. | Validation report, acceptance evidence, quality scorecard |
 | **DONE** | — | Write retrospective, run final tests, summarize deviations, discoveries, unresolved review questions, and the key learning from canonical state, then offer PR creation. | PR URL or merge commit |
 
 ### EXECUTE Phase — Batch Loop
 
 ```
-Plan Critical Review → Pre-flight (build + test baseline) → Execute Batch (3 tasks) → Batch Report → Feedback → Next Batch
-                                                                  |                                       ^
-                                                                  v                                       |
-                                                            Per-task loop:                          (loop batches)
-                                                            Dispatch implementer → Shift-left (lint/format/typecheck)
-                                                                  → Spec review (max 2 fix cycles)
-                                                                  → Code quality review (max 2 fix cycles)
-                                                                  → Next task
-                                                            At MILESTONE BOUNDARY:
-                                                            Run /atcommit → group changes by concept → 3-5 atomic commits
+Pre-flight → Execute ready task → Shift-left checks → Risk-routed review → Milestone report
+                     ^                                            |
+                     +--------------- focused fix -----------------+
 ```
 
 **Per-task sequence:**
 
-1. Dispatch fresh `implementer` with full task text + scene-setting context (milestone position, prior task summary, upcoming tasks, discoveries, architecture)
+1. Dispatch a fresh `implementer` with one self-contained task bundle and a compact scene-setting capsule.
 2. Implementer asks questions → answers provided → implements → self-reviews → reports (no commit)
 3. **Shift-left validation** (deterministic — orchestrator runs directly): lint + format + type-check. Auto-fixes formatting. Returns to implementer if errors persist.
-4. `spec-reviewer` verifies implementation matches spec (nothing missing, nothing extra, nothing misunderstood)
-5. If issues → implementer fixes → re-review (max 2 fix cycles, then escalate)
-6. `code-quality-reviewer` assesses maintainability, testing, conventions, plan alignment
-7. If critical issues → implementer fixes → re-review (max 2 fix cycles, then escalate)
-8. Mark task complete, update state, proceed to next task in batch (no commit yet)
+4. Low-risk tasks stop after self-review and checks. Medium/High tasks get one integrated `task-critic` pass.
+5. A rejection gets one focused fixer/recheck within the cumulative budget; a second rejection blocks.
+6. High-risk tasks may use the second review slot for a distinct trust, security, concurrency, retry, or destructive-data risk.
+7. Mark the task complete, record runtime telemetry, and proceed (no commit yet).
 
 **TDD enforcement** (behavioral tasks only):
 
@@ -203,6 +191,39 @@ All artifacts live in `~/docs/plans/do/<name>/`:
 | `PLAN.md` | PLAN_DRAFT | Milestones, task breakdown, validation strategy, recovery |
 | `REVIEW.md` | PLAN_REVIEW | Review feedback, required changes |
 | `VALIDATION.md` | VALIDATE | Test results, acceptance evidence, quality scorecard |
+| `SNAPSHOT.md` | Each transition | Capped resume context for the next task or phase |
+| `events.jsonl` | Creation through DONE | Append-only lifecycle, dispatch, review, token, and duration telemetry |
+
+### Resource Controls and Telemetry
+
+`/do --token-budget <tokens>` enforces an exact token-denominated ceiling. The legacy
+`--budget <USD>` form is enforced only when the runtime supplies cost or an explicitly configured
+model rate; otherwise cost remains `null` with `cost_source: unknown`, and `/do` requires a token
+ceiling instead of inventing a price.
+
+Telemetry preserves runtime token categories and labels metrics as `measured`, `derived`, or
+`lower_bound`. Batch reports include tokens, duration, agent/tool/wait activity, discoveries, and
+their provenance. Reviews use one ledger keyed by scope and `HEAD`, so unchanged accepted work is
+not reviewed again.
+
+Codex generation maps read-heavy and orchestration roles to `gpt-5.6-terra` with Medium effort.
+Implementation and named adversarial roles (`implementer`, `task-critic`, and `red-teamer`) use
+`gpt-5.6-sol` with High effort. Portable agent instructions keep abstract roles; the
+platform-specific mapping and its validation live in `sync-codex.sh`.
+
+### Codex Session Audits
+
+`/reflect` includes a bounded deterministic analyzer for a Codex root session and all unique
+descendants:
+
+```bash
+python3 productivity/skills/reflect/scripts/analyze-codex-session.py --list-roots --days 7
+python3 productivity/skills/reflect/scripts/analyze-codex-session.py --root <root-id> --days 7
+```
+
+Add `--json` for machine-readable output. The analyzer uses one final cumulative token record per
+thread, sanitizes prompt previews, labels observed activity as a lower bound, skips malformed JSONL
+safely, and never estimates dollar cost.
 
 ### Input Isolation
 

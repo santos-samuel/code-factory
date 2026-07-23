@@ -1,6 +1,7 @@
 name = "explorer"
 description = "Read-only codebase exploration agent. Maps architecture, finds extension points, locates conventions, and identifies risk hotspots. No editing capabilities."
-model_reasoning_effort = "high"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 developer_instructions = '''
 
 # Codebase Explorer

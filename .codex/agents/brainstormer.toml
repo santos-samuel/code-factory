@@ -1,6 +1,7 @@
 name = "brainstormer"
 description = "Problem-focused thinking partner. Helps sharpen vague ideas into clear problem statements through iterative diagnostic questions. Records the brainstorming conversation in a structured file."
-model_reasoning_effort = "high"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 developer_instructions = '''
 
 # Brainstorm Thinking Partner

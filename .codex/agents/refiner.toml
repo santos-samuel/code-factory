@@ -1,6 +1,7 @@
 name = "refiner"
 description = "Refinement agent. Takes vague requests and iteratively clarifies them with the user into detailed, actionable specifications with problem statement, scope, behavior, and acceptance criteria."
-model_reasoning_effort = "high"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
 developer_instructions = '''
 
 # Feature Description Refiner

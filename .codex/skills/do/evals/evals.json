@@ -1,0 +1,76 @@
+{
+  "skill_name": "do",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "A user has already approved a specification with binary acceptance criteria, repository and authoritative external research with citations, and an implementation plan naming files, dependencies, risks, and validation. They now invoke /do in interactive mode. Describe the phase routing, agent dispatches, approvals, and artifacts before EXECUTE.",
+      "expected_output": "REFINE, RESEARCH, and PLAN_DRAFT are satisfied from prepared evidence without phase-agent dispatches or duplicate approvals.",
+      "expectations": [
+        "No refiner, explorer, researcher, or planner is dispatched.",
+        "Normal compact artifacts and phase exit checks are preserved.",
+        "The user is not asked to approve already approved artifacts again."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Prepared research answers every question except one decision-critical local error-handling convention. External APIs and internal design decisions are already authoritatively cited. Describe how /do satisfies RESEARCH.",
+      "expected_output": "Only the missing local convention is verified; completed external and internal research is not repeated.",
+      "expectations": [
+        "The response identifies one local evidence gap.",
+        "No general researcher or Confluence search is dispatched.",
+        "Existing cited research is reused."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Route implementation review for three independent tasks after deterministic checks pass: T-L is Low risk; T-M is Medium risk and its first critic accepts; T-H is High risk with a trust-boundary concern and its first critic rejects a proven flaw. State every permitted external pass and stop condition.",
+      "expected_output": "Low uses zero external passes; Medium stops after one accepted critic; High has at most two passes and cannot add a third reviewer.",
+      "expectations": [
+        "Low risk receives no external reviewer.",
+        "Medium risk stops after the accepted integrated task critic.",
+        "High risk uses no more than two external passes.",
+        "A rejected High-risk task does not restart an escalating review loop."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "A coherent behavior slice was accepted by an independent review at HEAD abc123. VALIDATE starts at the same HEAD with the same scope and finds no new material risk. Describe the review action and ledger update.",
+      "expected_output": "VALIDATE reuses the accepted ledger entry and does not dispatch another substantive reviewer.",
+      "expectations": [
+        "The unchanged HEAD and scope are recognized.",
+        "No duplicate branch, Codex, quality, or validation review is dispatched.",
+        "The accepted review remains the authoritative ledger entry."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "M-002 and M-003 are simultaneously ready, have no dependency edge, and modify disjoint files. M-004 overlaps M-003. Describe orchestrator ownership and implementer dispatch.",
+      "expected_output": "One group orchestrator owns M-002 and M-003 and dispatches their implementers together; M-004 waits in a later group.",
+      "expectations": [
+        "Exactly one group orchestrator owns the two disjoint milestones.",
+        "The two implementers are dispatched in one parallel message.",
+        "The overlapping milestone is kept sequential."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "A worker wait reaches the runtime timeout. Status shows the worker is still executing a tool and has produced new output since the previous check. Describe the next action and every condition required before replacement.",
+      "expected_output": "The controller waits again and never replaces the active worker based on elapsed time alone.",
+      "expectations": [
+        "Timeout is not classified as a stall.",
+        "No status-only follow-up or artifact reread is performed.",
+        "Replacement requires two no-progress checks and confirmed termination."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "The runtime exposes input, cached input, output, reasoning output, total tokens, model, effort, duration, and waits, but no dollar cost or configured exact model rate. A token budget is configured. Describe telemetry and budget behavior.",
+      "expected_output": "Runtime fields are recorded with provenance, dollar cost stays unknown, and the token-denominated budget is enforced.",
+      "expectations": [
+        "No dollar cost is invented.",
+        "Token, model, effort, duration, and wait fields retain their provenance.",
+        "Budget events use tokens as their unit."
+      ]
+    }
+  ]
+}

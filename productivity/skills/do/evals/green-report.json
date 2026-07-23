@@ -1,0 +1,81 @@
+{
+  "metadata": {
+    "skill_name": "do",
+    "candidate_base": "e482681b18d734b082908264e0ea499fe60bbdc5",
+    "evaluation_method": "identical persisted prompts, independent read-only skill/agent/generated-profile evaluation, and deterministic structural assertions",
+    "evaluated_at": "2026-07-23",
+    "per_eval_runtime_metrics_available": false
+  },
+  "scenario_results": [
+    {
+      "id": 1,
+      "status": "pass",
+      "summary": "Approved REFINE, RESEARCH, and PLAN_DRAFT evidence is reused without phase-agent dispatches or duplicate approval."
+    },
+    {
+      "id": 2,
+      "status": "pass",
+      "summary": "Only the named local convention gap is verified; completed external and internal research is retained."
+    },
+    {
+      "id": 3,
+      "status": "pass",
+      "summary": "Low uses zero external passes, Medium stops on its accepted critic, and High cannot exceed two passes."
+    },
+    {
+      "id": 4,
+      "status": "pass",
+      "summary": "VALIDATE reuses accepted unchanged-HEAD quality evidence and runs deterministic checks instead of another substantive review."
+    },
+    {
+      "id": 5,
+      "status": "pass",
+      "summary": "One group orchestrator owns disjoint ready milestones and dispatches parallel implementers; overlapping work waits."
+    },
+    {
+      "id": 6,
+      "status": "pass",
+      "summary": "An active worker is waited on; replacement requires two no-progress checks and confirmed termination."
+    },
+    {
+      "id": 7,
+      "status": "pass",
+      "summary": "Runtime token, model, effort, duration, and wait fields retain provenance; unknown dollar cost stays null and token budgets remain enforceable."
+    }
+  ],
+  "comparison": {
+    "correctness": {
+      "baseline": "failed all seven target behaviors or contained material contradictions",
+      "candidate": "passed all seven persisted scenarios after focused correction rounds"
+    },
+    "dispatches": {
+      "baseline_observed_root": 54,
+      "candidate_per_eval": null,
+      "note": "Candidate runtime dispatch totals were unavailable; no percentage reduction is claimed."
+    },
+    "waits": {
+      "baseline_observed_root": 999,
+      "candidate_per_eval": null,
+      "note": "Candidate runtime wait totals were unavailable; behavior is verified structurally."
+    },
+    "reviews": {
+      "baseline": "overlapping task, quality, red-team, milestone, validation, branch, and PR layers",
+      "candidate": "one cumulative ledger with Low=0, Medium<=2, High<=2 and unchanged-HEAD reuse"
+    },
+    "uncached_tokens": {
+      "baseline_observed_root": 8449901,
+      "candidate_per_eval": null,
+      "note": "Candidate token telemetry was unavailable; no universal token-savings claim is made."
+    },
+    "duration_seconds": {
+      "baseline_observed_root": 83244.816,
+      "candidate_per_eval": null,
+      "note": "Candidate wall time was unavailable; no speedup percentage is claimed."
+    },
+    "model_routing": {
+      "read_heavy_and_orchestration": "gpt-5.6-terra / medium",
+      "implementation_and_named_adversarial": "gpt-5.6-sol / high",
+      "validation": "all generated productivity roles matched the approved checked mapping"
+    }
+  }
+}

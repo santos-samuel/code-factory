@@ -4,24 +4,35 @@ Reference for detailed phase behaviors. Loaded by the orchestrator when executin
 
 ## Phase Dispatch Protocol
 
-The SKILL.md outer loop dispatches a fresh orchestrator per phase. Each dispatch includes
-only the context that phase needs, loaded from state files.
+The SKILL.md outer loop first checks whether approved existing evidence satisfies the phase.
+Only unsatisfied phases dispatch a fresh orchestrator.
+Dispatches receive artifact paths plus the smallest useful capsule,
+following [resource-efficiency.md](resource-efficiency.md).
 
 ### Context Payloads (what SKILL.md loads per phase)
 
-| Phase | Context Loaded from State Files | Context Size |
+| Phase | Capsule and artifact paths | Limit |
 |-|-|-|
-| REFINE | feature_request, repo_root, brainstorm_context, hydrated_context | Small |
-| RESEARCH | FEATURE.md (refined spec section), repo_root | Small |
-| PLAN_DRAFT | FEATURE.md (spec + criteria), full RESEARCH.md, CONVENTIONS.md | Medium |
-| PLAN_REVIEW | full PLAN.md, CONVENTIONS.md, FEATURE.md (criteria) | Medium |
-| BUNDLE_GENERATION | full PLAN.md, full RESEARCH.md, FEATURE.md (criteria), CONVENTIONS.md | Medium |
-| EXECUTE (per milestone) | milestone task bundles, FEATURE.md (progress), events.jsonl tail, CONVENTIONS.md | Medium |
-| VALIDATE | FEATURE.md (criteria), PLAN.md (validation strategy), git diff output, CONVENTIONS.md | Medium |
-| DONE | full FEATURE.md, VALIDATION.md, events.jsonl summary | Small |
+| REFINE | Feature request, brainstorm/hydrated paths, repo root | 1,200 words |
+| RESEARCH | Refined-spec path, known evidence, repo root | 1,200 words |
+| PLAN_DRAFT | FEATURE, RESEARCH, and CONVENTIONS paths plus settled decisions | 1,200 words |
+| PLAN_REVIEW | PLAN, REVIEW, FEATURE, RESEARCH, and CONVENTIONS paths plus risk classification | 1,200 words |
+| BUNDLE_GENERATION | PLAN, RESEARCH, FEATURE, and CONVENTIONS paths | 1,000 words |
+| EXECUTE | Milestone capsule, task-bundle paths, SNAPSHOT path, five-event tail | 1,000 words |
+| VALIDATE | Criteria/strategy paths, base ref, changed-file list, diff stat | 1,200 words |
+| DONE | FEATURE, VALIDATION, and events paths plus outcome capsule | 1,000 words |
 
-Note: PLAN_REVIEW reviewer gets CONVENTIONS.md (compressed conventions) instead of full RESEARCH.md.
-Red-teamer still receives RESEARCH.md for assumption attacks.
+Agents read only the sections they need from those paths.
+Do not inline the same artifact into nested prompts.
+
+### Prepared-Context Phase Satisfaction
+
+Apply Prepared-Context Reuse from
+[resource-efficiency.md](resource-efficiency.md)
+before REFINE, RESEARCH, and PLAN_DRAFT.
+A reused phase writes its normal artifact and FEATURE.md phase-history entry,
+then passes the same return-contract checks as a dispatched phase.
+It appends `PHASE_END`.
 
 ### Return Contract (what SKILL.md reads after each dispatch)
 
@@ -61,9 +72,13 @@ Every phase orchestrator MUST, before its dispatch returns:
    (state-file-schema.md "Phase Status and Terminal Reasons"). Setting `blocked` without a reason
    is a workflow violation — SKILL.md cannot route the recovery without it.
 3. If `phase_status` advances away from `blocked`, set `phase_terminal_reason: null` in the same write.
-4. Append a `PHASE_END` event to events.jsonl with `phase`, `phase_status`, `duration_ms`, and
-   `phase_terminal_reason` (when blocked). The event MUST mirror the FEATURE.md write — readers
-   that watch only events.jsonl rely on this consistency.
+4. Record the phase result in FEATURE.md phase history.
+   Append `PHASE_END` with `phase`, `phase_status`,
+   `duration_ms`, and `phase_terminal_reason` (when blocked). The event MUST mirror the FEATURE.md write.
+
+The outer loop appends `PHASE_ENTER` before each phase begins and records
+`DISPATCH_STARTED` / `DISPATCH_RETURNED` around each orchestrator dispatch.
+DONE appends `SESSION_COMPLETE` after its return contract is verified.
 
 ### Phase Loop Conditions
 
@@ -71,7 +86,7 @@ Every phase orchestrator MUST, before its dispatch returns:
 |-|-|-|
 | PLAN_REVIEW → PLAN_DRAFT | Required changes or critical red-team findings | 3 |
 | VALIDATE → EXECUTE | Validation failures or quality gate fails | 2 |
-| EXECUTE milestone retry | Task adversarial stalemate requiring re-plan | 1 (then escalate) |
+| EXECUTE milestone retry | Review budget exhausted and re-plan required | 1 (then escalate) |
 
 ### Resume Snapshot Protocol
 
@@ -86,22 +101,22 @@ See state-file-schema.md for the full schema.
 **How to generate:**
 1. Read FEATURE.md (progress, decisions, open questions)
 2. Read task bundle statuses to find the next pending task
-3. Read that task's TASK-XXX.md for contract, files, steps
+3. Read that task bundle's frontmatter for its path, status, dependencies, files, and risk
 4. Extract relevant decisions from FEATURE.md Decisions Made
-5. Include relevant sections from CONVENTIONS.md (only patterns affecting the next task's files)
+5. Include only decisions or deviations not already present in the next task bundle
 6. Summarize completed tasks (one line each: task ID, milestone, what it produced)
 7. Include active deviations and plan amendments
 8. **Enumerate pending triage bundles:** list every `tasks/T-DISC-*.md` where `status: discovered`
    (`Grep(pattern="^status: discovered$", path="tasks/")`). Populate the Discovered Tasks table with
    id, discovered_from, discovered_by, risk, and the first-line summary from the bundle body.
    If none, write "(none)".
-9. Include budget status if `token_budget_usd` is set
-10. Write to `SNAPSHOT.md` in the state directory
+9. Include budget status if `token_budget_usd` or `token_budget_total` is set
+10. Keep the snapshot under 80 lines or 1,500 tokens.
+11. Write to `SNAPSHOT.md` in the state directory.
 
-**Why snapshots exist:** When a milestone orchestrator starts cold,
-it needs to understand why the plan chose this approach,
-what prior tasks produced, and what conventions apply — not just the task description.
-Twenty lines of RESEARCH.md won't carry that context.
+**Why snapshots exist:** A cold milestone orchestrator needs a pointer to the next bundle,
+dependency state, and deltas since that bundle was generated.
+The snapshot is not a second copy of the task contract or conventions.
 The snapshot compresses all accumulated decisions into a task-scoped document.
 
 ### Milestone Dispatch Protocol (EXECUTE)
@@ -110,14 +125,14 @@ SKILL.md reads PLAN.md to build the milestone dependency graph and reads task bu
 
 1. Identify ready milestones: all dependencies complete, has pending tasks
 2. Check File Impact Map for file overlap between ready milestones
-3. No overlap → dispatch in parallel (multiple Task calls in one message)
+3. No overlap → one group orchestrator dispatches parallel implementers in one message
 4. Shared files → dispatch sequentially
 5. After each milestone completes: regenerate SNAPSHOT.md, re-read task bundles, update dependency graph, identify next ready milestones
 
 ## EXECUTE Batch Loop
 
 ```
-Plan Critical Review -> Pre-flight validation gate (build + test + lint + typecheck baseline, hard gate) -> Initialize events.jsonl
+Plan reconciliation -> Pre-flight validation gate (build + test + lint + typecheck baseline, hard gate)
   -> Identify ready milestones (dependency graph) -> Execute round -> Batch Report -> Feedback -> Next round
 
 Execute round:
@@ -127,14 +142,14 @@ Execute round:
   3. For each active milestone, promote next pending task to `ready` (frontmatter status), pick next ready task:
      - Dispatch implementers (parallel across milestones, sequential within)
      - Shift-left (lint/format/typecheck) per task
-     - Spec review (max 2 fix cycles) per task
-     - Code quality review (max 2 fix cycles) per task
-     - Red-team review (HIGH-RISK TASKS ONLY, max 2 fix cycles) per task
+     - Apply the cumulative Review Budget from resource-efficiency.md
+     - Use one task-critic for Medium/High tasks; do not add separate spec and quality reviewers
+     - Add a red team only for distinct High-risk trust, concurrency, security, or destructive-data coverage
      - File `discovered_from` bundles for any out-of-scope failures surfaced (Discovery Capture Protocol)
      - Append TASK_COMPLETE event to events.jsonl with tokens/duration/cost
   4. At MILESTONE BOUNDARY: Run /atcommit, append MILESTONE_COMPLETE event to events.jsonl
 
-STOP on: missing deps, test failures, unclear instructions, adversarial stalemate on all flaws, plan-invalidating discoveries
+STOP on: missing deps, test failures, unclear instructions, exhausted review budget with unresolved flaws, plan-invalidating discoveries
 DEVIATION_MINOR: propose plan edit, ask user (interactive) or log and adjust (autonomous)
 DEVIATION_MAJOR: pause execution, recommend re-planning
 ```
@@ -165,7 +180,14 @@ Tests pass -> /atcommit (remaining) -> git push -> /pr (create PR) -> /pr-fix (v
 - **Autonomous**: Synthesizes from context, selects best approach, logs decisions in Decisions Made
 
 ## RESEARCH Phase
-- Spawn `explorer` and `researcher` **in parallel** (both in a single message) for latency reduction
+
+First evaluate which evidence is missing:
+
+- Local integration or convention gaps → dispatch `explorer`
+- External API, protocol, or product gaps → dispatch `researcher`
+- Both independent gaps → dispatch both in parallel
+- Neither → satisfy the phase through Prepared-Context Reuse
+
 - `explorer`: **local codebase** mapping (modules, patterns, conventions)
 - `researcher`: follows a structured research sequence:
   - **Step 0 — Domain Research Evaluation**: determines if the task relies on knowledge outside the codebase (external APIs, file formats, protocols, specs, third-party services)
@@ -178,7 +200,9 @@ Tests pass -> /atcommit (remaining) -> git push -> /pr (create PR) -> /pr-fix (v
   - Confirm the license before reusing implementation text; if unclear, analyze behavior only and copy nothing
   - If the source is unavailable or evidence is insufficient, label what remains unverified and ask for access only when it changes architecture, behavior, or scope
 - Output: Context, Assumptions (tagged: [EXTERNAL DOMAIN], [CODEBASE], [TASK DESCRIPTION]), Constraints, Risks, Open Questions
-- **Both sources are mandatory** - do not skip Confluence search
+- Search Confluence only when the feature references internal design knowledge
+  or repository/external evidence leaves a material internal question.
+- Do not repeat authoritative external research already cited in prepared context.
 - **Interactive**: Present research summary, ask user to confirm assumptions and scope
 - **Autonomous**: Proceed with best interpretation, log assumptions in Decisions Made
 
@@ -207,22 +231,31 @@ the deviation is handled through the Plan Amendment Protocol
 (update PLAN.md task contracts and FEATURE.md deviations, not CONVENTIONS.md).
 
 ## PLAN_DRAFT Phase
-- Spawn `planner` to create plan (references both codebase findings AND Confluence context)
+- Spawn `planner` to create a plan using the prepared research and conventions paths
 - Output: Milestones, Task Breakdown, Validation Strategy
-- Plan must embed relevant context inline (not only links)
+- Plan must summarize decision-relevant evidence and cite its artifact or source path;
+  it must not duplicate full research sections
 - **Interactive**: Present a decision-first summary from PLAN.md, then ask user to approve or request changes. Lead with outcome, chosen approach, riskiest assumption, tweakable decisions with one alternative and later-change cost, known unknown defaults with pivot signals, then compressed mechanical work.
 - **Autonomous**: Proceed to review, let reviewer catch issues
 
 ## PLAN_REVIEW Phase
 
-**Single-step parallel review: reviewer + red-teamer + Codex plan challenge.**
+**Risk-routed review: every review covers a distinct question.**
 
 Consistency checking is now the planner's responsibility (self-consistency pass in planner Step 5).
 No separate consistency-checker dispatch is needed.
 
-1. Spawn `reviewer`, `red-teamer`, AND `codex:codex-rescue` (plan challenge) **all in parallel** (single message):
-   - All three read the same PLAN.md and RESEARCH.md — they are independent
-   - Codex plan challenge is optional: skip if codex unavailable, log `CODEX_SKIPPED: plan_review`
+1. Always dispatch one `reviewer`.
+2. Add `red-teamer` only when the plan crosses a trust boundary,
+   introduces concurrency or retry semantics,
+   changes authentication/authorization,
+   handles destructive data,
+   or has another explicitly cited High-risk assumption.
+3. Add a Codex plan challenge only when the architecture is novel,
+   evidence conflicts,
+   or reviewer/red-team independence materially improves a named risk.
+   Skip otherwise and record `CODEX_SKIPPED` with `reason: plan_review_not_distinct`.
+4. When multiple reviews are justified, dispatch them in parallel:
    - `reviewer`: substantive critique (coverage, path verification, research cross-check, dependency analysis, safety, executability)
      - Output: Review report, required changes
    - `red-teamer` in plan mode: adversarial challenge of plan assumptions
@@ -232,9 +265,9 @@ No separate consistency-checker dispatch is needed.
      - Assesses blast radius of shared code changes
      - Output: Red Team Plan Review with Critical / High / Medium findings
 
-2. After all complete (reviewer + red-teamer + Codex if available), merge findings:
+5. After justified reviews complete, merge findings:
    - Codex plan concerns → append to REVIEW.md under `## Codex Plan Challenge`
-   - If reviewer has required changes → loop back to PLAN_DRAFT (discard red-team + Codex results)
+   - If reviewer has required changes → loop back to PLAN_DRAFT and preserve all findings as input
    - **Critical red-team findings** → loop back to PLAN_DRAFT (must address before execution)
    - **High findings (interactive)** → present to user, ask whether to address or track as risks
    - **High findings (autonomous)** → log as tracked risks, proceed
@@ -248,26 +281,27 @@ The orchestrator works from `<workdir_path>` and writes all state to `~/docs/pla
 
 **Session Activity Log:**
 
-Initialize `events.jsonl` in the state directory on EXECUTE entry.
+`events.jsonl` was initialized when the feature state was created.
+On legacy resume only, initialize it with `SESSION_START` carrying `source: "legacy_resume"`;
+do not synthesize events for phases that ran before the log existed.
 Append one JSON object per line after every significant action (see state-file-schema.md for event types, schema, and required fields).
 Every event MUST include `ts`, `type`, and `actor`.
 The log is append-only — never rewrite or truncate.
 Tell the user the log path so they can tail it (`tail -f events.jsonl | jq .`) or query it with `jq` to watch progress in real-time.
 
-**Plan critical review — before implementing anything:**
+**Plan reconciliation — before implementing anything:**
 
-The orchestrator re-reads the entire plan with fresh eyes,
-verifies task ordering and dependencies,
-checks the worktree has what the plan expects.
-Raises concerns before any code is written.
+Read only PLAN.md task metadata, dependencies, risk levels, and File Impact Map.
+Verify that ready-task dependencies and expected paths still match the worktree.
+This is a deterministic reconciliation, not another substantive plan review.
+Do not dispatch a reviewer or reread narrative research.
 
 **Context Preparation:**
 
-Read PLAN.md and extract ALL tasks with their full text,
-acceptance criteria, dependencies, risk levels, and the File Impact Map.
+Read PLAN.md headings, task metadata, dependencies, risk levels, and the File Impact Map.
 Build the milestone dependency graph.
-Store this extracted context — you will inline it into each subagent dispatch.
-Never make subagents read plan files; provide full context directly in the prompt.
+Store a milestone capsule under 1,000 words.
+Pass task-bundle paths and let each worker read only its assigned bundle.
 
 **Milestone-Level Parallelism:**
 
@@ -288,43 +322,39 @@ Log parallel milestones as an event:
 
 **Per-task sequence** (same whether running one or multiple milestones):
 
-1. **Dispatch fresh implementer** with full task text + scene-setting context inlined
-   (milestone position, prior task summary, upcoming tasks, relevant discoveries, architectural context).
-   Implementer self-evaluates before reporting — catches obvious issues before the adversarial loop.
+1. **Dispatch fresh implementer** with the assigned task-bundle path and a compact scene-setting capsule
+   (milestone position, dependency state, relevant discoveries, active risk).
+   Implementer self-evaluates before reporting — catches obvious issues before external review.
 2. Implementer asks questions → answers provided → implements → self-evaluates → reports (NO commit)
 3. **Shift-left validation** (deterministic — orchestrator runs directly, no subagent):
    lint + format + type-check. Auto-fix formatting.
    Return to implementer if lint/type errors persist.
-   Only proceed to the adversarial loop after shift-left passes.
-4. **Adversarial review loop** — the orchestrator runs an adversarial loop between the implementer
-   and a task-critic agent. See **Adversarial Review Loop** section below for full protocol.
-5. **Red-team review (HIGH-RISK TASKS ONLY)** — only for tasks marked `Risk: High` in the plan.
-   Adversarially probes for input edge cases, security vulnerabilities, race conditions, failure modes.
-   Receives relevant plan-level red-team findings to focus on known risk areas.
-   Critical findings → implementer fixes (max 2 cycles). High/Medium → logged as tracked risks.
-   Skipped entirely for Low and Medium risk tasks.
+   Only proceed to risk-routed review after shift-left passes.
+4. **Risk-routed review** — apply the Review Budget in resource-efficiency.md.
+   Low-risk tasks stop after self-review and deterministic checks.
+   Medium/High tasks get one task-critic pass.
+   A rejection gets one focused fixer/recheck, not a restarted escalating review.
+5. **Distinct red-team review** — only within the remaining High-risk review budget,
+   and only for trust, concurrency, security, retry/idempotency, or destructive-data risk
+   not already covered by the critic.
 6. **Discovery Capture Protocol** — before marking the task complete,
    file a `discovered_from` bundle for every out-of-scope failure the task surfaced.
-   See **Discovery Capture Protocol** section below. This runs even when the adversarial loop ACCEPTs.
+   See **Discovery Capture Protocol** section below. This runs even when review ACCEPTs.
 7. Mark task complete (only after ACCEPT verdict — safety valve outcomes are blocking),
-   update state (set bundle `status: complete`, populate `token_cost_usd` and `duration_ms`),
-   append a `TASK_COMPLETE` event to events.jsonl with token/duration/adversarial-round metrics
+   update state (set bundle `status: complete`, populate measured token fields and `duration_ms`),
+   append a `TASK_COMPLETE` event to events.jsonl with token, duration, review-pass,
+   and cost-source metrics
 
-**Adversarial Review Loop:**
+**Risk-Proportional Review Budget:**
 
-The adversarial loop replaces the previous sequential spec-review → quality-review chain.
-A single `task-critic` agent evaluates both spec compliance AND code quality with escalating depth per round.
-The implementer and task-critic compete until the critic ACCEPTs or the safety valve triggers.
-
-**Risk-Proportional Round Budget:**
-
-| Task Risk | Max Rounds | Scrutiny Depth | Red Team |
+| Task risk | Critic | Focused recheck | Distinct red team |
 |-|-|-|-|
-| Low | 1 | Correctness only | Skip |
-| Medium | 2 | Correctness + design | Skip |
-| High | 3 | Full escalating | Yes |
+| Low | No | No | No |
+| Medium | One pass | Only after rejection | No |
+| High | One pass | Only after rejection | If the second slot remains and a distinct risk exists |
 
-Read `max_adversarial_rounds` from the task bundle frontmatter.
+The task-critic evaluates spec compliance and code quality together.
+Separate spec-review and code-quality-review agents are forbidden in `/do`.
 
 **Step 4a: Task Contract (Pre-Computed in Bundle)**
 
@@ -362,52 +392,25 @@ Include project-level criteria (build, lint, tests) from the pre-flight baseline
 The Mandatory Invariants ensure the critic can block on non-functional regressions
 even if the plan omitted them.
 
-**Step 4b: Adversarial Loop**
+**Step 4b: Focused Review Loop**
 
 ```
-max_rounds = task_bundle.max_adversarial_rounds  # Low=1, Medium=2, High=3
-Round = 1
-while Round <= max_rounds:
-  1. Dispatch task-critic with: task contract, round number, max_rounds, previous verdicts (round 2+)
-  2. If VERDICT: ACCEPT → break loop, proceed to step 5 (red-team or mark complete)
-  3. If VERDICT: REJECT:
-     a. Stalemate check (round 2+ only, see below)
-     b. Dispatch implementer to fix critical flaws
-        - Pass all critical flaws with full proof
-        - Pass weaknesses (especially persistent ones about to be promoted)
-        - Implementer applies class-level fixes and self-evaluates before returning
-     c. Re-run shift-left validation after fixes
-     d. Round++, loop back to step 1
-
-Safety valve (BLOCKING — both modes): if Round > max_rounds and not accepted:
-  - Codex rescue attempt (if available)
-  - If still unresolved: STOP. Require explicit user acceptance of residual risk.
-  - Autonomous mode does NOT silently convert critical flaws to tracked risks — it stops and waits.
-  - Special case: Low-risk task rejected twice → escalate (may be mis-classified risk level).
-  - Classify stagnation for reporting context (does not auto-resolve)
+if task risk is Low:
+  accept implementer self-review + deterministic evidence
+else:
+  1. Dispatch one task-critic with the complete contract and named risk focus.
+  2. If ACCEPT: continue.
+  3. If REJECT:
+     a. Dispatch the implementer with only proven findings and required evidence.
+     b. Re-run focused deterministic validation.
+     c. Reuse the same critic for one focused recheck of those findings.
+  4. If the focused recheck rejects: STOP and escalate. Do not add another reviewer.
+  5. For High risk, dispatch a red team only if the second slot was not used
+     and its scope is distinct from the critic.
 ```
 
-**Stalemate Detection (orchestrator responsibility, round 2+ only):**
-
-Before dispatching the implementer in step 3b, compare the current critic verdict
-with the immediately preceding critic verdict.
-A critical flaw is the "same flaw" across two consecutive rounds if it meets at least 2 of these 3 criteria:
-1. Flaw titles share key nouns (e.g., "error handling in parse" and "incomplete error handling — parse function")
-2. Flaws reference the same file and line range (within 10 lines)
-3. Flaw descriptions identify the same root cause
-
-When in doubt, treat evolved or narrowed versions of a flaw as distinct —
-false negatives (missing a stalemate) are less harmful than false positives.
-
-If the same flaw appears in both consecutive verdicts AND the implementer's response
-in the intervening round proposed a fix for that flaw, that is a stalemate:
-- Remove the stalemated flaw from the list passed to the implementer
-- Flag it to the user with full context (both rounds' descriptions and the attempted fix)
-- Continue the loop with remaining flaws
-- If ALL remaining critical flaws are stalemated, stop the loop and trigger the safety valve
-
-**Early acceptance:** If the task-critic ACCEPTs on round 1, proceed directly to step 5.
-No adversarial rounds were needed — the implementation was solid on first review.
+The safety valve is blocking in both modes.
+Autonomous mode does not convert unresolved critical flaws into tracked risks.
 
 **Discovery Capture Protocol** (all phases — RESEARCH, PLAN, EXECUTE, VALIDATE):
 
@@ -466,22 +469,25 @@ A single `discovered_from` bundle is cheaper than a post-mortem about silently d
 
 **Token and Timing Tracking:**
 
-After each subagent Task completes, extract `total_tokens` and `duration_ms` from the Task result.
+After each subagent Task completes, record every runtime-provided token field,
+duration, model, reasoning effort, tool-call count, wait-call count, and spawned-agent count.
+Do not replace actual fields with a hand estimate.
 Track cumulatively at three levels:
 
 | Level | What's tracked | When reported |
 |-|-|-|
-| Per-task | Sum of implementer + task-critic + red-teamer | TASK_COMPLETE event (also written to bundle frontmatter `token_cost_usd` / `duration_ms`) |
+| Per-task | Sum of implementer + justified reviews | TASK_COMPLETE event and bundle frontmatter |
 | Per-milestone | Sum of all tasks in the milestone | MILESTONE_COMPLETE event |
 | Grand total | Sum of all milestones + overhead (research, planning, validation) | SESSION_COMPLETE event |
 
 Include token/duration data in batch reports so the user can see resource consumption.
 
-**Budget Enforcement** (when `token_budget_usd` is set in FEATURE.md):
+**Budget Enforcement** (when `token_budget_usd` or `token_budget_total` is set in FEATURE.md):
 
-After each TASK_COMPLETE, update `token_spent_estimate_usd` in FEATURE.md frontmatter.
-Use approximate cost: `tokens * $0.000015` for Opus, `$0.000003` for Sonnet, `$0.0000008` for Haiku.
-These are rough estimates — precision matters less than having a running total.
+After each TASK_COMPLETE, update token totals in FEATURE.md.
+Record dollars only when the runtime supplies cost or an explicitly configured model rate applies.
+Otherwise write `cost_usd: null` and `cost_source: unknown`.
+Never price Codex tokens with a Claude model rate or vice versa.
 
 | Threshold | Action |
 |-|-|
@@ -490,9 +496,9 @@ These are rough estimates — precision matters less than having a running total
 | 100% of budget | **Autonomous**: complete the current task, then stop. Do not start the next task. Append `BUDGET_EXHAUSTED` event. |
 
 The budget check runs before dispatching each task — not after.
-If the remaining budget is less than the estimated cost of the next task
-(based on scope: ~$0.05 for Low risk, ~$0.15 for Medium, ~$0.30 for High),
-surface the budget constraint before starting.
+If exact or configured cost is unavailable,
+surface that the dollar budget cannot be verified and require a token ceiling before continuing.
+Do not invent a dollar estimate from an unidentified model.
 
 **Batch reporting** (after every batch or parallel round):
 
@@ -500,12 +506,13 @@ Every report MUST include the same six fields — discoveries are not optional, 
 mechanism that makes the work-disavowal resistance visible to the user.
 
 Required fields: **tasks completed**, **test status**, **discovered bundles this batch**,
-**tokens**, **cost (USD)**, **duration**.
+**token fields**, **cost source**, **duration**, **agent/tool/wait counts**, and
+**metric provenance** (`measured`, `derived`, or `lower_bound`).
 
 - **Autonomous — one-line format** (emitted at every `MILESTONE_COMPLETE`):
 
   ```
-  Milestone M-XXX complete (<name>). Tasks: <done>/<total>. Tests: <pass>/<fail>. Discovered: <N>. Tokens: <X>k. Cost: $<Y>. Duration: <Z>s. Next: M-YYY.
+  Milestone M-XXX complete (<name>). Tasks: <done>/<total>. Tests: <pass>/<fail>. Discovered: <N>. Tokens: <X>k (<cached> cached). Cost: <value|unknown> (<source>). Agents/tools/waits: <A>/<T>/<W>. Duration: <Z>s. Provenance: tokens=<P>, counts=<P>, duration=<P>. Next: M-YYY.
   ```
 
   `Discovered: 0` when nothing new was filed this batch — always print the field so its absence
@@ -518,7 +525,8 @@ Required fields: **tasks completed**, **test status**, **discovered bundles this
 
   Tasks: T-001, T-002, T-003 (3/3 complete)
   Tests: 158 pass / 0 fail (baseline +16)
-  Tokens: 99.7k    Cost: $1.49    Duration: 6m 35s
+  Tokens: 99.7k (80.1k cached)    Cost: unknown    Agents/tools/waits: 3/24/2    Duration: 6m 35s
+  Provenance: tokens=derived, counts=measured, duration=derived
 
   Discovered this batch:
   - T-DISC-001 (from T-002, Medium): <summary>
@@ -538,7 +546,11 @@ At milestone boundary (all tasks in milestone complete + tests pass):
 - `/atcommit` builds dependency graphs and groups files that belong together (e.g., package + tests, wiring + config)
 - Typical result: 3-5 commits per feature instead of one per task
 - Append `MILESTONE_COMPLETE` event to events.jsonl with milestone totals and commit count
-- **Codex Milestone Review (if available):** Run `Skill(skill="codex:review", args="--wait --base <milestone_base_ref>")` on milestone changes. Critical findings → implementer fixes before next milestone. Others → logged as `CODEX_REVIEW` event.
+- **Integrated Review:** Run Codex or an independent reviewer when the milestone completes a coherent
+  user-visible behavior slice or combines packages/trust boundaries.
+  Record `reviewed_head`.
+  Defer review for support-only milestones that cannot yet be evaluated as behavior.
+  Critical findings → focused implementer fix and focused recheck.
 
 **Mid-batch stop conditions**: missing dependencies, systemic test failures,
 unclear instructions, repeated verification failures,
@@ -606,17 +618,23 @@ Log as event:
 `{"ts":"<ISO8601>","type":"DRIFT_CHECK","actor":"orchestrator","milestone":"M-XXX","planned_files":N,"actual_files":N,"unplanned":[...],"test_ratio":N}`
 
 **Never:**
-- Dispatch multiple implementer subagents in parallel (causes conflicts)
-- Skip the adversarial review loop or accept without a proof-based verdict
-- Proceed to the next task while the adversarial loop has unresolved critical flaws
+- Dispatch implementers in parallel when their milestones overlap files or dependencies
+- Exceed the cumulative review budget in resource-efficiency.md
+- Proceed to the next task while a review has unresolved critical flaws
 - Let implementer subagents run git commit — only the orchestrator commits at milestone boundaries
 - Accept a task-critic verdict that lacks proof for its critical flaws — send it back
 
 ## VALIDATE Phase
-- Spawn `validator` to run automated checks AND quality assessment
+- Spawn `validator` to run automated checks and criterion verification; it does not repeat
+  an integrated code-quality review already accepted for the same scope and HEAD
 - Output: Validation report with test results, acceptance evidence, and quality scorecard (1-5 per dimension)
 - Quality gate: all dimensions must score >= 3/5 to pass
-- **Codex Adversarial Gate (if available):** After validator passes, run `Skill(skill="codex:adversarial-review", args="--wait --scope branch")`. Critical findings → loop to EXECUTE. Append to VALIDATION.md under `## Codex Adversarial Review`.
+- Reuse the integrated review when `HEAD == reviewed_head`.
+  Populate overlapping quality evidence from the ledger plus deterministic results,
+  without dispatching another substantive quality reviewer.
+  Run a Codex branch adversarial gate only if code changed after that review
+  or the validator surfaced a new material risk.
+  Critical findings → loop to EXECUTE and append the result to VALIDATION.md.
 - May loop back to EXECUTE for test failures, quality gate failures, or Critical Codex findings
 - **Interactive**: Present validation results and quality scorecard, ask user before creating PR
 - **Autonomous**: Auto-proceed to DONE if validation and quality gate pass
@@ -741,7 +759,7 @@ Skip if the feature is purely internal (no user-facing changes).
 - Archive run state (mark `current_phase: DONE` in FEATURE.md)
 
 ### 7.5. Extract Session Learnings
-- Dispatch `memory-extractor` (haiku) with events.jsonl + Decisions Made + Surprises sections
+- Dispatch `memory-extractor` with events.jsonl + Decisions Made + Surprises sections
 - Extracts reusable learnings (conventions, corrections, gotchas) into knowledge files
 - Runs after archival — cheap post-session knowledge capture
 - Dispatch with `run_in_background: true` — this is a non-blocking post-session task that should not delay completion reporting

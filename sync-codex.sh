@@ -420,6 +420,24 @@ with open(out_path, 'w') as f:
 PYEOF
 }
 
+# codex_agent_profile: map portable roles to Codex-specific model and effort.
+#   Read-heavy/orchestration roles favor lower cost; implementation and named
+#   adversarial roles retain the frontier model and High effort.
+codex_agent_profile() {
+    case "$1" in
+        implementer|task-critic|red-teamer)
+            printf '%s %s\n' "gpt-5.6-sol" "high"
+            ;;
+        brainstormer|code-quality-reviewer|code-simplifier|consistency-checker|explorer|memory-extractor|orchestrator|planner|refiner|researcher|reviewer|skill-comparator|skill-grader|spec-reviewer|validator)
+            printf '%s %s\n' "gpt-5.6-terra" "medium"
+            ;;
+        *)
+            echo "  ERROR  unsupported Codex agent role: $1" >&2
+            return 1
+            ;;
+    esac
+}
+
 # transform_agent_to_toml: convert Claude Code agent .md to Codex .toml
 #   $1 = source agent file, $2 = destination .toml file
 transform_agent_to_toml() {
@@ -447,12 +465,16 @@ transform_agent_to_toml() {
     # Escape any literal triple single-quotes in body (rare but defensive)
     body=$(printf '%s' "$body" | sed "s/'''/'''\"'''\"'''/g")
 
+    local model effort
+    read -r model effort <<< "$(codex_agent_profile "$name")"
+
     # Write TOML — developer_instructions is a flat string, not a table.
     # Use TOML literal strings (''') to avoid backslash escape issues.
     {
         printf 'name = "%s"\n' "$name"
         printf 'description = "%s"\n' "$desc"
-        printf 'model_reasoning_effort = "high"\n'
+        printf 'model = "%s"\n' "$model"
+        printf 'model_reasoning_effort = "%s"\n' "$effort"
         printf "developer_instructions = '''\n"
         printf '%s\n' "$body"
         printf "'''\n"

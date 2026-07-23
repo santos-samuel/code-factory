@@ -13,7 +13,7 @@ Reference for the /do skill's state file format. Load when creating or parsing s
   REVIEW.md               # Review feedback (written after PLAN_REVIEW)
   VALIDATION.md           # Validation results with evidence (written after VALIDATE)
   SNAPSHOT.md             # Task-scoped resume context (regenerated at phase/milestone transitions)
-  events.jsonl            # Append-only, one JSON object per line (written from EXECUTE onward)
+  events.jsonl            # Append-only lifecycle log, created with FEATURE.md
   HANDOFF.md              # Workspace handoff (written in DONE phase for workspace mode, optional)
   tasks/                  # Pre-computed task execution bundles (written after PLAN_REVIEW)
     TASK-001.md           # Self-contained bundle for T-001
@@ -44,7 +44,15 @@ interaction_mode: interactive  # or "autonomous"
 analysis_only: false  # true when task is research/analysis, no code changes
 ambiguity_score: 0.15  # weighted ambiguity from refiner (0.0-1.0, gate: <= 0.2)
 token_budget_usd: null  # optional, set via --budget flag (null = unlimited)
-token_spent_estimate_usd: 0.00  # running total, updated after each TASK_COMPLETE
+token_budget_total: null  # optional, set via --token-budget (null = unlimited)
+cost_usd_total: null  # runtime/configured total; null when cost is unknown
+token_usage_total: 0  # runtime-provided total across completed dispatches
+cost_source: unknown  # runtime | configured_estimate | unknown
+dispatch_count: 0
+wait_count: 0
+review_count: 0
+reviewed_head: null  # HEAD covered by the latest integrated review
+metric_provenance: {}  # metric name -> measured | derived | lower_bound
 last_plan_amendment: null  # ISO timestamp of most recent PLAN.md amendment (null = no amendments)
 ---
 
@@ -104,6 +112,13 @@ last_plan_amendment: null  # ISO timestamp of most recent PLAN.md amendment (nul
   Rationale: <why>
   Date: <timestamp>
 
+## Implementation Review Ledger
+
+| Reviewer | Scope | HEAD | Risk covered | Verdict | Pass |
+|-|-|-|-|-|-|
+| task-critic | T-002 | def456 | contract + quality | ACCEPT | 1 |
+| independent | auth flow | 987abc | trust boundary | ACCEPT | 1 |
+
 ## Open Questions
 
 <Unresolved questions requiring input>
@@ -134,7 +149,7 @@ and MUST be one of the values below whenever `phase_status` is `blocked`.
 | `phase_terminal_reason` | Meaning | Resume action |
 |-|-|-|
 | `succeeded` | Reserved (do not use with `blocked`) — set when transitioning to `approved` if a dedicated terminal record is needed | n/a |
-| `failed` | The phase produced an error verdict (reviewer rejection, validator fail, adversarial stalemate) | Re-dispatch the same phase with critic feedback |
+| `failed` | The phase produced an error verdict (reviewer rejection, validator fail, review budget exhausted) | Re-dispatch the same phase with focused feedback when budget remains; otherwise block |
 | `timed_out` | The phase exceeded its wall-clock budget | Re-dispatch with the same context |
 | `stalled` | A dispatched subagent stopped emitting output past the configured stall window | Re-dispatch with the same context (see workflow-rules.md Stall Detection) |
 | `canceled_by_reconciliation` | A pre-dispatch reconciliation check failed (worktree drift, branch mismatch, budget exhausted, external tracker terminal) | Resolve the underlying drift before re-dispatching; surface to the user |
@@ -306,13 +321,14 @@ Users can tail the file in their editor to watch progress;
 | `ts` | string (ISO-8601 UTC) | Event timestamp |
 | `type` | string | Event type (see table below) |
 | `actor` | string | Who emitted it (see actor values below) |
+| `metric_provenance` | object (optional) | Metric name → `measured`, `derived`, or `lower_bound`; omit unavailable metrics |
 
 **Actor values:**
 
 | Actor | Who |
 |-|-|
 | `skill-md` | The outer SKILL.md loop |
-| `orchestrator` | Phase or milestone orchestrator |
+| `orchestrator` | Phase or ready-group orchestrator |
 | `implementer` | Implementer agent |
 | `task-critic` | Task-critic agent |
 | `red-teamer` | Red-teamer agent |
@@ -325,17 +341,17 @@ Users can tail the file in their editor to watch progress;
 
 ```jsonl
 {"ts":"2026-04-21T09:45:00Z","type":"SESSION_START","actor":"skill-md","feature":"user-auth","branch":"feature/user-auth","workdir":"/path/to/wt","interaction_mode":"interactive","codex_available":true}
-{"ts":"2026-04-21T09:45:02Z","type":"PHASE_ENTER","actor":"skill-md","phase":"EXECUTE"}
+{"ts":"2026-04-21T09:45:02Z","type":"PHASE_ENTER","actor":"skill-md","phase":"REFINE"}
 {"ts":"2026-04-21T09:45:05Z","type":"PREFLIGHT","actor":"orchestrator","build":"ok","tests":"142 pass / 0 fail","duration_ms":12300}
 {"ts":"2026-04-21T09:46:00Z","type":"MILESTONE_START","actor":"orchestrator","milestone":"M-001","title":"Core Authentication"}
 {"ts":"2026-04-21T09:46:30Z","type":"TASK_START","actor":"orchestrator","task":"T-001","title":"Set up project structure"}
-{"ts":"2026-04-21T09:48:00Z","type":"TASK_COMPLETE","actor":"orchestrator","task":"T-001","tokens":23400,"duration_ms":90000,"spec":"COMPLIANT","quality":"APPROVED","adversarial_rounds":1,"verdict":"ACCEPT","red_team":"SKIPPED","cost_usd":0.35}
-{"ts":"2026-04-21T09:51:00Z","type":"TASK_COMPLETE","actor":"orchestrator","task":"T-002","tokens":45100,"duration_ms":150000,"spec":"ISSUES","quality":"APPROVED","adversarial_rounds":2,"verdict":"ACCEPT","red_team":"SKIPPED","cost_usd":0.68}
+{"ts":"2026-04-21T09:48:00Z","type":"TASK_COMPLETE","actor":"orchestrator","task":"T-001","input_tokens":22500,"cached_input_tokens":18000,"output_tokens":900,"reasoning_output_tokens":400,"total_tokens":23400,"duration_ms":90000,"review_passes":0,"verdict":"ACCEPT","red_team":"SKIPPED","cost_usd":null,"cost_source":"unknown"}
+{"ts":"2026-04-21T09:51:00Z","type":"TASK_COMPLETE","actor":"orchestrator","task":"T-002","input_tokens":43000,"cached_input_tokens":34000,"output_tokens":2100,"reasoning_output_tokens":800,"total_tokens":45100,"duration_ms":150000,"review_passes":2,"verdict":"ACCEPT","red_team":"SKIPPED","cost_usd":null,"cost_source":"unknown"}
 {"ts":"2026-04-21T09:51:30Z","type":"DISCOVERED","actor":"orchestrator","from_task":"T-002","discovered":"T-042","summary":"Flaky login test exposes race in existing auth middleware","risk":"Medium"}
-{"ts":"2026-04-21T09:53:10Z","type":"MILESTONE_COMPLETE","actor":"orchestrator","milestone":"M-001","tokens":99700,"duration_ms":395000,"commits":3}
+{"ts":"2026-04-21T09:53:10Z","type":"MILESTONE_COMPLETE","actor":"orchestrator","milestone":"M-001","total_tokens":99700,"duration_ms":395000,"commits":3}
 {"ts":"2026-04-21T09:57:00Z","type":"DEVIATION_MINOR","actor":"implementer","task":"T-007","summary":"Rate limiter needs Redis, plan assumed in-memory","amendment":"A1"}
 {"ts":"2026-04-21T10:02:00Z","type":"PHASE_ENTER","actor":"skill-md","phase":"VALIDATE"}
-{"ts":"2026-04-21T10:05:30Z","type":"SESSION_COMPLETE","actor":"skill-md","total_tokens":289400,"total_duration_ms":1230000,"commits":8,"milestones_completed":3,"milestones_total":3,"cost_usd":4.34}
+{"ts":"2026-04-21T10:05:30Z","type":"SESSION_COMPLETE","actor":"skill-md","input_tokens":270600,"cached_input_tokens":210000,"output_tokens":18800,"reasoning_output_tokens":9200,"total_tokens":289400,"total_duration_ms":1230000,"commits":8,"milestones_completed":3,"milestones_total":3,"cost_usd":null,"cost_source":"unknown"}
 ```
 
 **Canonical event vocabulary:**
@@ -346,52 +362,63 @@ Adding a new event type is a schema change and requires updating this table.
 Existing events are append-only — never rename, never repurpose.
 If an event's meaning needs to evolve, add a new event type instead of redefining an old one.
 
+Where the table says **token fields**, new writers record every value exposed by the runtime:
+`input_tokens`, `cached_input_tokens`, `output_tokens`, `reasoning_output_tokens`, and `total_tokens`.
+Unavailable values are omitted, not estimated. Readers may accept legacy `tokens` fields,
+but writers must not collapse measured categories into that legacy field.
+
 **Event types:**
 
 | Type | Common extra fields | When |
 |-|-|-|
-| `SESSION_START` | `feature`, `branch`, `workdir`, `interaction_mode`, `codex_available` | First event; opened on EXECUTE entry |
-| `SESSION_COMPLETE` | `total_tokens`, `total_duration_ms`, `commits`, `milestones_completed`, `cost_usd` | All phases done |
+| `SESSION_START` | `feature`, `branch`, `workdir`, `interaction_mode`, `codex_available`, `source` (optional) | First event; feature creation or legacy resume |
+| `SESSION_COMPLETE` | token fields, `model`, `reasoning_effort`, `total_duration_ms`, `commits`, `milestones_completed`, `cost_usd`, `cost_source` | All phases done |
 | `PHASE_ENTER` | `phase` | Entering a new phase |
 | `PHASE_END` | `phase`, `phase_status`, `phase_terminal_reason` (when blocked), `duration_ms` | Phase orchestrator dispatch returned; mirrors final FEATURE.md write |
 | `PREFLIGHT` | `build`, `tests`, `lint`, `typecheck`, `duration_ms` | Pre-flight gate results |
 | `MILESTONE_START` | `milestone`, `title`, `parallel_with` (optional) | Starting a milestone |
-| `MILESTONE_COMPLETE` | `milestone`, `tokens`, `duration_ms`, `commits` | All tasks done + committed |
+| `MILESTONE_COMPLETE` | `milestone`, token fields, `duration_ms`, `commits` | All tasks done + committed |
 | `TASK_START` | `task`, `title` | Dispatching implementer |
-| `TASK_COMPLETE` | `task`, `tokens`, `duration_ms`, `spec`, `quality`, `adversarial_rounds`, `verdict`, `red_team`, `cost_usd` | Task passed reviews (`verdict` is `ACCEPT` or `ACCEPT_WITH_CAVEATS`) |
-| `TASK_FAILED` | `task`, `reason`, `adversarial_rounds`, `tokens`, `duration_ms` | Task ended without an ACCEPT verdict (safety valve, plan-invalidating discovery, user abort) |
-| `DISPATCH_STARTED` | `agent`, `task_id` (optional), `started_at` | A Task subagent dispatch was issued (orchestrator-internal; reserved for stall detection) |
-| `DISPATCH_RETURNED` | `agent`, `task_id` (optional), `elapsed_ms`, `outcome` | A Task subagent dispatch returned (orchestrator-internal; reserved for stall detection) |
-| `STALL_DETECTED` | `agent`, `task_id` (optional), `elapsed_ms`, `stall_timeout_ms`, `action` | A dispatched subagent exceeded the stall timeout (reserved — see workflow-rules.md Stall Detection) |
+| `TASK_COMPLETE` | `task`, token fields, `model`, `reasoning_effort`, `duration_ms`, `review_passes`, `verdict`, `red_team`, `cost_usd`, `cost_source` | Task passed reviews (`verdict` is `ACCEPT` or `ACCEPT_WITH_CAVEATS`) |
+| `TASK_FAILED` | `task`, `reason`, `review_passes`, token fields, `duration_ms` | Task ended without an ACCEPT verdict (safety valve, plan-invalidating discovery, user abort) |
+| `DISPATCH_STARTED` | `agent`, `task_id` (optional), `started_at` | A Task subagent dispatch was issued |
+| `DISPATCH_RETURNED` | `agent`, `task_id` (optional), `elapsed_ms`, `outcome` | A Task subagent dispatch returned |
+| `STALL_DETECTED` | `agent`, `task_id` (optional), `elapsed_ms`, `stall_timeout_ms`, `action` | Two no-progress checks confirmed a dispatched subagent stalled |
 | `RECONCILE_FAILED` | `phase`, `check`, `detail` | Pre-dispatch reconciliation rejected the next dispatch (reserved — see workflow-rules.md Pre-Dispatch Reconciliation) |
 | `TEMPLATE_RENDER_ERROR` | `template`, `unresolved` (list of placeholder names) | Dispatch template rendering produced unresolved `{{var}}` placeholders (reserved — see dispatch-templates.md Strict Rendering) |
-| `BATCH_COMPLETE` | `tasks` (list), `tokens`, `duration_ms` | Batch boundary reached |
+| `BATCH_COMPLETE` | `tasks` (list), token fields, `duration_ms` | Batch boundary reached |
 | `DISCOVERED` | `from_task`, `discovered`, `summary`, `risk` | Out-of-scope issue captured as new bundle |
 | `TRIAGE_COMPLETE` | `counts` object (`filed`, `backlog`, `discarded`) | DONE-phase triage finished for all pending T-DISC-* bundles |
 | `DEVIATION_MINOR` | `task`, `summary`, `amendment` (ID) | Plan adjustment applied |
 | `DEVIATION_MAJOR` | `task`, `summary` | Plan invalidation; batch paused |
 | `DRIFT_CHECK` | `milestone`, `planned_files`, `actual_files`, `unplanned`, `test_ratio` | Milestone boundary drift measurement |
-| `STAGNATION` | `task`, `classification`, `adversarial_rounds`, `action` | Fix-cycle max reached |
+| `STAGNATION` | `task`, `classification`, `review_passes`, `action` | Focused recheck failed |
 | `SAFETY_VALVE_BLOCKED` | `task`, `unresolved_flaws` | Adversarial budget exhausted; awaiting user |
 | `EVOLUTIONARY_LOOP` | `criterion`, `evidence`, `action` | Acceptance criterion proven wrong — loop to REFINE |
 | `CODEX_DETECTION` | `available` | Codex CLI availability check |
 | `CODEX_REVIEW` | `milestone`, `verdict`, `findings` | Codex milestone review |
 | `CODEX_ADVERSARIAL` | `verdict`, `findings` | Codex adversarial gate |
 | `CODEX_RESCUE` | `task`, `outcome` | Codex rescue for stagnation |
-| `CODEX_SKIPPED` | `step` | Codex step skipped (CLI unavailable) |
+| `CODEX_SKIPPED` | `step`, `reason` | Codex step skipped because unavailable or not distinct |
 | `CODEX_FAILED` | `step`, `reason` | Codex invocation failed |
-| `BUDGET_WARNING` | `spent_usd`, `budget_usd`, `percent` | ≥80% of budget consumed |
-| `BUDGET_EXHAUSTED` | `spent_usd`, `budget_usd` | 100% reached; stopping or pausing |
+| `BUDGET_WARNING` | `spent`, `budget`, `unit` (`tokens` or `usd`), `percent` | ≥80% of budget consumed |
+| `BUDGET_EXHAUSTED` | `spent`, `budget`, `unit` (`tokens` or `usd`) | 100% reached; stopping or pausing |
 
 Events tagged "reserved" in the table above are part of the vocabulary
 but their emitters land in later changes
-(stall detection and pre-dispatch reconciliation arrive with the resilience PR;
+(pre-dispatch reconciliation arrives with the resilience PR;
 strict template rendering arrives with the safety PR).
 Documenting them here keeps the vocabulary closed and lets downstream tooling parse
 both current and future event streams without a schema change.
 
 Token and duration values are cumulative per agent bundle
 (implementer + task-critic + any red-team / codex invocations summed for each task).
+
+**Metric provenance:** Runtime counters are `measured`; sums or elapsed values computed from
+measured records are `derived`; counts inferred from incomplete logs are `lower_bound`.
+Attach `metric_provenance` to events and FEATURE.md totals whenever the classification is not obvious.
+Never convert a missing metric to zero. Keep `cost_usd` null with `cost_source: unknown`
+when no runtime or configured price source exists.
 
 **Append rules:**
 
@@ -400,6 +427,15 @@ Token and duration values are cumulative per agent bundle
 - Every event MUST include `ts`, `type`, `actor`.
 - Unknown extra fields are allowed; downstream readers ignore what they do not recognize.
 
+**Legacy compatibility:**
+
+- Readers accept legacy `tokens`, `adversarial_rounds`, `max_adversarial_rounds`,
+  and missing pre-EXECUTE lifecycle events. New writers emit only the current fields.
+- Map legacy review counters for reporting only; do not grant or consume a new review budget from them.
+- A missing legacy event is unknown, not zero. Do not backfill or rewrite old JSONL.
+- On legacy resume, append `SESSION_START` with `source: "legacy_resume"` and `PHASE_ENTER`
+  for the current phase, then continue with the current schema.
+
 **Query recipes (`jq`):**
 
 Copy-paste-ready one-liners for operating on a session's `events.jsonl`.
@@ -407,15 +443,15 @@ Copy-paste-ready one-liners for operating on a session's `events.jsonl`.
 | What | Command |
 |-|-|
 | Total cost so far (USD) | `jq -s 'map(.cost_usd // 0) \| add' events.jsonl` |
-| Total tokens | `jq -s 'map(.tokens // .total_tokens // 0) \| add' events.jsonl` |
+| Total task tokens | `jq -s 'map(select(.type=="TASK_COMPLETE") \| .total_tokens // .tokens // 0) \| add' events.jsonl` |
 | Last event (cold-resume pointer) | `tail -1 events.jsonl \| jq .` |
 | All discovered bundles with origin | `jq 'select(.type=="DISCOVERED") \| {from:.from_task,id:.discovered,risk,summary}' events.jsonl` |
 | Failed / blocked tasks | `jq 'select(.type=="SAFETY_VALVE_BLOCKED" or .type=="STAGNATION")' events.jsonl` |
 | Deviations grouped by severity | `jq -s 'map(select(.type \| startswith("DEVIATION_"))) \| group_by(.type) \| map({type:.[0].type,count:length})' events.jsonl` |
 | Milestone elapsed time (ms) | `jq 'select(.type=="MILESTONE_COMPLETE") \| {milestone,duration_ms,commits}' events.jsonl` |
-| Budget burn rate (% spent over time) | `jq 'select(.type=="TASK_COMPLETE") \| {ts,cost_usd}' events.jsonl \| jq -s 'reduce .[] as $e (0; . + $e.cost_usd)'` |
+| Known cost over time | `jq -s 'map(select(.type=="TASK_COMPLETE" and .cost_usd != null) \| .cost_usd) \| add // 0' events.jsonl` |
 | Count discoveries still untriaged | `jq -s 'map(select(.type=="DISCOVERED")) \| length' events.jsonl` (cross-check against `Grep(pattern="^status: discovered$", path="tasks/")`) |
-| Adversarial rounds histogram | `jq -s 'map(select(.type=="TASK_COMPLETE") \| .adversarial_rounds) \| group_by(.) \| map({rounds:.[0],count:length})' events.jsonl` |
+| Review passes histogram | `jq -s 'map(select(.type=="TASK_COMPLETE") \| .review_passes // 0) \| group_by(.) \| map({passes:.[0],count:length})' events.jsonl` |
 
 Use `-s` (slurp) when aggregating across events; omit for per-line filtering.
 Chain with standard shell tools (`head`, `tail`, `wc -l`) for further shaping.
@@ -593,13 +629,15 @@ task_id: T-001
 milestone: M-001
 status: pending          # pending | ready | in_progress | complete | blocked | skipped | discovered
 risk: Low                # Low | Medium | High
-max_adversarial_rounds: 1  # Derived from risk: Low=1, Medium=2, High=3
+review_budget: 0         # Maximum external passes: Low=0, Medium=2, High=2
 depends_on: []           # Task IDs that must complete before this task
 discovered_from: null    # T-XXX, or phase name (RESEARCH | PLAN_DRAFT | PLAN_REVIEW | VALIDATE) when filed outside EXECUTE; null for planned tasks
-adversarial_rounds: 0    # Updated during execution
+review_passes: 0         # Updated during execution
 verdict: null            # null | ACCEPT | ACCEPT_WITH_CAVEATS | BLOCKED
 commit_sha: null         # Set at milestone boundary after /atcommit
-token_cost_usd: null     # Running cost for this bundle's executions (null until TASK_COMPLETE)
+token_usage_total: 0     # Runtime-provided total for this bundle's dispatches
+cost_usd: null           # Runtime or configured estimate; otherwise null
+cost_source: unknown     # runtime | configured_estimate | unknown
 duration_ms: null        # Cumulative execution time (null until TASK_COMPLETE)
 ---
 
@@ -666,7 +704,7 @@ Check these before starting — if any fail, the task is blocked:
 
 ## Pattern References
 
-<Actual code snippets from comparable files in the codebase, with file:line citations>
+<File:line citations to comparable code. Include at most 10 lines only when the pattern is non-obvious.>
 
 ### Pattern: <name>
 **Found in**: `path/to/comparable.ts:45-67`
@@ -692,8 +730,9 @@ Check these before starting — if any fail, the task is blocked:
 2. **Promoted** to `status: ready` by the orchestrator when all `depends_on` tasks reach `status: complete`
    (queryable via `Grep(pattern="^status: ready$", path="tasks/")`)
 3. **Read** by the milestone orchestrator when dispatching the implementer (`status: ready → in_progress`)
-4. **Updated** after each adversarial round (status, adversarial_rounds, verdict)
-5. **Finalized** at milestone boundary (status: complete, commit_sha, token_cost_usd, duration_ms)
+4. **Updated** after each justified review pass (`status`, `review_passes`, `verdict`)
+5. **Finalized** at milestone boundary (`status: complete`, `commit_sha`, token fields,
+   `cost_usd`, `cost_source`, `duration_ms`)
 6. **Read by outer loop** for resume (find first `ready` task) and progress tracking
 
 **Discovered tasks:** carry `status: discovered` until the user decides their fate
@@ -706,6 +745,7 @@ the point is to capture the work structurally, not to quietly expand scope.
 Auto-generated at every phase transition and milestone completion.
 Gives a cold-start agent everything it needs to pick up the next task
 without reading RESEARCH.md, PLAN.md, or events.jsonl from scratch.
+Keep it under 80 lines or 1,500 tokens.
 
 The snapshot is **task-scoped** — it answers "what does the next agent need to know
 to do this specific task?" rather than summarizing the entire project.
@@ -726,17 +766,12 @@ to do this specific task?" rather than summarizing the entire project.
 - **Last Commit**: abc123 "feat(auth): add login endpoint"
 - **Uncommitted Changes**: none
 
-## Next Task Contract
+## Next Action
 
-- **Preconditions**:
-  - T-001 complete: project structure in place (pkg/, cmd/, tests/)
-  - T-002 complete: login endpoint exists at /api/login
-- **Postconditions**:
-  - Auth middleware applied to /api/* routes
-  - TestAuthMiddleware passes
-- **Files**: pkg/middleware/auth.go (New), cmd/server/routes.go (Modify)
-- **Risk**: Medium
-- **Max Adversarial Rounds**: 2
+- **Task bundle**: `tasks/TASK-004.md`
+- **Dependency state**: T-001, T-002 complete
+- **Risk / external review budget**: Medium / 2 maximum; second only after rejection
+- **Delta since bundle generation**: none
 
 ## Key Decisions (affecting next task)
 
@@ -744,14 +779,6 @@ Extracted from FEATURE.md Decisions Made:
 
 - D1: JWT for authentication (not session cookies) — stateless, no server-side session store needed
 - D3: Middleware chain pattern from existing codebase — see routes.go:45
-
-## Conventions
-
-From CONVENTIONS.md (immutable for this feature):
-
-- Middleware signature: `func(next http.Handler) http.Handler` (from existing RateLimiter)
-- Tests use `testutil.NewTestServer()` pattern — see auth_test.go:12
-- Error responses: `pkg/api/errors.go` ApiError struct
 
 ## Completed Work Summary
 

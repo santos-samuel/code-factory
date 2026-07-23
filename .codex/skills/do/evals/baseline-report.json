@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "skill_name": "do",
+    "baseline_source": "pre-change skill snapshot and audited root session",
+    "root_session_id": "019f89ff-7e93-7782-b695-34e59b081285",
+    "candidate_base": "e482681b18d734b082908264e0ea499fe60bbdc5",
+    "per_eval_timing_available": false
+  },
+  "aggregate_observed": {
+    "sessions": 44,
+    "spawn_calls": 54,
+    "wait_calls": 999,
+    "tool_call_records": 2847,
+    "shell_records_mentioning_bzl": 239,
+    "input_tokens": 332199021,
+    "cached_input_tokens": 323749120,
+    "uncached_input_tokens": 8449901,
+    "output_tokens": 759182,
+    "reasoning_output_tokens": 277137,
+    "total_tokens": 332958203,
+    "wall_seconds": 83244.816,
+    "cost_usd": null,
+    "cost_source": "unknown"
+  },
+  "baseline_failures": [
+    "Repeated REFINE, RESEARCH, and PLAN_DRAFT despite approved preparation.",
+    "Dispatched explorer, researcher, planner, reviewer, red team, and Codex layers without distinct gaps for every layer.",
+    "Stacked task critic, spec, quality, red-team, milestone, validation, branch, and PR reviews.",
+    "Copied complete state artifacts through nested prompts.",
+    "Used repeated wait polling and ambiguous stall replacement rules.",
+    "Reported a partial dollar estimate without complete runtime or model-rate provenance.",
+    "Contained contradictory review, parallelism, and event-lifecycle instructions."
+  ],
+  "unavailable_metrics": [
+    "Per-eval token counts",
+    "Per-eval duration",
+    "Per-eval dispatch and wait counts"
+  ]
+}

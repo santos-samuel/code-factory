@@ -5,6 +5,8 @@ These supplement the orchestrator's own agent rules with context only available 
 
 ## Approach Exploration
 
+- A phase is an evidence gate, not automatically a new agent dispatch.
+  Reuse approved, cited conversation or state evidence when it satisfies the normal exit criteria.
 - During REFINE, the refiner MUST propose 2-3 approaches with trade-offs and get user preference before finalizing the specification
 - Questions to the user should be ONE at a time, preferring multiple choice options
 - Retrieve discoverable answers before asking; order remaining questions as architecture-changing, behavior-defining, then polish
@@ -38,8 +40,8 @@ Use only the documented event types — downstream tooling (status reporters, SN
 regenerators, retrospective queries) parses against this fixed set.
 
 Required event coverage for every phase orchestrator:
-- `PHASE_END` after a phase dispatch returns. Include `phase`, `phase_status`, `duration_ms`,
-  and `phase_terminal_reason` when `phase_status: blocked`.
+- `PHASE_END` after every phase dispatch returns.
+  Include `phase`, `phase_status`, `duration_ms`, and `phase_terminal_reason` when blocked.
 - `TASK_COMPLETE` when an EXECUTE task ends with an `ACCEPT` or `ACCEPT_WITH_CAVEATS` verdict.
 - `TASK_FAILED` when an EXECUTE task ends without an `ACCEPT` verdict (safety valve, plan-invalidating
   discovery, user abort). Use `TASK_FAILED` instead of omitting the task from events.jsonl.
@@ -69,22 +71,27 @@ rather than inventing a new event type — schema changes go through the canonic
 
 ## Recommended Session Configuration
 
-For best results with /do, set effort level to High:
-- In Claude Code: run `/model` and select High effort
-- Via environment: set `CLAUDE_CODE_EFFORT_LEVEL=high`
-- Via settings.json: add `"effort": "high"` in the env block
+Use role-proportional reasoning when the runtime supports per-dispatch selection:
 
-High effort enables full reasoning across all phases, reducing rework from shallow analysis.
+| Work | Effort |
+|-|-|
+| Orchestration, state updates, deterministic checks | Low or Medium |
+| Exploration, document processing, straightforward implementation | Medium |
+| Ambiguous architecture, proof-based review, security/trust analysis | High |
+
+Do not force every `/do` agent to High.
+Higher effort must correspond to a named reasoning risk and a measured quality benefit.
 
 ## Budget Enforcement
 
-If `token_budget_usd` is set in FEATURE.md frontmatter:
+If `token_budget_usd` or `token_budget_total` is set in FEATURE.md frontmatter:
 
-**Tracking:** After each TASK_COMPLETE, update `token_spent_estimate_usd` in FEATURE.md frontmatter.
-Approximate cost per 1k tokens: Opus ~$0.015, Sonnet ~$0.003, Haiku ~$0.0008.
+**Tracking:** After each TASK_COMPLETE, update measured token fields and `cost_usd_total`
+only when the runtime supplies cost or an explicitly configured rate identifies the exact model.
 
-**Pre-dispatch check:** Before dispatching each task, compare remaining budget against estimated task cost
-(Low ~$0.05, Medium ~$0.15, High ~$0.30). If the next task would exceed the budget, surface the constraint.
+**Pre-dispatch check:** Compare remaining budget against measured burn and the next bundle's token estimate.
+If dollar cost cannot be established, do not invent it; require `token_budget_total`
+before continuing budgeted autonomous work.
 
 | Threshold | Interactive | Autonomous |
 |-|-|-|
@@ -133,7 +140,9 @@ The SKILL.md outer loop owns phase transitions. The orchestrator owns within-pha
 
 **Context freshness:** Each phase orchestrator gets a fresh context window with only the data that phase needs. This eliminates context exhaustion from accumulating all phase outputs in a single orchestrator.
 
-**EXECUTE granularity:** SKILL.md dispatches one orchestrator per milestone. Each milestone orchestrator gets its task bundles and milestone scope. Milestones with no file overlap run in parallel.
+**EXECUTE granularity:** SKILL.md dispatches one orchestrator per ready milestone group.
+The group contains one milestone, or several milestones with no file/dependency overlap.
+That orchestrator dispatches one implementer per milestone in a single parallel message.
 
 ## Context Management
 
@@ -144,6 +153,18 @@ Within a phase, the orchestrator manages subagent isolation as before.
 
 State files are the handoff mechanism between phases. All inter-phase context
 passes through `~/docs/plans/do/<short-name>/` files, not through orchestrator memory.
+
+Pass artifact paths plus compact capsules;
+do not copy full FEATURE, RESEARCH, PLAN, CONVENTIONS, SNAPSHOT, or diff content through nested prompts.
+Task bundles contain only task-specific conventions and stay under 120 lines or 3,000 tokens.
+
+## Waiting and Dispatch Health
+
+- Use native completion notifications or the longest permitted blocking wait.
+- A timeout is not a stall; check status once and keep waiting when work is active.
+- Do not send status-only follow-ups.
+- Confirm a worker stopped before dispatching its replacement.
+- Record agent, tool, and wait counts with token/timing metrics.
 
 ## Context Isolation
 
@@ -156,44 +177,46 @@ Preventing context bloat is as important as providing context.
 | Refiner | feature_request, repo_root | Research, plans, prior runs |
 | Explorer | feature spec, repo_root | Prior plans, reviewer feedback |
 | Researcher | feature spec | Codebase map (explorer handles that) |
-| Planner | feature spec, full RESEARCH.md, CONVENTIONS.md | Previous failed plans, reviewer reasoning chains |
+| Planner | feature spec, RESEARCH.md path + phase capsule, CONVENTIONS.md path | Previous failed plans, reviewer reasoning chains |
 | Reviewer | PLAN.md, CONVENTIONS.md, feature spec | Full RESEARCH.md (uses CONVENTIONS.md instead), planner reasoning |
-| Red-Teamer | PLAN.md, RESEARCH.md, feature spec | Reviewer findings (independent assessment) |
-| Implementer | task bundle (self-contained), CONVENTIONS.md | Full PLAN.md, RESEARCH.md, planning/review history |
-| Task-Critic | task contract, implementation, CONVENTIONS.md | Implementer reasoning chain, planning history |
-| Validator | acceptance criteria, PLAN.md validation strategy, CONVENTIONS.md, git diff | Full RESEARCH.md, implementation reasoning |
+| Red-Teamer | PLAN.md and RESEARCH.md paths, feature capsule | Reviewer findings (independent assessment) |
+| Implementer | self-contained task bundle | Full PLAN.md, RESEARCH.md, CONVENTIONS.md, planning/review history |
+| Task-Critic | task contract, changed diff, focused risk capsule | Implementer reasoning chain, planning history |
+| Validator | acceptance criteria, validation-strategy path, git diff | Full RESEARCH.md, implementation reasoning |
 
 **CONVENTIONS.md is the compression layer.**
 Instead of passing RESEARCH.md to every downstream agent,
 extract conventions once and pass the compact artifact.
 Only agents that need raw research findings
 (planner for grounding, red-teamer for assumption attacks)
-receive the full RESEARCH.md.
+receive its path and a capsule telling them which sections to inspect.
 
-## Adversarial Execution
+## Risk-Routed Execution Review
 
-The EXECUTE phase uses an adversarial loop between the implementer and a task-critic agent,
-inspired by GAN (Generative Adversarial Network) dynamics.
+The EXECUTE phase uses a bounded review between the implementer and a task-critic agent
+when the task's risk warrants external review.
 
 - **Contract-driven**: Every task gets concrete pass/fail criteria before review begins.
   The task-critic evaluates against this contract — not vibes, not subjective "looks good."
-- **Escalating scrutiny**: Round 1 focuses on correctness (spec compliance, tests, build).
-  Round 2 adds design (patterns, architecture, naming). Round 3 adds depth (edge cases, security, subtle logic).
+- **Cumulative review budget**: Low-risk tasks use self-review plus deterministic checks.
+  Medium-risk tasks get one critic pass and one focused recheck only after rejection.
+  High-risk tasks get at most two external review passes total.
 - **Proof-based**: Every critical flaw needs file:line + concrete evidence.
   If the critic cannot prove a flaw, it is a weakness at most — never critical.
-- **Stalemate detection**: If the same flaw persists across 2 consecutive rounds despite the implementer attempting a fix,
-  escalate to user (interactive) or log as tracked risk (autonomous). Do not burn rounds on circular disputes.
-- **Safety valve**: Max 3 adversarial rounds per task. After 3: Codex rescue attempt, then classify stagnation.
+- **Repeated-finding detection**: If the same flaw persists after the single focused recheck,
+  escalate to the user. Do not burn passes on circular disputes.
+- **Safety valve**: A second rejection blocks the task.
+  Do not add another critic, red team, or rescue layer to the unchanged finding.
 - **Self-evaluation**: The implementer self-reviews against the task contract before handing off.
-  This catches obvious issues and saves a full adversarial round.
+  This catches obvious issues before an external review is considered.
 - **Class-level fixes**: When fixing a finding, the implementer asks whether it is one instance of a broader category
   and prefers structural fixes that eliminate the class over patching individual instances.
 
 ## Interaction Mode Rules
 
-- If interactive: Present a summary of outputs and STOP at every phase transition checkpoint.
+- If interactive: Present a summary of new or materially changed outputs and stop for approval.
   Use AskUserQuestion with concrete options (approve, adjust, refine further).
-  Do NOT proceed to the next phase until the user explicitly approves.
-  This applies to EVERY phase: REFINE, RESEARCH, PLAN_DRAFT, PLAN_REVIEW, EXECUTE batches, VALIDATE, and DONE.
+  An artifact explicitly approved in prepared context advances with a one-line reuse notice,
+  without a duplicate approval prompt.
 - If autonomous: Make best decisions based on research, proceed without asking
 - Both modes: Always stop and ask if you encounter a blocker or ambiguity you cannot resolve

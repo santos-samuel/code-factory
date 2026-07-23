@@ -12,12 +12,15 @@ Announce: "I'm using the /do skill to orchestrate feature development with lifec
 These rules govern the SKILL.md outer loop.
 Phase-level rules passed to every orchestrator dispatch live in [references/workflow-rules.md](references/workflow-rules.md).
 Detailed phase behaviors live in [references/phase-flow.md](references/phase-flow.md).
+Resource budgets, evidence reuse, compact context, and wait discipline live in
+[references/resource-efficiency.md](references/resource-efficiency.md).
 
 - **Preferences before everything.** Step 1 runs IMMEDIATELY on invocation,
   before discovering runs, parsing arguments, or doing any phase work.
-- **Never skip phases.** Every feature goes through REFINE → RESEARCH → PLAN_DRAFT → PLAN_REVIEW → EXECUTE → VALIDATE → DONE.
-  "Simple" features are where unexamined assumptions cause the most rework.
-  REFINE can be brief for well-specified descriptions, but phases themselves are non-negotiable.
+- **Never skip phase gates.** Every feature satisfies
+  REFINE → RESEARCH → PLAN_DRAFT → PLAN_REVIEW → EXECUTE → VALIDATE → DONE.
+  A gate may reuse approved, cited conversation or state evidence instead of dispatching another agent.
+  See Prepared-Context Reuse in resource-efficiency.md.
 - **State is sacred.** State lives in `~/docs/plans/do/<short-name>/`, never in the repo.
   Update FEATURE.md frontmatter after every phase transition — state files are the only handoff mechanism between phases.
 - **Hard stop on blockers.** When encountering ambiguity or missing information, stop and report.
@@ -29,10 +32,17 @@ Detailed phase behaviors live in [references/phase-flow.md](references/phase-flo
   the worktree or workspace is the only write target.
 - **Subagent dispatch discipline.** Instruct subagents to keep final responses under 2000 characters (outcomes, not process).
   Never call TaskOutput twice for the same Task — if it times out, increase the timeout instead of re-reading.
+- **Thin controller.** The outer loop reads frontmatter, compact capsules, and return-contract fields.
+  It does not absorb raw test output, full diffs, or complete phase artifacts into the long-lived thread.
+- **Completion-driven waiting.** A timeout is not a stall.
+  Use native completion waits, check status once after timeout, and never spawn a replacement until the original worker stopped.
+- **Review budgets are cumulative.** Do not stack task critics, red teams, milestone review,
+  validation quality review, and branch review over the same unchanged diff.
 
 ## Interaction Modes
 
-**Interactive (default):** User reviews and explicitly approves outputs at every phase transition before the outer loop proceeds.
+**Interactive (default):** User reviews and explicitly approves new or materially changed outputs before the outer loop proceeds.
+An explicitly approved prepared artifact is not presented for approval again when its phase gate reuses it.
 Feedback can be provided at any checkpoint.
 
 **Autonomous (`--auto` flag):** Proceed through all phases without interruption;
@@ -78,9 +88,10 @@ Parse `$ARGUMENTS` for flags and strip them from the feature description:
 - `--auto` → pre-select autonomous mode
 - `--branch` → pre-select branch-only workdir mode
 - `--budget <USD>` → validate positive number, store as `token_budget_usd` (invalid → warn and ignore)
+- `--token-budget <tokens>` → validate positive integer, store as `token_budget_total` (invalid → warn and ignore)
 
 Store the stripped feature description as `feature_description` — used for workspace dispatch.
-If `--budget` is not present, `token_budget_usd` remains null (unlimited).
+If a budget flag is absent, its corresponding field remains null (unlimited).
 
 ### 1b: Workspace and Automation Preferences
 
@@ -253,13 +264,13 @@ Preferences were collected in Step 1 — execute the chosen setup.
 When the background `workspaces create` completes:
 
 1. **Construct the remote `/do` command** from stored `feature_description` + `--branch` +
-   (`--auto` if autonomous) + (`--budget <X>` if set):
-   `/do <feature_description> --branch [--auto] [--budget <X>]`
+   (`--auto` if autonomous) + each configured budget:
+   `/do <feature_description> --branch [--auto] [--budget <X>] [--token-budget <N>]`
 
 2. **SSH in, start tmux with Claude running `/do`:**
 
    ```bash
-   REMOTE_CMD="/do <feature_description> --branch [--auto] [--budget <X>]"
+   REMOTE_CMD="/do <feature_description> --branch [--auto] [--budget <X>] [--token-budget <N>]"
    ssh -A workspace-<ws-name> "cd /workspaces/<repo> && tmux new-session -d -s main -c /workspaces/<repo> \"claude '$REMOTE_CMD'\""
    ```
 
@@ -291,6 +302,8 @@ mkdir -p "$STATE_ROOT/$SHORT_NAME"
 
 Create `$STATE_ROOT/$SHORT_NAME/FEATURE.md` using the schema in state-file-schema.md,
 with `current_phase: REFINE` and `phase_status: not_started`.
+Create `events.jsonl`, append `SESSION_START`, then append `PHASE_ENTER` for REFINE.
+The event stream exists for the full lifecycle and is never truncated.
 
 ### 4c: Context Hydration
 
@@ -307,9 +320,34 @@ This grounds downstream phases in actual content rather than link-only reference
 Skip if no external references are found.
 Pass hydrated content to the orchestrator via `<hydrated_context>` tags in the dispatch prompt.
 
-### 4d: Brainstorm Option (Interactive Mode Only)
+### 4d: Prepared-Context Reuse
+
+Before dispatching REFINE, RESEARCH, or PLAN_DRAFT,
+apply the Prepared-Context Reuse gate from
+[references/resource-efficiency.md](references/resource-efficiency.md).
+
+Inspect the current conversation and hydrated context for:
+
+1. An explicitly approved specification with binary acceptance criteria
+2. Repository-grounded and authoritative external evidence
+3. An explicitly approved implementation plan with files, dependencies, and validation
+
+For each satisfied phase, write the normal compact state artifact,
+verify the phase exit criteria,
+record `source: "reused_context"` in FEATURE.md phase history
+and append the normal `PHASE_END`,
+and advance without a phase subagent.
+Targeted verification of a questionable claim is allowed;
+repeating an entire satisfied phase is not.
+When RESEARCH is reused, synthesize the required compact `CONVENTIONS.md`
+from its repository citations. If that cannot be done, treat it as a targeted research gap.
+
+If no phase qualifies, use the normal phase loop.
+
+### 4e: Brainstorm Option (Interactive Mode Only)
 
 Skip entirely in autonomous mode.
+Skip when the REFINE gate reused an approved specification.
 Ask whether the user wants to brainstorm first:
 
 ```
@@ -369,6 +407,8 @@ This eliminates context exhaustion from a single long-running orchestrator.
    Do not auto-triage on resume — the user decides fate at DONE.
 6. **Regenerate SNAPSHOT.md** — the existing snapshot may be stale if the session crashed mid-task.
    Follow the Resume Snapshot Protocol in phase-flow.md.
+7. **Legacy event bootstrap:** if `events.jsonl` is absent, create it and append `SESSION_START`
+   with `source: "legacy_resume"` and `PHASE_ENTER` for the current phase. Do not synthesize past events.
 
 ### 5b: Phase Loop
 
@@ -379,12 +419,17 @@ Read FEATURE.md frontmatter → extract `current_phase`, `phase_status`, `intera
 
 ```
 while current_phase not in [DONE, ANALYSIS_COMPLETE]:
-  1. Load phase context per the Context Payloads table in phase-flow.md
-  2. Dispatch the phase orchestrator per Step 5c (or the milestone orchestrator per 5d for EXECUTE)
-  3. Read updated state per the Return Contract table in phase-flow.md
-  4. If interactive: present a phase summary and ask_question at every transition.
-     Do NOT proceed until explicit approval. Apply user feedback (adjust, refine further, re-dispatch).
-  5. Apply phase transitions:
+  1. Re-run the evidence-reuse gate for REFINE, RESEARCH, or PLAN_DRAFT.
+     If satisfied, write the normal artifact and FEATURE.md phase-history entry without dispatch;
+     append PHASE_END.
+  2. Otherwise load a compact phase capsule and artifact paths per phase-flow.md.
+  3. Dispatch the phase orchestrator per Step 5c (or the milestone orchestrator for EXECUTE).
+  4. Wait using Completion-Driven Waiting from resource-efficiency.md.
+  5. Read only updated frontmatter and Return Contract fields.
+  6. If interactive: present a phase summary and ask for approval when output is new or materially changed.
+     For a reused artifact already approved in this conversation, report reuse in one line and do not ask again.
+     Apply user feedback to new or changed output before proceeding.
+  7. Apply phase transitions:
      - REFINE approved        → RESEARCH
      - RESEARCH approved      → PLAN_DRAFT (or DONE if analysis_only)
      - PLAN_DRAFT approved    → PLAN_REVIEW
@@ -393,15 +438,14 @@ while current_phase not in [DONE, ANALYSIS_COMPLETE]:
      - EXECUTE all done       → VALIDATE
      - VALIDATE approved      → DONE
      - VALIDATE blocked       → EXECUTE with fix tasks (max 2 loops)
-  6. Update FEATURE.md frontmatter: current_phase, last_checkpoint
-  7. Regenerate SNAPSHOT.md per the Resume Snapshot Protocol in phase-flow.md
+  8. Update FEATURE.md frontmatter: current_phase, last_checkpoint
+  9. Regenerate the capped SNAPSHOT.md per phase-flow.md
 ```
 
 **EXECUTE sub-loop:** read PLAN.md and task bundles, build the milestone dependency graph.
 Identify ready milestones (all dependencies complete, status != complete).
 Group by file overlap per the File Impact Map — no overlap → dispatch in parallel
-(multiple Task calls in one message); shared files → sequential.
-Initialize `events.jsonl` on first EXECUTE entry (append `SESSION_START`).
+(one group orchestrator, parallel implementers in one message); shared files → sequential.
 After all milestones complete, advance to VALIDATE.
 
 ### 5c: Dispatch Templates
@@ -412,14 +456,14 @@ All phase, milestone, and bundle-generation dispatches use the templates in
 | Phase path | Template |
 |-|-|
 | REFINE, RESEARCH, PLAN_DRAFT, PLAN_REVIEW, VALIDATE, DONE | Phase Orchestrator |
-| EXECUTE (per ready milestone or parallel group) | Milestone Orchestrator |
+| EXECUTE (per ready milestone group) | Milestone Orchestrator |
 | PLAN_REVIEW approval → EXECUTE (once) | Bundle Generation (skip if `tasks/` exists) |
-| Step 4d brainstorm option | Brainstormer |
+| Step 4e brainstorm option | Brainstormer |
 | Step 6 status request | Status Mode (read-only) |
 
-**Parallel milestone dispatch:** when multiple ready milestones have no file overlap,
-send one message with multiple Task calls.
-After all return, read updated state and proceed to the next group.
+**Parallel milestone dispatch:** one group orchestrator owns all simultaneously ready,
+non-overlapping milestones and sends their implementer Task calls in one message.
+Overlapping milestones form separate sequential groups.
 
 After BUNDLE_GENERATION, verify the task file count matches the task count in PLAN.md.
 
@@ -436,11 +480,14 @@ The orchestrator must not modify state or code.
 | State file not found | List discovered runs or prompt for new feature |
 | Git branch conflict | Report and offer resolution options |
 | Phase failure | Mark phase as `blocked` in FEATURE.md, record blocker, offer manual intervention |
-| Subagent failure | Log failure, mark phase `blocked`, re-dispatch on next loop iteration |
-| Phase loop stuck | Track PLAN_REVIEW→PLAN_DRAFT and VALIDATE→EXECUTE counts; max 3 each before escalating |
+| Subagent failure | Confirm the worker stopped, log failure, mark phase `blocked`, then re-dispatch once |
+| Phase loop stuck | Use the loop limits in phase-flow.md; do not add unbudgeted retries |
+| Agent wait times out | Check status once; if active, wait again. Timeout alone is not a stall |
+| Review budget exhausted | Escalate the unresolved finding instead of adding another review layer |
+| Prepared evidence is incomplete | Dispatch only the missing phase; preserve reusable evidence |
 | Resume after crash | Read FEATURE.md current_phase, regenerate SNAPSHOT.md, re-enter the loop; task bundles enable task-level resume within EXECUTE |
 | Plan deviation during EXECUTE | Follow the Plan Amendment Protocol in phase-flow.md (update PLAN.md task contracts and downstream preconditions) |
 
-Phase-level behaviors, adversarial protocols, EXECUTE batch loops, DONE finalization, Discovery Capture Protocol,
+Phase-level behaviors, risk-routed review protocols, EXECUTE batch loops, DONE finalization, Discovery Capture Protocol,
 and Plan Amendment Protocol are defined in [references/phase-flow.md](references/phase-flow.md).
 State file schemas are in [references/state-file-schema.md](references/state-file-schema.md).
