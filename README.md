@@ -6,7 +6,7 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 
 | Command | Plugin | Purpose |
 |-|-|-|
-| `/do` | productivity | Orchestrate feature delivery with phase/state tracking |
+| `/do` | productivity | Implement and deliver code with an adaptive, quality-first workflow |
 | `/rfc` | productivity | Write RFCs and design docs with iterative research |
 | `/debug` | productivity | Systematic debugging with root-cause-first workflow |
 | `/doc` | productivity | Create/update/improve/audit Markdown docs |
@@ -83,7 +83,6 @@ These behaviors adapt ideas from the MIT-licensed
 
 **Agents:**
 
-- `orchestrator` -- State-machine orchestrator for `/do` lifecycle execution.
 - `refiner` -- Clarifies vague requests into actionable feature specs.
 - `explorer` -- Read-only codebase mapper and extension-point finder.
 - `researcher` -- Internal/external research synthesis.
@@ -117,59 +116,52 @@ These behaviors adapt ideas from the MIT-licensed
 
 ## `/do` Lifecycle
 
-Full lifecycle feature orchestration — from vague idea to merged PR. Supports interactive (approve at each phase) or autonomous (`--auto`) modes. Phase gates reuse complete, user-approved evidence instead of repeating refinement, research, or planning. Review depth and agent count scale with task risk, and compact task bundles keep nested prompts bounded. All state persists in `~/docs/plans/do/<name>/` for cross-session resume.
+Adaptive code delivery from an idea or approved plan to an opened or updated PR.
+The top agent owns the lifecycle, implementation, state, validation, and delivery.
+It chooses Fast, Standard, or Deep execution automatically and never delegates lifecycle ownership to another controller.
+Use `--fast` or `--deep` to override routing and `--interactive` for material approval checkpoints.
+All state persists in `~/docs/plans/do/<name>/` for cross-session resume.
 
 ### Phase Diagram
 
-```
-REFINE ──→ RESEARCH ──→ PLAN_DRAFT ──→ PLAN_REVIEW ──→ EXECUTE ──→ VALIDATE ──→ DONE
-                            ^               |                ^          |
-                            |               v                |          v
-                            +──── (changes requested)        +-- (focused fix)
+```text
+Ground → Select profile → Satisfy evidence gates → Implement → Validate → Review once → Deliver PR
 ```
 
 ### Phase Details
 
-| Phase | Agents | What Happens | Output |
-|-|-|-|-|
-| **REFINE** | `refiner` when evidence is incomplete | Validate that the prepared context has a clear problem, scope, behavior, and acceptance criteria; reuse it when complete. | Refined spec or evidence-reuse record |
-| **RESEARCH** | `explorer` and/or `researcher` for specific gaps | Fill only missing local, internal, or external evidence. Reference implementations are analyzed as semantic specifications with translation and license gaps. | Context, assumptions, constraints, risks, open questions |
-| **PLAN_DRAFT** | `planner` | Convert research into milestones and tasks. The plan summarizes decision-relevant evidence and cites artifact paths without copying full research. | Milestones, task breakdown (TDD-first), validation strategy, recovery plan |
-| **PLAN_REVIEW** | `reviewer`; optional risk-specific `red-teamer` | Review correctness once, adding an independent challenge only for a named high-risk assumption. | Review report, required changes |
-| **EXECUTE** | `implementer`; `task-critic` for Medium/High risk | Batched execution with deterministic shift-left checks and a cumulative review budget. TDD is enforced for behavioral tasks. Atomic commits happen at milestone boundaries via `/atcommit`. | Implemented code, atomic commits |
-| **VALIDATE** | `validator` | Run automated checks and acceptance validation. Reuse an integrated review when `HEAD` has not changed. May loop back to EXECUTE for a focused fix. | Validation report, acceptance evidence, quality scorecard |
-| **DONE** | — | Write retrospective, run final tests, summarize deviations, discoveries, unresolved review questions, and the key learning from canonical state, then offer PR creation. | PR URL or merge commit |
+| Profile | Use When | Optional work delegation |
+|-|-|-|
+| **Fast** | Approved, coherent change with no material unknowns | None |
+| **Standard** | One evidence/design gap or a moderate subsystem boundary | One research leaf |
+| **Deep** | Security, concurrency, destructive migration, multi-repo work, or three independent workstreams | Up to three bounded leaves |
 
-### EXECUTE Phase — Batch Loop
+Profiles are alternatives, not stacked pipelines.
+Delegated agents are depth-one leaves: they cannot spawn, manage state, commit, push, or poll.
+Every profile separately requires one independent final reviewer.
 
-```
-Pre-flight → Execute ready task → Shift-left checks → Risk-routed review → Milestone report
-                     ^                                            |
-                     +--------------- focused fix -----------------+
-```
+### Implementation and Review
 
-**Per-task sequence:**
+The top agent implements Fast and Standard changes directly.
+Deep mode may parallelize disjoint file ownership.
+Focused tests run while editing; repository-mandated validation runs once after the diff stabilizes.
 
-1. Dispatch a fresh `implementer` with one self-contained task bundle and a compact scene-setting capsule.
-2. Implementer asks questions → answers provided → implements → self-reviews → reports (no commit)
-3. **Shift-left validation** (deterministic — orchestrator runs directly): lint + format + type-check. Auto-fixes formatting. Returns to implementer if errors persist.
-4. Low-risk tasks stop after self-review and checks. Medium/High tasks get one integrated `task-critic` pass.
-5. A rejection gets one focused fixer/recheck within the cumulative budget; a second rejection blocks.
-6. High-risk tasks may use the second review slot for a distinct trust, security, concurrency, retry, or destructive-data risk.
-7. Mark the task complete, record runtime telemetry, and proceed (no commit yet).
+Every completed implementation receives exactly one independent whole-diff review:
 
-**TDD enforcement** (behavioral tasks only):
+1. The reviewer checks acceptance criteria, correctness, maintainability, tests, and named risks together.
+2. Proven findings are fixed and sent to the same reviewer for at most one focused recheck.
+3. A second rejection blocks delivery; no replacement or escalating reviewer chain is permitted.
+
+**TDD for behavior changes:**
 
 1. Write failing test (complete, not placeholder)
 2. Run test — verify it fails for the expected reason
 3. Write minimal implementation to pass the test
 4. Run test — verify it passes and no regressions
 
-Code written before its test is deleted and restarted.
-
-**Milestone boundary commits:** `/atcommit` analyzes file dependencies and groups changes by concept (e.g., package + tests, integration layer, config + wiring). Typical result: 3-5 atomic commits per feature.
-
-**Stop conditions:** missing dependencies, systemic test failures, unclear instructions, repeated verification failures, or plan-invalidating discoveries.
+Refactors, configuration, generated code, and documentation use their most relevant deterministic verification.
+Delivery uses the minimum logical commits, the repository-approved push mechanism, and one CI/review status fetch.
+`/do` does not poll CI or automatically enter `/pr-fix`.
 
 ### Workspace Modes
 
@@ -178,38 +170,33 @@ Code written before its test is deleted and restarted.
 | Worktree + branch (default) | Isolated git worktree with feature branch — main workspace stays clean |
 | Branch only | Feature branch in current directory |
 | Current branch | Work on the already checked-out branch |
-| Datadog workspace | Remote cloud development environment via `/workspace` |
+| Datadog workspace | Remote environment via `/workspace`; starts the requested `/do` run in detached tmux |
 
 ### State Files
 
 All artifacts live in `~/docs/plans/do/<name>/`:
 
-| File | Written After | Contents |
+| File | Maximum | Contents |
 |-|-|-|
-| `FEATURE.md` | Creation | YAML frontmatter, acceptance criteria, progress, decisions, outcomes |
-| `RESEARCH.md` | RESEARCH | Codebase map, research brief, findings, open questions |
-| `PLAN.md` | PLAN_DRAFT | Milestones, task breakdown, validation strategy, recovery |
-| `REVIEW.md` | PLAN_REVIEW | Review feedback, required changes |
-| `VALIDATION.md` | VALIDATE | Test results, acceptance evidence, quality scorecard |
-| `SNAPSHOT.md` | Each transition | Capped resume context for the next task or phase |
-| `events.jsonl` | Creation through DONE | Append-only lifecycle, dispatch, review, token, and duration telemetry |
+| `FEATURE.md` | 150 lines | Goal, acceptance criteria, decisions, progress, discoveries, outcome |
+| `RESEARCH.md` | 150 lines | Unique evidence that affects the plan |
+| `CONVENTIONS.md` | 150 lines | Change-specific repository constraints |
+| `PLAN.md` | 150 lines | Approach, tasks, risks, validation, delivery |
+| `REVIEW.md` | 100 lines | One final review and optional focused recheck |
+| `VALIDATION.md` | 100 lines | Commands, results, acceptance evidence |
+| `SNAPSHOT.md` | 60 lines | Resume-only state and next action |
+| `events.jsonl` | — | Meaningful transitions only; never individual tools or waits |
 
 ### Resource Controls and Telemetry
 
-`/do --token-budget <tokens>` enforces an exact token-denominated ceiling. The legacy
-`--budget <USD>` form is enforced only when the runtime supplies cost or an explicitly configured
-model rate; otherwise cost remains `null` with `cost_source: unknown`, and `/do` requires a token
-ceiling instead of inventing a price.
+`/do --token-budget <tokens>` is an advisory stop threshold over exact cumulative token totals
+reported by completed delegated agents. It does not claim a whole-session hard ceiling: top-agent,
+tool, active-agent, future, and unavailable runtime usage are excluded and never estimated.
+The legacy `--budget <USD>` form remains accepted, but is enforced only when the runtime provides
+an exact cost source.
 
-Telemetry preserves runtime token categories and labels metrics as `measured`, `derived`, or
-`lower_bound`. Batch reports include tokens, duration, agent/tool/wait activity, discoveries, and
-their provenance. Reviews use one ledger keyed by scope and `HEAD`, so unchanged accepted work is
-not reviewed again.
-
-Codex generation maps read-heavy and orchestration roles to `gpt-5.6-terra` with Medium effort.
-Implementation and named adversarial roles (`implementer`, `task-critic`, and `red-teamer`) use
-`gpt-5.6-sol` with High effort. Portable agent instructions keep abstract roles; the
-platform-specific mapping and its validation live in `sync-codex.sh`.
+Waiting is bounded: work locally while leaves run, use completion waits, check status once after a
+timeout, and never create status-only follow-up or agent-list polling loops.
 
 ### Codex Session Audits
 

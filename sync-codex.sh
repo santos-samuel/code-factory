@@ -421,14 +421,14 @@ PYEOF
 }
 
 # codex_agent_profile: map portable roles to Codex-specific model and effort.
-#   Read-heavy/orchestration roles favor lower cost; implementation and named
+#   Read-heavy roles favor lower cost; implementation and named
 #   adversarial roles retain the frontier model and High effort.
 codex_agent_profile() {
     case "$1" in
         implementer|task-critic|red-teamer)
             printf '%s %s\n' "gpt-5.6-sol" "high"
             ;;
-        brainstormer|code-quality-reviewer|code-simplifier|consistency-checker|explorer|memory-extractor|orchestrator|planner|refiner|researcher|reviewer|skill-comparator|skill-grader|spec-reviewer|validator)
+        brainstormer|code-quality-reviewer|code-simplifier|consistency-checker|explorer|memory-extractor|planner|refiner|researcher|reviewer|skill-comparator|skill-grader|spec-reviewer|validator)
             printf '%s %s\n' "gpt-5.6-terra" "medium"
             ;;
         *)

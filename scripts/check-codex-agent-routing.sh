@@ -9,7 +9,7 @@ expected_profile() {
         implementer|task-critic|red-teamer)
             printf '%s %s\n' "gpt-5.6-sol" "high"
             ;;
-        brainstormer|code-quality-reviewer|code-simplifier|consistency-checker|explorer|memory-extractor|orchestrator|planner|refiner|researcher|reviewer|skill-comparator|skill-grader|spec-reviewer|validator)
+        brainstormer|code-quality-reviewer|code-simplifier|consistency-checker|explorer|memory-extractor|planner|refiner|researcher|reviewer|skill-comparator|skill-grader|spec-reviewer|validator)
             printf '%s %s\n' "gpt-5.6-terra" "medium"
             ;;
         *)
@@ -41,15 +41,6 @@ for source in "$ROOT"/productivity/agents/*.md; do
         status=1
     fi
 done
-
-while IFS= read -r role; do
-    [[ "$role" == codex-* ]] && continue
-    if ! expected_profile "$role" >/dev/null; then
-        echo "  FAIL  /do dispatch role has no Codex profile: $role"
-        status=1
-    fi
-done < <(grep -oE 'productivity:[a-z][-a-z0-9]+' "$ROOT/productivity/agents/orchestrator.md" \
-    | cut -d: -f2 | sort -u)
 
 if [[ "$status" -ne 0 ]]; then
     exit "$status"

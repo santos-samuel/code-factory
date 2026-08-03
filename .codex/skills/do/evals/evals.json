@@ -1,75 +1,150 @@
 {
+  "schema_version": 3,
   "skill_name": "do",
-  "evals": [
+  "scenarios": [
     {
-      "id": 1,
-      "prompt": "A user has already approved a specification with binary acceptance criteria, repository and authoritative external research with citations, and an implementation plan naming files, dependencies, risks, and validation. They now invoke /do in interactive mode. Describe the phase routing, agent dispatches, approvals, and artifacts before EXECUTE.",
-      "expected_output": "REFINE, RESEARCH, and PLAN_DRAFT are satisfied from prepared evidence without phase-agent dispatches or duplicate approvals.",
-      "expectations": [
-        "No refiner, explorer, researcher, or planner is dispatched.",
-        "Normal compact artifacts and phase exit checks are preserved.",
-        "The user is not asked to approve already approved artifacts again."
+      "id": "fast-approved-fix",
+      "prompt": "The user approved a three-file bug-fix plan with binary acceptance criteria and named focused tests. The repository is already on a clean feature branch. Route the complete /do run through PR delivery.",
+      "assertions": [
+        {"field": "profile", "op": "eq", "value": "fast"},
+        {"field": "implementation_leaves", "op": "eq", "value": 0},
+        {"field": "reviewer_sessions", "op": "eq", "value": 1},
+        {"field": "max_agent_depth", "op": "lte", "value": 1},
+        {"field": "controller_dispatches", "op": "eq", "value": 0},
+        {"field": "pr_status_fetches", "op": "eq", "value": 1},
+        {"field": "ci_polling", "op": "eq", "value": false},
+        {"field": "red_before_implementation", "op": "eq", "value": true},
+        {"field": "green_before_full_validation", "op": "eq", "value": true},
+        {"field": "review_after_validation", "op": "eq", "value": true},
+        {"field": "delivery_after_review", "op": "eq", "value": true}
       ]
     },
     {
-      "id": 2,
-      "prompt": "Prepared research answers every question except one decision-critical local error-handling convention. External APIs and internal design decisions are already authoritatively cited. Describe how /do satisfies RESEARCH.",
-      "expected_output": "Only the missing local convention is verified; completed external and internal research is not repeated.",
-      "expectations": [
-        "The response identifies one local evidence gap.",
-        "No general researcher or Confluence search is dispatched.",
-        "Existing cited research is reused."
+      "id": "standard-evidence-gap",
+      "prompt": "A moderate cross-package change is approved, but one decision-critical local error-handling convention is unknown. All external research is complete. Route /do without repeating satisfied work.",
+      "assertions": [
+        {"field": "profile", "op": "eq", "value": "standard"},
+        {"field": "research_leaves", "op": "lte", "value": 1},
+        {"field": "implementation_leaves", "op": "eq", "value": 0},
+        {"field": "reviewer_sessions", "op": "eq", "value": 1},
+        {"field": "evidence_repeated", "op": "eq", "value": false},
+        {"field": "max_agent_depth", "op": "lte", "value": 1}
       ]
     },
     {
-      "id": 3,
-      "prompt": "Route implementation review for three independent tasks after deterministic checks pass: T-L is Low risk; T-M is Medium risk and its first critic accepts; T-H is High risk with a trust-boundary concern and its first critic rejects a proven flaw. State every permitted external pass and stop condition.",
-      "expected_output": "Low uses zero external passes; Medium stops after one accepted critic; High has at most two passes and cannot add a third reviewer.",
-      "expectations": [
-        "Low risk receives no external reviewer.",
-        "Medium risk stops after the accepted integrated task critic.",
-        "High risk uses no more than two external passes.",
-        "A rejected High-risk task does not restart an escalating review loop."
+      "id": "deep-independent-work",
+      "prompt": "An authentication change also introduces concurrency control and spans three independent, disjoint packages. The user invokes /do --deep. Route implementation and review.",
+      "assertions": [
+        {"field": "profile", "op": "eq", "value": "deep"},
+        {"field": "implementation_leaves", "op": "lte", "value": 3},
+        {"field": "reviewer_sessions", "op": "eq", "value": 1},
+        {"field": "max_agent_depth", "op": "lte", "value": 1},
+        {"field": "overlapping_file_ownership", "op": "eq", "value": false},
+        {"field": "controller_dispatches", "op": "eq", "value": 0}
       ]
     },
     {
-      "id": 4,
-      "prompt": "A coherent behavior slice was accepted by an independent review at HEAD abc123. VALIDATE starts at the same HEAD with the same scope and finds no new material risk. Describe the review action and ledger update.",
-      "expected_output": "VALIDATE reuses the accepted ledger entry and does not dispatch another substantive reviewer.",
-      "expectations": [
-        "The unchanged HEAD and scope are recognized.",
-        "No duplicate branch, Codex, quality, or validation review is dispatched.",
-        "The accepted review remains the authoritative ledger entry."
+      "id": "review-rejection-cap",
+      "prompt": "The final reviewer proves a defect. The top agent fixes it, but the focused recheck proves the same contract still fails. Describe the required /do outcome.",
+      "assertions": [
+        {"field": "reviewer_sessions", "op": "eq", "value": 1},
+        {"field": "review_rechecks", "op": "eq", "value": 1},
+        {"field": "replacement_reviewers", "op": "eq", "value": 0},
+        {"field": "delivery_blocked", "op": "eq", "value": true}
       ]
     },
     {
-      "id": 5,
-      "prompt": "M-002 and M-003 are simultaneously ready, have no dependency edge, and modify disjoint files. M-004 overlaps M-003. Describe orchestrator ownership and implementer dispatch.",
-      "expected_output": "One group orchestrator owns M-002 and M-003 and dispatches their implementers together; M-004 waits in a later group.",
-      "expectations": [
-        "Exactly one group orchestrator owns the two disjoint milestones.",
-        "The two implementers are dispatched in one parallel message.",
-        "The overlapping milestone is kept sequential."
+      "id": "existing-pr-followup",
+      "prompt": "The user approves a small follow-up fix on an existing PR with valid /do state and a clean worktree. Implement, validate, and deliver it to the same PR.",
+      "assertions": [
+        {"field": "profile", "op": "eq", "value": "fast"},
+        {"field": "state_reused", "op": "eq", "value": true},
+        {"field": "phase_restarts", "op": "eq", "value": 0},
+        {"field": "same_pr_updated", "op": "eq", "value": true},
+        {"field": "pr_status_fetches", "op": "eq", "value": 1},
+        {"field": "pr_fix_invocations", "op": "eq", "value": 0},
+        {"field": "ci_polling", "op": "eq", "value": false}
       ]
     },
     {
-      "id": 6,
-      "prompt": "A worker wait reaches the runtime timeout. Status shows the worker is still executing a tool and has produced new output since the previous check. Describe the next action and every condition required before replacement.",
-      "expected_output": "The controller waits again and never replaces the active worker based on elapsed time alone.",
-      "expectations": [
-        "Timeout is not classified as a stall.",
-        "No status-only follow-up or artifact reread is performed.",
-        "Replacement requires two no-progress checks and confirmed termination."
+      "id": "bounded-waiting",
+      "prompt": "A permitted Deep leaf times out once. A single status check shows an active tool and fresh progress. The next completion wait also times out. Route the next action.",
+      "assertions": [
+        {"field": "status_checks", "op": "eq", "value": 1},
+        {"field": "additional_completion_waits", "op": "eq", "value": 1},
+        {"field": "status_only_followups", "op": "eq", "value": 0},
+        {"field": "agent_list_loops", "op": "eq", "value": 0},
+        {"field": "replacement_while_active", "op": "eq", "value": false},
+        {"field": "reported_blocker", "op": "eq", "value": true}
       ]
     },
     {
-      "id": 7,
-      "prompt": "The runtime exposes input, cached input, output, reasoning output, total tokens, model, effort, duration, and waits, but no dollar cost or configured exact model rate. A token budget is configured. Describe telemetry and budget behavior.",
-      "expected_output": "Runtime fields are recorded with provenance, dollar cost stays unknown, and the token-denominated budget is enforced.",
-      "expectations": [
-        "No dollar cost is invented.",
-        "Token, model, effort, duration, and wait fields retain their provenance.",
-        "Budget events use tokens as their unit."
+      "id": "bounded-full-artifacts",
+      "prompt": "Describe the completed artifact set for a Standard /do run, including size limits, event granularity, and unrelated discoveries.",
+      "assertions": [
+        {
+          "field": "required_non_task_artifacts",
+          "op": "contains_all",
+          "value": ["FEATURE.md", "RESEARCH.md", "CONVENTIONS.md", "PLAN.md", "REVIEW.md", "VALIDATION.md", "SNAPSHOT.md", "events.jsonl"]
+        },
+        {
+          "field": "artifact_caps",
+          "op": "map_eq",
+          "value": {"FEATURE.md": 150, "RESEARCH.md": 150, "CONVENTIONS.md": 150, "PLAN.md": 150, "REVIEW.md": 100, "VALIDATION.md": 100, "SNAPSHOT.md": 60, "tasks/TASK-*.md": 80}
+        },
+        {"field": "reused_gates_still_have_artifacts", "op": "eq", "value": true},
+        {"field": "task_bundles_conditional", "op": "eq", "value": true},
+        {"field": "tool_events_recorded", "op": "eq", "value": false},
+        {"field": "wait_events_recorded", "op": "eq", "value": false},
+        {"field": "unrelated_findings_expand_scope", "op": "eq", "value": false}
+      ]
+    },
+    {
+      "id": "workspace-handoff",
+      "prompt": "The repository is on a clean default branch and the user invokes /do --workspace for an approved feature. Describe the complete handoff and the condition for stopping locally.",
+      "assertions": [
+        {"field": "workspace_skill_invocations", "op": "eq", "value": 1},
+        {"field": "local_checkout_or_state_mutated", "op": "eq", "value": false},
+        {"field": "feature_context_forwarded", "op": "eq", "value": true},
+        {"field": "remote_start_confirmed", "op": "eq", "value": true},
+        {"field": "local_run_stops_after_remote_start", "op": "eq", "value": true},
+        {"field": "recursive_workspace_flag_forwarded", "op": "eq", "value": false},
+        {"field": "join_command_reported", "op": "eq", "value": true}
+      ]
+    },
+    {
+      "id": "branch-only-default",
+      "prompt": "The repository is on a clean default branch and the user invokes /do --branch for a new feature. Describe local setup before implementation.",
+      "assertions": [
+        {"field": "feature_branch_created", "op": "eq", "value": true},
+        {"field": "worktree_created", "op": "eq", "value": false},
+        {"field": "current_checkout_reused", "op": "eq", "value": true}
+      ]
+    },
+    {
+      "id": "bare-resume-discovery",
+      "prompt": "The user says only 'resume feature work'. No state path is named, and two active /do state directories match the current repository. Describe the routing outcome.",
+      "assertions": [
+        {"field": "state_discovery_performed", "op": "eq", "value": true},
+        {"field": "new_run_created", "op": "eq", "value": false},
+        {"field": "user_choice_requested", "op": "eq", "value": true},
+        {"field": "duplicate_worktree_created", "op": "eq", "value": false}
+      ]
+    },
+    {
+      "id": "advisory-token-budget",
+      "prompt": "A Deep run has --token-budget 50000. Two completed delegates report exact cumulative totals of 30000 and 22000 tokens; top-agent, tool, active-agent, and future usage are unavailable. Describe accounting before another optional leaf.",
+      "assertions": [
+        {"field": "measured_completed_delegate_tokens", "op": "eq", "value": 52000},
+        {"field": "accounting_includes_only_completed_delegates", "op": "eq", "value": true},
+        {"field": "unknown_usage_estimated", "op": "eq", "value": false},
+        {"field": "hard_ceiling_claimed", "op": "eq", "value": false},
+        {"field": "next_optional_leaf_dispatched", "op": "eq", "value": false},
+        {
+          "field": "excluded_usage",
+          "op": "contains_all",
+          "value": ["top-agent usage", "tool usage", "active-agent usage", "future usage"]
+        }
       ]
     }
   ]

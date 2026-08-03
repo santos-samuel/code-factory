@@ -227,29 +227,17 @@
     "rust-analyzer-lsp@claude-plugins-official": true,
     "playground@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "dual-agents-review@datadog-claude-plugins": true,
-    "osx-notifications@datadog-claude-plugins": true,
-    "skills@datadog-claude-plugins": true,
-    "dd@datadog-claude-plugins": true,
-    "writing@datadog-claude-plugins": true,
     "learning-skills@mrlee-plugins": true,
     "permissions-setup@mrlee-plugins": true,
-    "valet@datadog-claude-plugins": true,
     "codex@openai-codex": true,
-    "appgate@datadog-claude-plugins": true,
-    "migrate-to-rapid@datadog-claude-plugins": true
+    "dd@datadog-claude-plugins": true,
+    "trajectory@trajectory": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
       "source": {
         "source": "github",
         "repo": "anthropics/claude-plugins-official"
-      }
-    },
-    "datadog-claude-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "DataDog/claude-marketplace"
       }
     },
     "code-factory": {
@@ -269,10 +257,22 @@
         "source": "github",
         "repo": "openai/codex-plugin-cc"
       }
+    },
+    "datadog-claude-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "DataDog/claude-marketplace"
+      }
+    },
+    "trajectory": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/rodrigo.fernandes/.trajectory/claude-marketplace"
+      }
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "autoUpdatesChannel": "latest",
   "autoMemoryEnabled": true,
   "autoDreamEnabled": true,

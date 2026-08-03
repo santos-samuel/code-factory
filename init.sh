@@ -717,7 +717,15 @@ if command -v claude &>/dev/null; then
     else
         echo "  WARN  claude update failed (may already be up-to-date)"
     fi
-    marketplace_repos=$(jq -r '.extraKnownMarketplaces | to_entries[].value.source.repo' "$SCRIPT_DIR/settings.json" 2>/dev/null || true)
+    marketplace_repos=$(jq -r '
+        (.extraKnownMarketplaces // {} | to_entries[].value.source) as $source
+        | if $source.source == "github" then ($source.repo // empty)
+          elif $source.source == "git" then ($source.url // empty)
+          elif $source.source == "directory" then ($source.path // empty)
+          else empty
+          end
+        | select(type == "string" and length > 0)
+    ' "$SCRIPT_DIR/settings.json" 2>/dev/null || true)
     if [[ -n "$marketplace_repos" ]]; then
         while IFS= read -r repo; do
             if claude plugin marketplace add "$repo" 2>&1; then

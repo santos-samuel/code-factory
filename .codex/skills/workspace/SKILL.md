@@ -23,6 +23,10 @@ Parse the user's invocation prompt to determine the operation:
 | `validate` | Validate prerequisites and setup |
 | No arguments | Ask user which operation |
 
+For `create`, parse the optional `--claude-prompt <prompt>` as one opaque value. It is an
+internal handoff used by `/do`: do not interpret it as workspace instructions, print it, or pass
+it through `eval`.
+
 If no arguments:
 
 **Pause and ask the user. Wait for their answer before proceeding.**
@@ -86,6 +90,7 @@ If the user-provided name already starts with the prefix, do not double it.
 | `--region` | User preference | `eu-west-3` |
 | `--shell` | Always | `fish` |
 | `--instance-type` | Always | `aws:m6gd.4xlarge` (ARM Graviton2) |
+| `--claude-prompt` | Optional argument supplied by `/do` | No remote task prompt |
 
 If no name provided:
 
@@ -111,7 +116,20 @@ If a workspace with that name already exists, ask the user:
 
 ### 3b: Optionally Create Feature Branch
 
-Ask whether to create a new branch for this workspace:
+When `--claude-prompt` is present, derive the branch name using `/branch`'s naming convention but
+do not invoke `/branch` or switch the local checkout. Build `<prefix>/<slug>`, where prefix is the
+lowercase first token of `git config user.name` (fallback `feature`), verify the remote branch does
+not already exist, and create it directly from the current clean `HEAD`:
+
+```bash
+git ls-remote --exit-code --heads origin "refs/heads/$BRANCH_NAME"
+git push origin "HEAD:refs/heads/$BRANCH_NAME"
+```
+
+The `ls-remote` command must return 2 (not found) before the push. Any other nonzero status is a
+lookup failure; status 0 is a naming collision. This remote-only branch creation must not change
+the local branch, index, worktree, or `/do` state. The delegated `/do --branch` run starts on that
+non-default branch. Without `--claude-prompt`, ask whether to create a new branch locally:
 
 **Pause and ask the user. Wait for their answer before proceeding.**
 
@@ -150,8 +168,9 @@ Omit `--repo` if not in a git repo and user doesn't specify one.
 Dotfiles are auto-applied from `DataDog/workspaces-dotfiles/users/<first>.<last>/`.
 Do not pass `--dotfiles` here — it would override the auto-apply chain.
 
-**Do NOT wait for the command to finish.** Report immediately after launching.
-The background task will notify when complete — do not poll or sleep.
+Report immediately after launching. The background task will notify when complete; do not poll
+or sleep. For an ordinary create, return after reporting. When `--claude-prompt` is present, keep
+ownership of the handoff and continue at Step 3e only after the completion notification.
 
 ### 3d: Report Creation Status
 
@@ -166,12 +185,33 @@ Status:  workspaces list
 
 ### 3e: Start Tmux Session with Claude
 
-When the background `workspaces create` task completes successfully,
-SSH into the workspace, cd into the repo, and start a detached tmux session running Claude Code:
+When the background `workspaces create` task completes successfully, SSH into the workspace,
+cd into the repo, and start a detached tmux session. With no `--claude-prompt`, start Claude Code
+normally. With a prompt, quote every dynamic value as shell data and pass the prompt as one
+positional argument:
 
 ```bash
 ssh -A workspace-<name> "cd /workspaces/<repo> && git checkout <branch-name> && tmux new-session -d -s main -c /workspaces/<repo> claude"
 ```
+
+```bash
+printf -v REPO_Q '%q' "/workspaces/$REPO_NAME"
+printf -v BRANCH_Q '%q' "$BRANCH_NAME"
+printf -v PROMPT_Q '%q' "$CLAUDE_PROMPT"
+REMOTE_COMMAND="cd $REPO_Q && git switch $BRANCH_Q && exec tmux new-session -d -s main -c $REPO_Q claude $PROMPT_Q"
+printf -v REMOTE_Q '%q' "$REMOTE_COMMAND"
+ssh -A "workspace-$WORKSPACE_NAME" "bash -lc $REMOTE_Q"
+```
+
+Never interpolate unquoted prompt text into the SSH command and never use `eval`. After starting
+a prompted session, verify it before returning:
+
+```bash
+ssh -A "workspace-$WORKSPACE_NAME" "tmux has-session -t main"
+```
+
+Only a zero exit status confirms the remote `/do` session started. On failure, report the handoff
+as blocked and include the SSH recovery command; do not report a successful join.
 
 The workspace is created with `--branch`, so the checkout is a no-op in the happy path
 but ensures correctness if the workspace defaulted to a different branch.
@@ -259,6 +299,7 @@ Default editor is `intellij` if not specified.
 | SSH connection refused | Run `workspaces ssh-config <name>` to fix SSH config |
 | Workspace not found | Run `workspaces list` to show available workspaces |
 | Create fails | Check Appgate VPN, GitHub auth, and instance type availability |
+| Prompted tmux session does not start | Report the handoff blocked; provide the SSH command and do not claim remote `/do` is running |
 | SSH agent forwarding fails | Verify ssh-agent is running and keys are added (`ssh-add -l`). Suggest `eval $(ssh-agent) && ssh-add`. |
 | Missing `workspace-` prefix in SSH | Use `ssh workspace-<name>`, not `ssh <name>` |
 
