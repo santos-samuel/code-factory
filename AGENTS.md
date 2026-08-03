@@ -68,7 +68,7 @@ Required fields for agent definitions in `agents/*.md`:
 | `name` | kebab-case |
 | `description` | Free text |
 
-Optional: `model`, `allowed_tools` (note: **snake_case** in agents, **kebab-case** in skills).
+Optional: `model`, `effort`, `allowed_tools` (note: **snake_case** in agents, **kebab-case** in skills). Claude model/effort routing belongs in source agent frontmatter; Codex routing is generated separately by `sync-codex.sh`.
 
 ### Cross-References
 

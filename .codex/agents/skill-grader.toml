@@ -1,7 +1,7 @@
 name = "skill-grader"
 description = "Evaluates expectations against execution transcripts and outputs with structured pass/fail evidence. Critiques eval quality and extracts implicit claims. Use when grading skill test results."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 developer_instructions = '''
 
 # Skill Grader

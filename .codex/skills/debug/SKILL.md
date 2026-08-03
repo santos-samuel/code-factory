@@ -178,11 +178,11 @@ service: <service-name or null>
 Only runs when `scope != LOCAL`. For the full template and command recipe, see
 [references/production-telemetry.md](references/production-telemetry.md).
 
-Dispatch a Task subagent that invokes the `/datadog` skill with the correct org:
+Dispatch the named `researcher` agent to invoke the `/datadog` skill with the correct org:
 
 ```
 Task(
-  subagent_type = "general-purpose",
+  subagent = "researcher",
   description = "Phase 0 telemetry for <service> in <env>",
   prompt = "
   <context>
@@ -492,6 +492,10 @@ Task(
 ### 6c: Add Defense-in-Depth
 
 After the primary fix, add validation at intermediate layers to prevent regression. See [references/defense-in-depth.md](references/defense-in-depth.md).
+
+If validation proves a narrow defect in the delegated implementation, the top agent applies that
+remediation directly and re-runs only the affected checks. Do not return ordinary review-fix work
+to the initial implementer.
 
 The four layers:
 1. **Entry point validation** — Reject invalid input at API boundaries

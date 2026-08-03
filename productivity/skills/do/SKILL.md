@@ -22,7 +22,7 @@ Parse these flags:
 
 | Flag | Meaning |
 |-|-|
-| `--fast` | Keep all work in the top agent except the final reviewer |
+| `--fast` | Use one implementation leaf and skip optional research leaves |
 | `--deep` | Allow bounded leaf agents for high-risk or independent workstreams |
 | `--interactive` | Pause for user decisions and approval at material checkpoints |
 | `--auto` | Backward-compatible alias for autonomous execution |
@@ -68,16 +68,16 @@ State lives under `~/docs/plans/do/<short-name>/`.
 Choose one profile automatically and report it in one line.
 Profiles are alternatives, never additive lifecycle layers.
 
-| Profile | Use when | Optional work leaves |
+| Profile | Use when | Work leaves |
 |-|-|-|
-| **Fast** | Goal, acceptance criteria, and approach are settled; one coherent behavior slice; no material unknown | None |
-| **Standard** | One or more local evidence or design gaps remain, or the change crosses a moderate subsystem boundary | One research leaf |
-| **Deep** | Explicit `--deep`; auth/security; concurrency; destructive migration; multi-repository delivery; or at least three independent workstreams | Up to three bounded leaves |
+| **Fast** | Goal, acceptance criteria, and approach are settled; one coherent behavior slice; no material unknown | One implementation leaf |
+| **Standard** | One or more local evidence or design gaps remain, or the change crosses a moderate subsystem boundary | One research leaf and one implementation leaf |
+| **Deep** | Explicit `--deep`; auth/security; concurrency; destructive migration; multi-repository delivery; or at least three independent workstreams | Up to three bounded research or implementation leaves |
 
 The independent final reviewer in Step 6 is required for every profile and is separate from these
 optional research or implementation leaves.
 
-`--fast` forces direct top-agent implementation but never skips evidence, tests, review, or delivery.
+`--fast` skips optional research delegation but never skips evidence, tests, implementation delegation, review, or delivery.
 If a safety-critical fact is missing, stop for that fact instead of silently escalating or guessing.
 
 All delegated agents are leaves:
@@ -87,7 +87,7 @@ All delegated agents are leaves:
 - Their final response stays under 2,000 characters and lists outcomes, not process.
 - Maximum delegation depth is one.
 
-The top agent is the sole owner of decisions, state, integration, validation, and delivery.
+The top agent is the sole owner of decisions, state, planning, integration, validation, remediation, and delivery.
 Never dispatch an orchestrator, phase controller, milestone controller, bundle generator,
 validation controller, delivery controller, or memory extractor.
 
@@ -166,9 +166,13 @@ Both modes stop for missing authority, destructive scope expansion, or an unreso
 
 ## Step 5: Implement and Validate
 
-The top agent implements Fast and Standard changes directly.
-Deep-mode implementation leaves may edit only their assigned, disjoint files.
-Tell every worker that other work may be happening and it must preserve unrelated edits.
+Delegate the initial implementation to the named `implementer` agent in every profile.
+Fast and Standard use exactly one implementation leaf. Deep may use multiple implementation
+leaves only when their file ownership is disjoint. Tell every implementer that:
+
+- the top agent retains commit ownership;
+- other work may be happening and unrelated edits must be preserved;
+- it must implement the approved plan, run focused checks, and return outcomes under 2,000 characters.
 
 For behavior changes:
 
@@ -211,7 +215,8 @@ until the original worker is confirmed stopped.
 
 ## Step 6: Run One Final Review
 
-After deterministic checks pass, dispatch exactly one independent whole-diff reviewer.
+After deterministic checks pass, dispatch exactly one independent whole-diff reviewer using the
+named `task-critic` agent.
 
 Give the reviewer:
 
@@ -227,7 +232,7 @@ The reviewer checks specification compliance, correctness, maintainability, test
 If the reviewer accepts, record the result in `REVIEW.md`.
 If it proves actionable findings:
 
-1. Fix only the proven findings.
+1. The top agent fixes only the proven findings.
 2. Re-run affected checks.
 3. Ask the same reviewer for one focused recheck.
 

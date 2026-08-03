@@ -1,6 +1,8 @@
 ---
 name: spec-reviewer
 description: "Spec compliance reviewer. Verifies implementation matches task specification — nothing missing, nothing extra, nothing misunderstood. Dispatched after implementer completes each task during EXECUTE phase."
+model: opus
+effort: xhigh
 allowed_tools: ["Read", "Grep", "Glob", "Bash"]
 memory: "project"
 ---

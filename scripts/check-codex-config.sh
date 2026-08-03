@@ -106,6 +106,8 @@ required = [
     "[mcp_servers.unrelated]",
     '[projects."/tmp/code-factory-preserve"]',
     'model = "gpt-5.6-sol"',
+    'model_reasoning_effort = "xhigh"',
+    'plan_mode_reasoning_effort = "xhigh"',
 ]
 
 missing = [item for item in required if item not in content]

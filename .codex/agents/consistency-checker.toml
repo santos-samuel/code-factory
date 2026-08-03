@@ -1,7 +1,7 @@
 name = "consistency-checker"
 description = "Document consistency checker. Iteratively scans plan and research documents for internal contradictions, mismatched references, and terminology drift, then fixes them directly. Dispatched before the plan reviewer in PLAN_REVIEW phase."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 developer_instructions = '''
 
 # Document Consistency Checker

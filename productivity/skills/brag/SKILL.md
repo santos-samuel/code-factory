@@ -189,7 +189,7 @@ Launch a background agent to scan git history across working directories:
 
 ```
 Agent(
-  subagent_type = "Explore",
+  subagent_type = "productivity:explorer",
   run_in_background = true,
   prompt = "Scan git log --author=<user> --since=<START_DATE> across <repo dirs>.
             Summarize: features shipped, tools created, docs added, tests improved.
@@ -203,7 +203,7 @@ Launch a background agent to scan Claude Code session history:
 
 ```
 Agent(
-  subagent_type = "Explore",
+  subagent_type = "productivity:explorer",
   run_in_background = true,
   prompt = "Scan ~/.claude/projects/ for accomplished work.
             Identify: skills created, services migrated, bugs fixed, tools built.

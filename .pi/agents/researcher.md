@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: "Domain research agent. Investigates APIs, libraries, patterns, and best practices. Searches Confluence, documentation, and web resources."
-tools: ["Read", "Grep", "Glob", "Bash", "web_search", "mcp"]
+tools: ["Read", "Grep", "Glob", "Bash", "Skill", "web_search", "mcp"]
 memory: "project"
 ---
 

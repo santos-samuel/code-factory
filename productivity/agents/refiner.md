@@ -1,6 +1,8 @@
 ---
 name: refiner
 description: "Refinement agent. Takes vague requests and iteratively clarifies them with the user into detailed, actionable specifications with problem statement, scope, behavior, and acceptance criteria."
+model: opus
+effort: xhigh
 allowed_tools: ["Read", "Grep", "Glob", "AskUserQuestion"]
 maxTurns: 25
 ---

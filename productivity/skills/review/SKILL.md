@@ -213,7 +213,7 @@ launched in a single message (all three sub-agents run concurrently):
 
 ```
 Task(
-  subagent_type = "general-purpose",
+  subagent_type = "productivity:task-critic",
   description = "Review module <module-name>: Level <N>",
   prompt = <prompt including module files, scope budget, the specific level's
             checks from three-level-framework.md, and the required findings

@@ -13,6 +13,11 @@ path = Path(sys.argv[1])
 settings = json.loads(path.read_text())
 errors = []
 
+if settings.get("model") != "opus":
+    errors.append("main Claude model must be opus")
+if settings.get("effortLevel") != "xhigh":
+    errors.append("main Claude effortLevel must be xhigh")
+
 for plugin, enabled in settings.get("enabledPlugins", {}).items():
     if enabled and plugin.endswith("-dev"):
         errors.append(f"enabled development plugin must stay in local settings: {plugin}")

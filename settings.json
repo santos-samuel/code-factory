@@ -170,6 +170,7 @@
       "/private/var/tmp"
     ]
   },
+  "model": "opus",
   "enabledMcpjsonServers": [
     "atlassian",
     "datadog-google-workspace",
@@ -272,7 +273,7 @@
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "autoUpdatesChannel": "latest",
   "autoMemoryEnabled": true,
   "autoDreamEnabled": true,

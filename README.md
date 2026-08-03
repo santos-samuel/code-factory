@@ -266,7 +266,7 @@ User descriptions are wrapped in `<feature_request>` tags to prevent prompt inje
 
 ### `settings.json` (Claude Code)
 
-Claude Code global configuration: environment flags, permission rules, default model (`opus`), MCP server enablement, installed marketplaces/plugins, and hooks (including Stop-hook invocation of `/reflect`).
+Claude Code global configuration: environment flags, permission rules, main model (`opus`) and effort (`xhigh`), MCP server enablement, installed marketplaces/plugins, and hooks (including Stop-hook invocation of `/reflect`). Productivity agent frontmatter routes research, exploration, implementation, simplification, and memory extraction to Sonnet at `high`; planning, validation, review, grading, and adversarial work stays on Opus at `xhigh`.
 
 ### `mcp.json` (MCP servers)
 
@@ -276,10 +276,11 @@ Declares MCP servers for Claude Code, Codex, and pi.dev.
 ### `sync-codex.sh`
 
 Generates `.codex/skills` (with collapsed single-line frontmatter and per-skill `agents/openai.yaml` metadata) and `.codex/agents/*.toml` for [OpenAI Codex](https://github.com/openai/codex). Stale-check mode (`--check`).
+Generated agents use cost-aware role routing: research, exploration, implementation, simplification, and memory extraction run on `gpt-5.6-luna` at `max`; planning, validation, review, grading, and adversarial roles run on `gpt-5.6-sol` at `xhigh`.
 
 ### `codex/config.toml` and `codex/rules/`
 
-Managed Codex defaults. `codex/config.toml` sets `gpt-5.6-sol` with high reasoning effort and uses granular approval policy settings so Codex does not pause for sandbox approval prompts during non-interactive runs.
+Managed Codex defaults. `codex/config.toml` sets the main orchestrator and plan mode to `gpt-5.6-sol` with `xhigh` reasoning effort. Task-specific generated agents move read-heavy and first-pass implementation work to Luna while keeping planning, validation, verification, and remediation on Sol. Granular approval policy settings prevent Codex from pausing for sandbox approval prompts during non-interactive runs.
 Filesystem and network access come from the `code-factory` permission profile: Codex can read most files, write only selected development roots (`~/dev`, `~/dd`, `~/go`, `~/docs`, `~/Downloads`, `/tmp`, and `/private/tmp`), write narrow Datadog auth/cache paths, and allow `~/.ssh/known_hosts` write access for git host key updates.
 Managed shell environments set `TMPDIR`, `TMP`, and `TEMP` to `/tmp` so command temp files are created under an approved writable root.
 

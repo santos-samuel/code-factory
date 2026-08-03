@@ -369,4 +369,3 @@ When creating the plan, draw from:
 - Team-specific requirements or constraints
 
 Embed relevant context directly in the plan - don't assume the executor has access to external docs.
-

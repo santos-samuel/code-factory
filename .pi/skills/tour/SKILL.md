@@ -38,7 +38,7 @@ ask_question(
 
 ## Step 1: Discover Code Context
 
-**Tool preferences**: Use Glob to find files and Grep to search content. Never use `find` or Bash for file discovery. For broad exploration across multiple directories, delegate to a subagent via `subagent(agent = "explorer")`.
+**Tool preferences**: Use Glob to find files and Grep to search content. Never use `find` or Bash for file discovery. For broad exploration across multiple directories, delegate via `subagent(agent = "explorer")`.
 
 1. Use Glob/Grep to locate relevant source files for `$ARGUMENTS`
 2. If Atlassian MCP tools are available, query for internal documentation and Confluence pages

@@ -113,6 +113,10 @@ def assert_observation(observed: dict[str, Any], assertion: dict[str, Any]) -> N
     operation = assertion["op"]
     if operation == "eq" and actual != expected:
         raise AssertionError(f"{field}: expected {expected!r}, got {actual!r}")
+    if operation == "truthy" and not actual:
+        raise AssertionError(f"{field}: expected a truthy value, got {actual!r}")
+    if operation == "len_eq" and (not isinstance(actual, list) or len(actual) != expected):
+        raise AssertionError(f"{field}: expected length {expected!r}, got {actual!r}")
     if operation == "lte" and not actual <= expected:
         raise AssertionError(f"{field}: expected <= {expected!r}, got {actual!r}")
     if operation == "contains_all":

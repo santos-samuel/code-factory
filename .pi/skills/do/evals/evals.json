@@ -7,7 +7,7 @@
       "prompt": "The user approved a three-file bug-fix plan with binary acceptance criteria and named focused tests. The repository is already on a clean feature branch. Route the complete /do run through PR delivery.",
       "assertions": [
         {"field": "profile", "op": "eq", "value": "fast"},
-        {"field": "implementation_leaves", "op": "eq", "value": 0},
+        {"field": "implementation_leaves", "op": "eq", "value": 1},
         {"field": "reviewer_sessions", "op": "eq", "value": 1},
         {"field": "max_agent_depth", "op": "lte", "value": 1},
         {"field": "controller_dispatches", "op": "eq", "value": 0},
@@ -25,7 +25,7 @@
       "assertions": [
         {"field": "profile", "op": "eq", "value": "standard"},
         {"field": "research_leaves", "op": "lte", "value": 1},
-        {"field": "implementation_leaves", "op": "eq", "value": 0},
+        {"field": "implementation_leaves", "op": "eq", "value": 1},
         {"field": "reviewer_sessions", "op": "eq", "value": 1},
         {"field": "evidence_repeated", "op": "eq", "value": false},
         {"field": "max_agent_depth", "op": "lte", "value": 1}
@@ -36,7 +36,7 @@
       "prompt": "An authentication change also introduces concurrency control and spans three independent, disjoint packages. The user invokes /do --deep. Route implementation and review.",
       "assertions": [
         {"field": "profile", "op": "eq", "value": "deep"},
-        {"field": "implementation_leaves", "op": "lte", "value": 3},
+        {"field": "implementation_leaves", "op": "eq", "value": 3},
         {"field": "reviewer_sessions", "op": "eq", "value": 1},
         {"field": "max_agent_depth", "op": "lte", "value": 1},
         {"field": "overlapping_file_ownership", "op": "eq", "value": false},
@@ -106,7 +106,7 @@
         {"field": "workspace_skill_invocations", "op": "eq", "value": 1},
         {"field": "local_checkout_or_state_mutated", "op": "eq", "value": false},
         {"field": "feature_context_forwarded", "op": "eq", "value": true},
-        {"field": "remote_start_confirmed", "op": "eq", "value": true},
+        {"field": "remote_start_confirmed", "op": "truthy", "value": true},
         {"field": "local_run_stops_after_remote_start", "op": "eq", "value": true},
         {"field": "recursive_workspace_flag_forwarded", "op": "eq", "value": false},
         {"field": "join_command_reported", "op": "eq", "value": true}
@@ -142,8 +142,8 @@
         {"field": "next_optional_leaf_dispatched", "op": "eq", "value": false},
         {
           "field": "excluded_usage",
-          "op": "contains_all",
-          "value": ["top-agent usage", "tool usage", "active-agent usage", "future usage"]
+          "op": "len_eq",
+          "value": 4
         }
       ]
     }

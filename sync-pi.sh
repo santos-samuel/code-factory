@@ -385,7 +385,9 @@ PROMPTEOF
 }
 
 # normalize_agent_frontmatter: pass agent files through, but rename allowed_tools -> tools
-# (pi-subagents convention) and drop fields that don't survive the trip.
+# (pi-subagents convention) and drop fields that don't survive the trip. Claude's
+# model aliases and effort levels are intentionally omitted so Pi keeps its own
+# provider/model/thinking configuration.
 normalize_agent_frontmatter() {
     local file="$1"
     local tmpfile="${file}.tmp"
@@ -451,6 +453,8 @@ for line in fm_lines:
     m = re.match(r'^([a-zA-Z][-a-zA-Z_]*)\s*:', line)
     if m:
         field = m.group(1)
+        if field in ('model', 'effort'):
+            continue
         if field == 'allowed_tools':
             out_fm.append('tools: ' + normalize_tool_list(line[len('allowed_tools:'):]) + '\n')
             continue

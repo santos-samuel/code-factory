@@ -38,12 +38,12 @@ Persist the answer to `DEBUG.md` frontmatter as `scope`, `org`, `service`.
 
 ## Phase 0 Subagent Dispatch
 
-Dispatch a general-purpose subagent that invokes the `/datadog` skill. The
+Dispatch the named `productivity:researcher` agent to invoke the `/datadog` skill. The
 subagent has no prior context — give it everything it needs in the prompt.
 
 ```
 subagent(
-  agent = "general-purpose",
+  agent = "researcher",
   description = "Phase 0 telemetry for <service> in <env>",
   task = "
   <context>
