@@ -96,14 +96,10 @@ def _parse_override(
         raise ValueError("override must include a model")
 
     if surface == "pi":
-        if route in policy["pi_constraints"]["allowed_models"]:
-            provider = base["provider"]
-            model = route
+        if "/" in route:
+            provider, model = route.split("/", 1)
         else:
-            provider, separator, model = route.partition("/")
-        if route not in policy["pi_constraints"]["allowed_models"] and not separator:
-            provider = base["provider"]
-            model = route
+            provider, model = base["provider"], route
         if level and level not in policy["allowed_pi_thinking"]:
             raise ValueError(f"unsupported Pi thinking level: {level}")
         return {

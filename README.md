@@ -296,7 +296,7 @@ parallelism cap and fail-open behavior used by `/do` and `/review`.
 ### `codex/config.toml` and `codex/rules/`
 
 Managed Codex defaults. `codex/config.toml` sets the main orchestrator and plan mode to `gpt-5.6-sol` with `xhigh` reasoning effort. Task-specific generated agents move read-heavy and first-pass implementation work to Luna while keeping planning, validation, verification, and remediation on Sol. Granular approval policy settings prevent Codex from pausing for sandbox approval prompts during non-interactive runs.
-Filesystem and network access come from the `code-factory` permission profile: Codex can read most files, write only selected development roots (`~/dev`, `~/dd`, `~/go`, `~/docs`, `~/Downloads`, `/tmp`, and `/private/tmp`), write narrow Datadog auth/cache paths, and allow `~/.ssh/known_hosts` write access for git host key updates.
+`codex/config.toml` runs with `sandbox_mode = "danger-full-access"` and does not define a granular `permissions.code-factory` profile; trusted project roots are declared via `[projects.*]` entries instead.
 Managed shell environments set `TMPDIR`, `TMP`, and `TEMP` to `/tmp` so command temp files are created under an approved writable root.
 
 `codex/rules/code-factory.rules` prompts for concrete dangerous command prefixes such as system mutation, destructive recursive deletion of high-value roots, history-rewriting git operations, and global package installs. Codex execpolicy rules are prefix-based, not full shell-string scanners, so broad shell commands like `zsh -lc "..."` are not inspected the same way Claude's Bash hook can inspect command text.

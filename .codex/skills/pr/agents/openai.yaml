@@ -1,4 +1,4 @@
 interface:
   display_name: "Pr"
   short_description: "Use when the user wants to create a GitHub pull request from the current bran..."
-  default_prompt: "Use $pr to create a GitHub pull request from the current branch,."
+  default_prompt: "Use $pr to create a GitHub pull request from the current branch, open a PR, push and create a PR with a structured description, ..."

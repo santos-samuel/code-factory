@@ -59,14 +59,20 @@ extract_frontmatter_field() {
                 val = $0
                 sub("^" field ":[[:space:]]*>?[[:space:]]*", "", val)
                 if (val != "") { print val; exit }
-                # Multi-line: read continuation lines
+                # Multi-line folded value: join all continuation lines with spaces
+                out = ""
                 while ((getline line) > 0) {
                     if (line ~ /^[[:space:]]/) {
                         sub(/^[[:space:]]+/, "", line)
-                        print line
+                        if (out) out = out " " line
+                        else out = line
+                    } else {
+                        print out
                         exit
-                    } else { exit }
+                    }
                 }
+                print out
+                exit
             }
         }
     ' "$file"
@@ -105,8 +111,11 @@ rewrite_body() {
     sed "${sed_i[@]}" 's/subagent_type="\([^:]*\):\([^"]*\)"/subagent="\2"/g' "$file"
     # subagent_type=Name -> subagent=Name (unquoted built-in agent)
     sed "${sed_i[@]}" 's/subagent_type=\([A-Za-z0-9_-]*\)/subagent=\1/g' "$file"
+    # subagent=Explore -> subagent=explorer (generated agent file is explorer.toml, not Explore.toml)
+    sed "${sed_i[@]}" 's/subagent=Explore\([^a-zA-Z0-9_]\)/subagent=explorer\1/g' "$file"
+    sed "${sed_i[@]}" 's/subagent=Explore$/subagent=explorer/g' "$file"
     # MCP tool name references: mcp__<server>__<tool> -> <server>_<tool>
-    sed "${sed_i[@]}" 's/mcp__\([^_]*\)__/\1_/g' "$file"
+    sed "${sed_i[@]}" 's/mcp__\([A-Za-z0-9-]*\)__/\1_/g' "$file"
     # CLAUDE_PLUGIN_ROOT paths: ${CLAUDE_PLUGIN_ROOT}/skills/<name>/<rest> -> ./<rest>
     # Handles both ${CLAUDE_PLUGIN_ROOT} and $CLAUDE_PLUGIN_ROOT forms
     sed "${sed_i[@]}" 's|\${CLAUDE_PLUGIN_ROOT}/skills/[^/]*/|./|g' "$file"
@@ -425,9 +434,9 @@ PYEOF
 # shared cross-surface policy. Claude model/effort stays in source frontmatter;
 # Codex receives the corresponding Codex-specific profile.
 codex_agent_profile() {
-    local tier="$2"
+    local agent_name="$1" tier="$2"
     if [[ -z "$tier" ]]; then
-        echo "  ERROR  missing routing tier for Codex agent: $1" >&2
+        echo "  ERROR  missing routing tier for Codex agent: $agent_name" >&2
         return 1
     fi
     python3 "$MODEL_ROUTER" agent-profile --surface codex --tier "$tier" --format shell
@@ -487,6 +496,33 @@ transform_agent_to_toml() {
     fi
 
     return 0
+}
+
+# write_builtin_general_purpose_agent: Codex skills commonly delegate broad
+# writing/implementation work to Claude's general-purpose agent. Codex needs
+# a concrete local agent for those calls instead of silently failing.
+write_builtin_general_purpose_agent() {
+    local dest="$AGENTS_DIR/general-purpose.toml"
+    cat > "$dest" << 'EOF'
+name = "general-purpose"
+description = "General-purpose agent for broad research, writing, implementation, and coordination tasks when no specialized agent is required."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
+developer_instructions = '''
+# General Purpose Agent
+
+You are a general-purpose execution agent for Codex workflows.
+
+Take the requested task literally. You may research, write documents, edit files,
+run local validation commands, and coordinate with other tools when the task
+requires it. Preserve user changes you did not make, keep edits scoped to the
+task, and report concise outcomes with any validation performed.
+
+Use the ask pattern only when required information cannot be inferred from the
+task or local context. If the task includes an output path, create or update that
+path directly.
+'''
+EOF
 }
 
 # ---------------------------------------------------------------------------
@@ -566,6 +602,10 @@ main() {
         fi
 
     done < <(discover_plugins)
+
+    write_builtin_general_purpose_agent
+    agent_count=$((agent_count + 1))
+    [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  agent: general-purpose"
 
     # --check mode: compare temp output against real output
     if [[ "$CHECK_MODE" == "true" ]]; then

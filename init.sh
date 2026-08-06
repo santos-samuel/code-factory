@@ -51,7 +51,7 @@ else
                     ;;
             esac
             if [[ -n "$NODE_ARCH" ]]; then
-                NODE_VERSION="v22.14.0"
+                NODE_VERSION="${NODE_VERSION:-v22.14.0}"
                 NODE_DIST="node-${NODE_VERSION}-linux-${NODE_ARCH}"
                 TMP_DIR=$(mktemp -d)
                 if curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/${NODE_DIST}.tar.xz" -o "$TMP_DIR/node.tar.xz"; then

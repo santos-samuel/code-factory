@@ -125,6 +125,12 @@ check_pattern '\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r)' \
 check_pattern '\brm\s+-[a-zA-Z]*r' \
     "Contains 'rm -r' — recursive deletion" "rm-r"
 
+check_pattern '\brm\s+.*--recursive' \
+    "Contains 'rm --recursive' — recursive deletion" "rm-recursive"
+
+check_pattern '\brm\s+.*--recursive.*--force|\brm\s+.*--force.*--recursive' \
+    "Contains 'rm --recursive --force' — recursive forced deletion" "rm-recursive-force"
+
 check_pattern '\bchmod\s+-[a-zA-Z]*R' \
     "Contains 'chmod -R' — recursive permission change" "chmod-R"
 

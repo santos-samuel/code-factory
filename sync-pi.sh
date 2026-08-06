@@ -64,13 +64,20 @@ extract_frontmatter_field() {
                 val = $0
                 sub("^" field ":[[:space:]]*>?[[:space:]]*", "", val)
                 if (val != "") { print val; exit }
+                # Multi-line folded value: join all continuation lines with spaces
+                out = ""
                 while ((getline line) > 0) {
                     if (line ~ /^[[:space:]]/) {
                         sub(/^[[:space:]]+/, "", line)
-                        print line
+                        if (out) out = out " " line
+                        else out = line
+                    } else {
+                        print out
                         exit
-                    } else { exit }
+                    }
                 }
+                print out
+                exit
             }
         }
     ' "$file"

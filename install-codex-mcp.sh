@@ -276,7 +276,10 @@ if callback_port is not None:
     managed_root_keys.append("mcp_oauth_callback_port")
 if callback_url:
     managed_root_keys.append("mcp_oauth_callback_url")
-managed_root_keys.extend(["approval_policy", "sandbox_mode", "default_permissions"])
+managed_root_keys.extend(["approval_policy", "sandbox_mode"])
+# default_permissions is stripped from stale configs but not re-set; the
+# code-factory permissions profile is no longer managed.
+managed_root_keys.append("default_permissions")
 managed_root_keys.extend(codex_settings_root_keys(CODEX_SETTINGS))
 managed_table_prefixes = {
     "sandbox_workspace_write",

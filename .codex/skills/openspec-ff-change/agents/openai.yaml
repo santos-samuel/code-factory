@@ -1,4 +1,4 @@
 interface:
   display_name: "Openspec Ff Change"
-  short_description: "Use when an OpenSpec request says every/all remaining artifacts,."
-  default_prompt: "Use $openspec-ff-change to an OpenSpec request says every/all remaining artifacts,."
+  short_description: "Use when an OpenSpec request says every/all remaining artifacts, apply-ready/..."
+  default_prompt: "Use $openspec-ff-change to an OpenSpec request says every/all remaining artifacts, apply-ready/readiness, no one-by-one approval, or proposal/sp..."

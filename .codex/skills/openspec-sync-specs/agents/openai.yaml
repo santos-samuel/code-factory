@@ -1,4 +1,4 @@
 interface:
   display_name: "Openspec Sync Specs"
-  short_description: "Use whenever the user wants to merge or apply an OpenSpec change's delta."
-  default_prompt: "Use $openspec-sync-specs to Use whenever the user wants to merge or apply an OpenSpec change's delta."
+  short_description: "Use whenever the user wants to merge or apply an OpenSpec change's delta spec..."
+  default_prompt: "Use $openspec-sync-specs to Use whenever the user wants to merge or apply an OpenSpec change's delta specs, capability deltas, or ADDED/MODIFIED/..."

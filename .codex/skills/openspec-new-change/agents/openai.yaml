@@ -1,4 +1,4 @@
 interface:
   display_name: "Openspec New Change"
-  short_description: "Use when the user wants to start only an empty OpenSpec change scaffold and."
-  default_prompt: "Use $openspec-new-change to start only an empty OpenSpec change scaffold and."
+  short_description: "Use when the user wants to start only an empty OpenSpec change scaffold and s..."
+  default_prompt: "Use $openspec-new-change to start only an empty OpenSpec change scaffold and stop before creating any planning artifacts."
