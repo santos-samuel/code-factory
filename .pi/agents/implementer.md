@@ -1,6 +1,8 @@
 ---
 name: implementer
 description: "Implementation agent. Executes code changes according to plan tasks, follows delegated commit ownership, reports blockers, and tracks progress."
+model: ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731
+thinking: high
 routing_tier: economy
 tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill"]
 skills: ["atcommit"]

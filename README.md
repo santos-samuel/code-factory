@@ -22,6 +22,7 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 | `/datadog` | productivity | Query Datadog products (logs, metrics, APM, monitors) via pup CLI |
 | `/code-simplify` | productivity | Simplify and refactor code for clarity without changing behavior |
 | `/ai-cli` | productivity | Evaluate and improve CLI design for AI agent usage |
+| `/deck-dna` | productivity | Build brand-accurate PowerPoint decks from reference designs |
 | `/openspec-propose` | productivity | Create OpenSpec changes and generate proposal/design/spec/task artifacts |
 | `/openspec-explore` | productivity | Explore OpenSpec ideas and artifacts without implementation |
 | `/openspec-new-change` | productivity | Create an OpenSpec change scaffold without writing artifacts |
@@ -71,6 +72,7 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 - `/datadog` -- Datadog product query via pup CLI: APM, logs, metrics, monitors, error tracking, RUM, infrastructure, security signals, incidents, SLOs, synthetics, CI/CD, and 30+ other API domains.
 - `/code-simplify` -- Code simplification across any scope (file, directory, package, branch diff, staged changes, or entire repo). Preserves behavior while improving clarity and maintainability.
 - `/ai-cli` -- CLI design evaluation and improvement for AI agents: scores against 8 Agent DX axes aligned with the AXI (Agent eXperience Interface) framework (machine-readable output, raw payload input, schema introspection, context window discipline, input hardening, safety rails, agent knowledge packaging, efficiency & composition), recommends prioritized improvements, and guides implementation.
+- `/deck-dna` -- Brand-accurate PowerPoint deck builder: extracts design DNA from reference decks, calibrates word budgets, embeds real backgrounds and fonts, and runs a render-QA loop so output renders identically anywhere.
 - `/openspec-*` -- The complete 12-workflow OpenSpec suite: propose, explore, scaffold, one-artifact continuation, fast-forward, planning reconciliation, implementation, spec sync, verification, single/bulk archive, and guided onboarding. The [MIT-licensed upstream workflows](https://github.com/Fission-AI/OpenSpec/tree/main/skills) are adapted to local conventions with store-aware paths, decision-first reviews, evidence-backed verification, deviation handling, and CLI-driven archiving. The CLI command `openspec update` regenerates assistant instructions; `/openspec-update-change` instead revises one change's existing planning artifacts.
 - `/skill-workbench` -- Skill and agent creation/improvement toolkit.
 
@@ -100,6 +102,7 @@ These behaviors adapt ideas from the MIT-licensed
 - `red-teamer` -- Adversarial reviewer finding failure modes, flawed assumptions, and edge cases.
 - `code-simplifier` -- Single-file code simplification agent for clarity, consistency, and maintainability.
 - `memory-extractor` -- Extracts reusable learnings from session transcripts.
+- `task-critic` -- Adversarial whole-diff reviewer combining spec compliance and code quality into a single proof-based loop.
 
 ### git
 
@@ -246,6 +249,7 @@ User descriptions are wrapped in `<feature_request>` tags to prevent prompt inje
    - Installs MCP servers from `mcp.json` into Claude Code and Codex; Pi generation merges that shared config with `pi-mcp-overrides.json`.
    - Installs or updates the OpenSpec CLI with npm (`@fission-ai/openspec@latest` by default).
    - Symlinks files from `hooks/` into `~/.claude/hooks/`.
+   - Symlinks `scripts/model_router.py` into `~/.claude/scripts/` so installed skills can resolve cross-surface routes.
    - Symlinks generated `.codex/{skills,agents}` and managed `codex/rules/*.rules` into `~/.codex/`.
 
    If a destination already exists as a regular file, bootstrap records an error and exits non-zero so you can fix the conflict explicitly.
@@ -312,7 +316,7 @@ When an MCP server declares an OAuth `callbackPort`, the script also writes Code
 
 Symlinked to `~/.pi/agent/settings.json`. It extends Datadog's golden package list with `confluence-adf`, defaults to GLM 5.2 at `max`, and cycles between GLM 5.2/max and DeepSeek V4 Flash/high. The npm references intentionally follow the golden config without version pins; `init.sh` installs exactly the declared list. Pi rewrites this file directly when installing/removing packages, so `init.sh` backs up and relinks on drift the same way it does for `~/.claude/settings.json`. It deliberately omits `lastChangelogVersion`, a volatile field Pi bumps on every update.
 
-### `sync-pi.sh` and `pi-extensions/`
+### `sync-pi.sh`
 
 Generates `.pi/skills`, `.pi/prompts` (slash-command templates for user-invocable skills), `.pi/agents` (for `pi-subagents`), and `.pi/mcp.json` (for `pi-mcp-adapter`) for [pi.dev](https://pi.dev). `init.sh` symlinks managed assets into `~/.pi/agent/` and installs every package declared by `pi-settings.json` from two sources:
 

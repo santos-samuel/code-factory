@@ -1,6 +1,8 @@
 ---
 name: researcher
 description: "Domain research agent. Investigates APIs, libraries, patterns, and best practices. Searches Confluence, documentation, and web resources."
+model: ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731
+thinking: high
 routing_tier: economy
 tools: ["Read", "Grep", "Glob", "Bash", "Skill", "web_search", "mcp"]
 memory: "project"

@@ -20,5 +20,6 @@
   "defaultProvider": "ai-gw-baseten",
   "defaultModel": "baseten/zai-org/GLM-5.2",
   "defaultThinkingLevel": "max",
-  "theme": "dark"
+  "theme": "dark",
+  "lastChangelogVersion": "0.83.0"
 }

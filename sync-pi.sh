@@ -7,7 +7,7 @@
 #   2. Copies skills (with body rewrites + stripped frontmatter) to .pi/skills/{name}/SKILL.md
 #   3. Generates .pi/prompts/{name}.md for every user-invocable skill
 #   4. Transforms agent Markdown files to .pi/agents/{name}.md
-#   5. Copies local Pi extensions from pi-extensions/
+#   5. Copies local Pi extensions from pi-extensions/ (if present)
 #   6. Generates .pi/mcp.json from shared MCP config plus Pi-only overrides
 #
 # All output stays within the repo (.pi/ directory).
@@ -28,6 +28,7 @@ PI_MCP_OVERRIDES="$SCRIPT_DIR/pi-mcp-overrides.json"
 EXT_SRC_DIR="$SCRIPT_DIR/pi-extensions"
 
 PI_DIR="$SCRIPT_DIR/.pi"
+MODEL_ROUTER="$SCRIPT_DIR/scripts/model_router.py"
 SKILLS_DIR="$PI_DIR/skills"
 PROMPTS_DIR="$PI_DIR/prompts"
 AGENTS_DIR="$PI_DIR/agents"
@@ -394,19 +395,20 @@ PROMPTEOF
 
 # normalize_agent_frontmatter: pass agent files through, but rename allowed_tools -> tools
 # (pi-subagents convention) and drop fields that don't survive the trip. Claude's
-# model aliases and effort levels are intentionally omitted so Pi keeps the
-# OpenAI/Codex provider/model/thinking configuration from pi-settings.json;
-# routing_tier remains as portable task metadata for the shared router.
+# model aliases (sonnet/opus) and effort levels are replaced with Pi-specific
+# model and thinking fields resolved from routing_tier via the shared model
+# router, so each Pi subagent uses the correct model for its task tier at runtime.
 normalize_agent_frontmatter() {
     local file="$1"
     local tmpfile="${file}.tmp"
-    python3 - "$file" "$tmpfile" << 'PYEOF'
+    python3 - "$file" "$tmpfile" "$MODEL_ROUTER" << 'PYEOF'
 import ast
 import json
 import re
+import subprocess
 import sys
 
-src, dst = sys.argv[1], sys.argv[2]
+src, dst, model_router = sys.argv[1], sys.argv[2], sys.argv[3]
 lines = open(src).readlines()
 
 fence_indices = [i for i, l in enumerate(lines) if l.strip() == '---']
@@ -453,8 +455,37 @@ def normalize_tool_list(value: str) -> str:
     return json.dumps(tools)
 
 
+# First pass: find routing_tier in the frontmatter.
+routing_tier = None
+for line in fm_lines:
+    m = re.match(r'^routing_tier\s*:\s*(.*)', line)
+    if m:
+        routing_tier = m.group(1).strip().strip('"').strip("'")
+        break
+
+# Resolve the Pi model profile from the routing_tier via the shared model router.
+# If no routing_tier is present (e.g. general-purpose), the router defaults to
+# the Pi default tier ("critical").
+pi_model = None
+pi_thinking = None
+try:
+    result = subprocess.run(
+        ["python3", model_router, "agent-profile", "--surface", "pi",
+         "--tier", routing_tier or "critical", "--format", "shell"],
+        capture_output=True, text=True, check=True,
+    )
+    parts = result.stdout.strip().split()
+    if len(parts) >= 2:
+        pi_model = parts[0]   # e.g. ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731
+        pi_thinking = parts[1]  # e.g. high
+except Exception:
+    pass  # If the router fails, skip model/thinking (old behaviour).
+
+
 out_fm = []
 skip_continuation = False
+model_written = False
+thinking_written = False
 for line in fm_lines:
     if skip_continuation and re.match(r'^[ \t]', line):
         continue
@@ -462,7 +493,17 @@ for line in fm_lines:
     m = re.match(r'^([a-zA-Z][-a-zA-Z_]*)\s*:', line)
     if m:
         field = m.group(1)
-        if field in ('model', 'effort'):
+        if field == 'model':
+            # Replace Claude's model alias with the Pi-specific model.
+            if pi_model:
+                out_fm.append(f'model: {pi_model}\n')
+                model_written = True
+            continue
+        if field == 'effort':
+            # Replace Claude's effort level with the Pi-specific thinking level.
+            if pi_thinking:
+                out_fm.append(f'thinking: {pi_thinking}\n')
+                thinking_written = True
             continue
         if field == 'allowed_tools':
             out_fm.append('tools: ' + normalize_tool_list(line[len('allowed_tools:'):]) + '\n')
@@ -474,6 +515,27 @@ for line in fm_lines:
             skip_continuation = True
             continue
     out_fm.append(line)
+
+# If the source agent had no model/effort fields (e.g. general-purpose),
+# inject the Pi model and thinking after the description line.
+if pi_model and not model_written:
+    for i, line in enumerate(out_fm):
+        if re.match(r'^description\s*:', line):
+            out_fm.insert(i + 1, f'model: {pi_model}\n')
+            model_written = True
+            break
+if pi_thinking and not thinking_written:
+    for i, line in enumerate(out_fm):
+        if re.match(r'^model\s*:', line):
+            out_fm.insert(i + 1, f'thinking: {pi_thinking}\n')
+            thinking_written = True
+            break
+    if not thinking_written:
+        # Fallback: insert after description if model wasn't written either.
+        for i, line in enumerate(out_fm):
+            if re.match(r'^description\s*:', line):
+                out_fm.insert(i + 1, f'thinking: {pi_thinking}\n')
+                break
 
 with open(dst, 'w') as f:
     f.write('---\n')
@@ -542,7 +604,7 @@ with open(dst, 'w') as f:
 PYEOF
 }
 
-# build_extensions: copy every directory under pi-extensions/ into
+# build_extensions: copy every directory under pi-extensions/ (if it exists) into
 # .pi/extensions/<name>/.
 build_extensions() {
     [[ -d "$EXT_SRC_DIR" ]] || return 0
@@ -566,12 +628,18 @@ build_extensions() {
 # writing/implementation work to Claude's general-purpose agent. Pi needs a
 # concrete local agent for those calls instead of aliasing them to explorer.
 write_builtin_general_purpose_agent() {
-    cat > "$AGENTS_DIR/general-purpose.md" << 'EOF'
----
-name: general-purpose
-description: "General-purpose agent for broad research, writing, implementation, and coordination tasks when no specialized agent is required."
-tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill", "subagent", "ask_user_question"]
----
+    # Resolve the Pi default-tier model (critical) for the general-purpose agent.
+    local gp_model gp_thinking
+    read -r gp_model gp_thinking <<< "$(python3 "$MODEL_ROUTER" agent-profile --surface pi --tier critical --format shell)"
+    {
+        printf -- '---\n'
+        printf 'name: general-purpose\n'
+        printf 'description: "General-purpose agent for broad research, writing, implementation, and coordination tasks when no specialized agent is required."\n'
+        printf 'model: %s\n' "$gp_model"
+        printf 'thinking: %s\n' "$gp_thinking"
+        printf 'tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill", "subagent", "ask_user_question"]\n'
+        printf -- '---\n\n'
+        cat << 'GPEOF'
 # General Purpose Agent
 
 You are a general-purpose execution agent for Pi workflows.
@@ -584,7 +652,8 @@ task, and report concise outcomes with any validation performed.
 Use `ask_user_question` only when required information cannot be inferred from the
 task or local context. If the task includes an output path, create or update that
 path directly.
-EOF
+GPEOF
+    } > "$AGENTS_DIR/general-purpose.md"
 }
 
 # ---------------------------------------------------------------------------

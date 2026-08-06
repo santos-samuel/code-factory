@@ -1,6 +1,8 @@
 ---
 name: refiner
 description: "Refinement agent. Takes vague requests and iteratively clarifies them with the user into detailed, actionable specifications with problem statement, scope, behavior, and acceptance criteria."
+model: ai-gw-baseten/baseten/zai-org/GLM-5.2
+thinking: max
 routing_tier: critical
 tools: ["Read", "Grep", "Glob", "ask_user_question"]
 maxTurns: 25

@@ -118,6 +118,54 @@ class ModelRouterTest(unittest.TestCase):
         self.assertTrue(result["drain_active"])
         self.assertEqual(result["skip_undispatched"], 4)
 
+    def test_generated_pi_agents_have_correct_model_and_thinking(self):
+        """Every generated Pi agent must embed the Pi-specific model and thinking
+        level resolved from its routing_tier, so pi-subagents uses the correct
+        model at runtime instead of falling back to the session default."""
+        root = Path(__file__).resolve().parent.parent
+        agents_dir = root / ".pi" / "agents"
+        self.assertTrue(agents_dir.is_dir(), ".pi/agents directory is missing")
+
+        from scripts.model_router import profile_for_tier
+
+        checked = 0
+        for agent_file in sorted(agents_dir.glob("*.md")):
+            name = agent_file.stem
+            content = agent_file.read_text()
+
+            # Parse frontmatter.
+            lines = content.splitlines()
+            fence_indices = [i for i, l in enumerate(lines) if l.strip() == "---"]
+            self.assertGreaterEqual(len(fence_indices), 2, f"{name}: missing frontmatter")
+            fm_lines = lines[fence_indices[0] + 1 : fence_indices[1]]
+
+            fm = {}
+            for line in fm_lines:
+                if ":" in line:
+                    key, _, val = line.partition(":")
+                    fm[key.strip()] = val.strip().strip('"').strip("'")
+
+            # The general-purpose agent has no routing_tier; it defaults to critical.
+            tier = fm.get("routing_tier") or "critical"
+            expected = profile_for_tier("pi", tier, self.policy)
+
+            expected_model = f"{expected['provider']}/{expected['model']}"
+            self.assertEqual(
+                fm.get("model"), expected_model,
+                f"{name}: expected Pi model {expected_model}, got {fm.get('model')}",
+            )
+            self.assertEqual(
+                fm.get("thinking"), expected["thinking"],
+                f"{name}: expected Pi thinking {expected['thinking']}, got {fm.get('thinking')}",
+            )
+
+            # No Claude effort field should leak into Pi agents.
+            self.assertNotIn("effort", fm, f"{name}: Claude effort field leaked into Pi agent")
+
+            checked += 1
+
+        self.assertGreater(checked, 0, "no Pi agent files found to validate")
+
 
 if __name__ == "__main__":
     unittest.main()

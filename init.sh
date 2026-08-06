@@ -263,6 +263,25 @@ for rule_src in "$SCRIPT_DIR/rules"/*.md; do
     fi
 done
 
+# Symlink model router script so installed skills can invoke it
+echo ""
+echo "Linking model router script..."
+MODEL_ROUTER_DIR="$HOME/.claude/scripts"
+mkdir -p "$MODEL_ROUTER_DIR"
+router_src="$SCRIPT_DIR/scripts/model_router.py"
+router_dest="$MODEL_ROUTER_DIR/model_router.py"
+if [[ -L "$router_dest" ]]; then
+    rm "$router_dest"
+elif [[ -e "$router_dest" ]]; then
+    errors+=("$router_src -> $router_dest: destination already exists as a regular file")
+    echo "  FAIL  $router_dest already exists as a regular file, cannot link"
+elif ! ln -s "$router_src" "$router_dest"; then
+    errors+=("$router_src -> $router_dest: ln -s failed")
+    echo "  FAIL  could not link $router_dest -> $router_src"
+else
+    echo "  LINK  $router_dest -> $router_src"
+fi
+
 # Generate Codex assets in the repo
 echo ""
 echo "Syncing Codex skills and agents..."
