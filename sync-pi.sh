@@ -677,6 +677,11 @@ main() {
             local real_dir="${dir_pair##*:}"
 
             if [[ ! -d "$real_dir" ]]; then
+                # Git cannot preserve an empty generated directory. Treat an
+                # absent real directory as current when generation is empty.
+                if [[ -z "$(find "$tmp_dir" -mindepth 1 -print -quit)" ]]; then
+                    continue
+                fi
                 echo "STALE  $real_dir does not exist (run ./sync-pi.sh)"
                 stale=true
                 continue

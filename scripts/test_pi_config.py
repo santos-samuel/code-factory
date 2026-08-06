@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -68,6 +69,19 @@ class PiConfigTest(unittest.TestCase):
         self.assertIn('DD_PI_CANONICAL_REPO="$HOME/dd/datadog-pi-packages"', bootstrap)
         self.assertIn('ln -s "$DD_PI_REPO" "$DD_PI_CANONICAL_REPO"', bootstrap)
         self.assertNotIn('pi install "$pkg_path"', bootstrap)
+
+    def test_sync_check_accepts_absent_empty_extensions_output(self):
+        extensions = ROOT / ".pi" / "extensions"
+        if extensions.exists():
+            extensions.rmdir()
+
+        result = subprocess.run(
+            ["bash", str(ROOT / "sync-pi.sh"), "--check"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
