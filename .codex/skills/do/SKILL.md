@@ -70,6 +70,14 @@ Profiles are alternatives, never additive lifecycle layers.
 The independent final reviewer in Step 6 is required for every profile and is separate from these
 optional research or implementation leaves.
 
+Before dispatching a leaf, classify its task evidence and resolve the cross-surface route with
+`python3 scripts/model_router.py route --surface <runtime> --task <task-class>`. Fast and Standard
+implementation leaves normally use the `economy` tier; research and exploration do too; planning,
+validation, review, grading, and adversarial work use `critical`. Deep keeps the same tier mapping
+while adding bounded fan-out. A valid explicit user model override wins. If availability is not
+known, keep the configured route, mark it unverified, and record observed usage as unknown. The
+source agent's `routing_tier` is a recommendation, not evidence that a model ran.
+
 `--fast` skips optional research delegation but never skips evidence, tests, implementation delegation, review, or delivery.
 If a safety-critical fact is missing, stop for that fact instead of silently escalating or guessing.
 
@@ -151,7 +159,10 @@ Do not re-ask approved decisions or repeat repository research.
 
 In Fast mode, keep the plan short and proceed as soon as the checks above are satisfied.
 In Standard mode, use the optional research leaf for one concrete evidence gap only.
-In Deep mode, parallelize independent research or implementation only when file ownership is disjoint.
+In Deep mode, parallelize independent research or implementation only when file ownership and
+conflict keys are disjoint. Cap automatic fan-out at three leaf workers with one coordinator slot
+reserved. If capacity is unknown, dispatch one probe before refilling. Use wait-any completion;
+after the first failure, stop dispatching, drain active leaves, and skip undispatched work.
 
 Interactive mode pauses only for a material product or architecture choice.
 Autonomous mode resolves ordinary implementation choices from repository evidence.

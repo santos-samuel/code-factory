@@ -1,6 +1,7 @@
 ---
 name: validator
 description: "Validation agent. Runs automated checks, verifies acceptance criteria, and produces validation reports with evidence. Includes quality scorecard grading."
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 ---
 

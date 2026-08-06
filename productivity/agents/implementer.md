@@ -3,6 +3,7 @@ name: implementer
 description: "Implementation agent. Executes code changes according to plan tasks, follows delegated commit ownership, reports blockers, and tracks progress."
 model: sonnet
 effort: high
+routing_tier: economy
 allowed_tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill"]
 skills: ["atcommit"]
 memory: "project"

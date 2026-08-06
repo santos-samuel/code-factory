@@ -1,6 +1,7 @@
 ---
 name: code-simplifier
 description: "Simplifies a single source file for clarity, consistency, and maintainability while preserving all functionality. Reads project conventions, compares with sibling files, applies targeted simplifications, and reports changes."
+routing_tier: economy
 tools: ["Read", "Edit", "Grep", "Glob", "Bash"]
 ---
 

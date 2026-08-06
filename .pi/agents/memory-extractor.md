@@ -1,6 +1,7 @@
 ---
 name: memory-extractor
 description: "Session learning extractor. Analyzes conversation transcripts to identify reusable knowledge — conventions, corrections, patterns, and gotchas — then updates knowledge files with confidence-based auto-apply."
+routing_tier: economy
 tools: ["Read", "Edit", "Grep", "Glob", "Write"]
 ---
 

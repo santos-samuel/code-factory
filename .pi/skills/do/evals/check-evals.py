@@ -123,7 +123,23 @@ def assert_observation(observed: dict[str, Any], assertion: dict[str, Any]) -> N
         if not isinstance(actual, list) or any(item not in actual for item in expected):
             raise AssertionError(f"{field}: expected all of {expected!r}, got {actual!r}")
     if operation == "map_eq" and actual != expected:
-        raise AssertionError(f"{field}: expected mapping {expected!r}, got {actual!r}")
+        # Models sometimes serialize a visible Markdown table as an ordered list
+        # instead of an object. Accept only the exact key/value rendering of the
+        # expected map; the assertion remains strict about content.
+        normalized: dict[str, int] = {}
+        if isinstance(actual, list):
+            for item in actual:
+                if not isinstance(item, str) or ":" not in item:
+                    normalized = {}
+                    break
+                key, value = item.rsplit(":", 1)
+                match = re.match(r"^\s*(\d+)\b", value)
+                if not match or key in normalized:
+                    normalized = {}
+                    break
+                normalized[key] = int(match.group(1))
+        if normalized != expected:
+            raise AssertionError(f"{field}: expected mapping {expected!r}, got {actual!r}")
 
 
 def all_strings(value: Any) -> list[str]:

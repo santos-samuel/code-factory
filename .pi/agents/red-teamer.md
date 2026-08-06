@@ -1,6 +1,7 @@
 ---
 name: red-teamer
 description: "Adversarial reviewer that finds failure modes, flawed assumptions, security vulnerabilities, and edge cases. Operates in plan mode (challenge plan before execution) or task mode (break implementation of high-risk tasks). Read-only — never modifies code."
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 maxTurns: 20
 ---

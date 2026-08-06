@@ -21,6 +21,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MARKETPLACE="$SCRIPT_DIR/.claude-plugin/marketplace.json"
+MODEL_ROUTER="$SCRIPT_DIR/scripts/model_router.py"
 
 CODEX_DIR="$SCRIPT_DIR/.codex"
 SKILLS_DIR="$CODEX_DIR/skills"
@@ -420,22 +421,16 @@ with open(out_path, 'w') as f:
 PYEOF
 }
 
-# codex_agent_profile: map portable roles to Codex-specific model and effort.
-#   Read-heavy and implementation roles use Luna at Max effort. Planning,
-#   validation, grading, and adversarial roles use Sol at Extra High effort.
+# codex_agent_profile: resolve a source agent's routing tier through the
+# shared cross-surface policy. Claude model/effort stays in source frontmatter;
+# Codex receives the corresponding Codex-specific profile.
 codex_agent_profile() {
-    case "$1" in
-        code-simplifier|explorer|implementer|memory-extractor|researcher)
-            printf '%s %s\n' "gpt-5.6-luna" "max"
-            ;;
-        brainstormer|code-quality-reviewer|consistency-checker|planner|red-teamer|refiner|reviewer|skill-comparator|skill-grader|spec-reviewer|task-critic|validator)
-            printf '%s %s\n' "gpt-5.6-sol" "xhigh"
-            ;;
-        *)
-            echo "  ERROR  unsupported Codex agent role: $1" >&2
-            return 1
-            ;;
-    esac
+    local tier="$2"
+    if [[ -z "$tier" ]]; then
+        echo "  ERROR  missing routing tier for Codex agent: $1" >&2
+        return 1
+    fi
+    python3 "$MODEL_ROUTER" agent-profile --surface codex --tier "$tier" --format shell
 }
 
 # transform_agent_to_toml: convert Claude Code agent .md to Codex .toml
@@ -465,8 +460,12 @@ transform_agent_to_toml() {
     # Escape any literal triple single-quotes in body (rare but defensive)
     body=$(printf '%s' "$body" | sed "s/'''/'''\"'''\"'''/g")
 
+    local routing_tier
+    routing_tier=$(extract_frontmatter_field "$src" "routing_tier")
+    routing_tier=$(echo "$routing_tier" | sed 's/^"//;s/"$//')
+
     local model effort
-    read -r model effort <<< "$(codex_agent_profile "$name")"
+    read -r model effort <<< "$(codex_agent_profile "$name" "$routing_tier")"
 
     # Write TOML — developer_instructions is a flat string, not a table.
     # Use TOML literal strings (''') to avoid backslash escape issues.

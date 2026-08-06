@@ -1,6 +1,7 @@
 ---
 name: refiner
 description: "Refinement agent. Takes vague requests and iteratively clarifies them with the user into detailed, actionable specifications with problem statement, scope, behavior, and acceptance criteria."
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "ask_question"]
 maxTurns: 25
 ---

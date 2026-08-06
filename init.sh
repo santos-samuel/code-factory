@@ -673,9 +673,28 @@ configure_pi_aigateway() {
         return 1
     fi
 
-    # Skip if any Datadog AI Gateway provider is already present. Detects both
-    # our static seed names ("datadog-ai-gateway", "datadog-ai-gateway-anthropic")
-    # and the /refresh-models-managed "ai-gw-*" names. Lets users adopt
+    # Remove the legacy Anthropic provider that this repository used to seed.
+    # Keep a timestamped backup, and leave all unrelated/user-managed providers
+    # untouched.
+    local legacy_anthropic_provider="datadog-ai-gateway-anthropic"
+    if [[ -f "$cfg" ]] && jq -e --arg provider "$legacy_anthropic_provider" \
+        '(.providers // {}) | has($provider)' "$cfg" >/dev/null 2>&1; then
+        local legacy_backup="${cfg}.bak.$(date +%s)"
+        if cp "$cfg" "$legacy_backup" && \
+            jq --arg provider "$legacy_anthropic_provider" \
+                'del(.providers[$provider])' "$cfg" > "$cfg.tmp" && \
+            mv "$cfg.tmp" "$cfg"; then
+            echo "  OK  removed legacy Anthropic provider from $cfg (backup: $legacy_backup)"
+        else
+            rm -f "$cfg.tmp"
+            errors+=("pi: failed to remove legacy Anthropic provider from $cfg")
+            echo "  FAIL  could not remove legacy Anthropic provider from $cfg"
+            return 1
+        fi
+    fi
+
+    # Skip if any current Datadog AI Gateway provider is already present. This
+    # includes /refresh-models-managed "ai-gw-*" names, letting users adopt
     # /refresh-models as the source of truth without us clobbering their config.
     if [[ -f "$cfg" ]] && jq -e '(.providers // {}) | keys | map(select(startswith("ai-gw-") or startswith("datadog-ai-gateway"))) | length > 0' "$cfg" >/dev/null 2>&1; then
         echo "  OK  $cfg already configured"

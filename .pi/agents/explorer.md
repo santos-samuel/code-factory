@@ -1,6 +1,7 @@
 ---
 name: explorer
 description: "Read-only codebase exploration agent. Maps architecture, finds extension points, locates conventions, and identifies risk hotspots. No editing capabilities."
+routing_tier: economy
 tools: ["Read", "Grep", "Glob", "Bash"]
 ---
 

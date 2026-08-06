@@ -139,6 +139,8 @@ Ground → Select profile → Satisfy evidence gates → Implement → Validate 
 Profiles are alternatives, not stacked pipelines.
 Delegated agents are depth-one leaves: they cannot spawn, manage state, commit, push, or poll.
 Every profile separately requires one independent final reviewer.
+Automatic fan-out is capped at three leaf workers with one coordinator slot reserved; unknown
+capacity gets one probe, and the first failure stops new dispatch while active work drains.
 
 ### Implementation and Review
 
@@ -276,7 +278,17 @@ Declares MCP servers for Claude Code, Codex, and pi.dev.
 ### `sync-codex.sh`
 
 Generates `.codex/skills` (with collapsed single-line frontmatter and per-skill `agents/openai.yaml` metadata) and `.codex/agents/*.toml` for [OpenAI Codex](https://github.com/openai/codex). Stale-check mode (`--check`).
-Generated agents use cost-aware role routing: research, exploration, implementation, simplification, and memory extraction run on `gpt-5.6-luna` at `max`; planning, validation, review, grading, and adversarial roles run on `gpt-5.6-sol` at `xhigh`.
+Generated agents read their `routing_tier` from source frontmatter and resolve it through
+`model-routing.json`: research, exploration, implementation, simplification, and memory extraction
+use `gpt-5.6-luna` at `max`; planning, validation, review, grading, and adversarial roles use
+`gpt-5.6-sol` at `xhigh`.
+
+### `model-routing.json` and `scripts/model_router.py`
+
+The shared matrix keeps Claude's source mapping, maps the same task tiers to Codex, and provides
+Pi-specific OpenAI routes. The helper is deterministic and network-free; it reports recommended,
+selected, and observed/unverified route state separately. It also validates the three-leaf
+parallelism cap and fail-open behavior used by `/do` and `/review`.
 
 ### `codex/config.toml` and `codex/rules/`
 
@@ -295,7 +307,7 @@ When an MCP server declares an OAuth `callbackPort`, the script also writes Code
 
 ### `pi-settings.json` (Pi)
 
-Symlinked to `~/.pi/agent/settings.json`. Tracks `defaultProvider`, `defaultModel`, `defaultThinkingLevel`, `theme`, `packages`, and `enabledModels` (Ctrl+P model cycling list). `enabledModels` entries support a `provider/model:thinkingLevel` suffix, so switching models with Ctrl+P also restores that model's remembered effort level (e.g. `datadog-ai-gateway/openai/gpt-5.5:xhigh`). Pi rewrites this file directly when installing/removing packages, so `init.sh` backs up and relinks on drift the same way it does for `~/.claude/settings.json`. Deliberately omits `lastChangelogVersion`, a volatile field Pi bumps on every update.
+Symlinked to `~/.pi/agent/settings.json`. Tracks `defaultProvider`, `defaultModel`, `defaultThinkingLevel`, `theme`, `packages`, and `enabledModels` (Ctrl+P model cycling list). `enabledModels` entries support a `provider/model:thinkingLevel` suffix, so switching models with Ctrl+P also restores that model's remembered effort level (for example, `datadog-ai-gateway/openai/gpt-5.6-sol:xhigh`). Pi is configured with OpenAI/Codex models only; the Claude mapping remains in source agent frontmatter for Claude Code and is not enabled in Pi. Pi rewrites this file directly when installing/removing packages, so `init.sh` backs up and relinks on drift the same way it does for `~/.claude/settings.json`. Deliberately omits `lastChangelogVersion`, a volatile field Pi bumps on every update.
 
 ### `sync-pi.sh` and `pi-extensions/`
 
@@ -304,6 +316,6 @@ Generates `.pi/skills`, `.pi/prompts` (slash-command templates for user-invocabl
 - Community: `pi-subagents@0.31.1`, `pi-mcp-adapter@2.10.0`, `pi-web-search@1.3.0`
 - Datadog [`ddoghq-sandbox/datadog-pi-packages`](https://github.com/ddoghq-sandbox/datadog-pi-packages): cloned to `$DD_PI_REPO` (default `~/dd/datadog-pi-packages`), then `pi install` for `refresh-models` and `confluence-adf`
 
-If `ddtool` is authenticated and `models.json` has no AI Gateway provider, `init.sh` seeds `~/.pi/agent/models.json` from `pi.json` (providers and models, with `{{email}}` and `{{team}}` substituted at install time) so sessions route through the Datadog AI Gateway with `ml_app=pi` tagging. Edit `pi.json` to change providers or model lists, then run `make install`. After install, run `/refresh-models` from a Pi session to discover live model IDs (including Ollama) and migrate to the managed `ai-gw-*` provider layout. Opt out of the static seed with `PI_AUTOCONFIG=0`.
+If `ddtool` is authenticated and `models.json` has no AI Gateway provider, `init.sh` seeds `~/.pi/agent/models.json` from `pi.json` (providers and models, with `{{email}}` and `{{team}}` substituted at install time) so sessions route through the Datadog AI Gateway with `ml_app=pi` tagging. It also removes the legacy repo-managed Anthropic provider, keeping a timestamped backup while leaving unrelated providers untouched. Edit `pi.json` to change providers or model lists, then run `make install`. After install, run `/refresh-models` from a Pi session to discover live model IDs (including Ollama) and migrate to the managed `ai-gw-*` provider layout. Opt out of the static seed with `PI_AUTOCONFIG=0`.
 
 `sync-pi.sh` rewrites generated Pi skill and agent references to use package-provided tools: `Task`/`Agent` become `subagent`, `AskUserQuestion` becomes `ask_question`, Claude MCP calls become the `mcp` proxy tool, and `WebSearch`/`WebFetch` become `web_search`. The generated `.pi/mcp.json` is HTTP-only, lazy, proxy-mode MCP configuration derived from root `mcp.json`; OAuth servers use `pi-mcp-adapter`'s OAuth flow instead of wrapper-specific bearer-token environment variables.

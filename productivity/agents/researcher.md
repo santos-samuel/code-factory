@@ -3,6 +3,7 @@ name: researcher
 description: "Domain research agent. Investigates APIs, libraries, patterns, and best practices. Searches Confluence, documentation, and web resources."
 model: sonnet
 effort: high
+routing_tier: economy
 allowed_tools: ["Read", "Grep", "Glob", "Bash", "Skill", "WebSearch", "WebFetch", "mcp__atlassian__searchConfluenceUsingCql", "mcp__atlassian__getConfluencePage"]
 memory: "project"
 ---

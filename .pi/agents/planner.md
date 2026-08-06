@@ -1,6 +1,7 @@
 ---
 name: planner
 description: "Plan authoring agent. Converts research into actionable execution plans with milestones, tasks, and validation strategies. References both local codebase and external findings."
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "mcp"]
 memory: "project"
 ---

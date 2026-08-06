@@ -1,6 +1,7 @@
 ---
 name: reviewer
 description: "Plan review agent. Critically analyzes execution plans for completeness, safety, and executability. Identifies missing steps, risks, and suggests fixes."
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 maxTurns: 15
 ---

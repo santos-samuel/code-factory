@@ -3,6 +3,7 @@ name: validator
 description: "Validation agent. Runs automated checks, verifies acceptance criteria, and produces validation reports with evidence. Includes quality scorecard grading."
 model: opus
 effort: xhigh
+routing_tier: critical
 allowed_tools: ["Read", "Grep", "Glob", "Bash"]
 ---
 

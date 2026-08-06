@@ -68,7 +68,11 @@ Required fields for agent definitions in `agents/*.md`:
 | `name` | kebab-case |
 | `description` | Free text |
 
-Optional: `model`, `effort`, `allowed_tools` (note: **snake_case** in agents, **kebab-case** in skills). Claude model/effort routing belongs in source agent frontmatter; Codex routing is generated separately by `sync-codex.sh`.
+Optional: `model`, `effort`, `routing_tier`, `allowed_tools` (note: **snake_case** in agents,
+**kebab-case** in skills). Claude model/effort routing belongs in source agent frontmatter;
+`routing_tier` is portable task metadata, and Codex routing is generated separately by
+`sync-codex.sh`. Pi omits Claude model/effort fields and uses only the configured OpenAI/Codex
+routes.
 
 ### Cross-References
 

@@ -3,40 +3,24 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-expected_profile() {
-    case "$1" in
-        code-simplifier|explorer|implementer|memory-extractor|researcher)
-            printf '%s %s\n' "gpt-5.6-luna" "max"
-            ;;
-        brainstormer|code-quality-reviewer|consistency-checker|planner|red-teamer|refiner|reviewer|skill-comparator|skill-grader|spec-reviewer|task-critic|validator)
-            printf '%s %s\n' "gpt-5.6-sol" "xhigh"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
+MODEL_ROUTER="$ROOT/scripts/model_router.py"
 
 status=0
 for source in "$ROOT"/productivity/agents/*.md; do
     role="$(basename "$source" .md)"
-    if ! read -r expected_model expected_effort <<< "$(expected_profile "$role")"; then
-        echo "  FAIL  unsupported Codex agent role: $role"
+    routing_tier="$(awk -F': *' '/^routing_tier: / { print $2; exit }' "$source")"
+    if [[ -z "$routing_tier" ]]; then
+        echo "  FAIL  $role is missing routing_tier metadata"
         status=1
         continue
     fi
 
-    case "$expected_model" in
-        gpt-5.6-luna)
-            expected_claude_model="sonnet"
-            expected_claude_effort="high"
-            ;;
-        gpt-5.6-sol)
-            expected_claude_model="opus"
-            expected_claude_effort="xhigh"
-            ;;
-    esac
+    if ! read -r expected_model expected_effort <<< "$(python3 "$MODEL_ROUTER" agent-profile --surface codex --tier "$routing_tier" --format shell)"; then
+        echo "  FAIL  unsupported routing tier for $role: $routing_tier"
+        status=1
+        continue
+    fi
+    read -r expected_claude_model expected_claude_effort <<< "$(python3 "$MODEL_ROUTER" agent-profile --surface claude --tier "$routing_tier" --format shell)"
 
     actual_claude_model="$(awk -F': *' '/^model: / { print $2; exit }' "$source")"
     actual_claude_effort="$(awk -F': *' '/^effort: / { print $2; exit }' "$source")"
@@ -62,6 +46,12 @@ for source in "$ROOT"/productivity/agents/*.md; do
     generated_pi="$ROOT/.pi/agents/$role.md"
     if [[ -f "$generated_pi" ]] && head -20 "$generated_pi" | grep -Eq '^(model|effort):'; then
         echo "  FAIL  $role leaked Claude model/effort routing into generated Pi agent"
+        status=1
+    fi
+
+    pi_profile="$(python3 "$MODEL_ROUTER" agent-profile --surface pi --tier "$routing_tier" --format shell)"
+    if [[ "$pi_profile" == *"anthropic"* || "$pi_profile" == *"claude"* ]]; then
+        echo "  FAIL  $role has a non-OpenAI Pi route: $pi_profile"
         status=1
     fi
 done

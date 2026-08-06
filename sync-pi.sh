@@ -386,8 +386,9 @@ PROMPTEOF
 
 # normalize_agent_frontmatter: pass agent files through, but rename allowed_tools -> tools
 # (pi-subagents convention) and drop fields that don't survive the trip. Claude's
-# model aliases and effort levels are intentionally omitted so Pi keeps its own
-# provider/model/thinking configuration.
+# model aliases and effort levels are intentionally omitted so Pi keeps the
+# OpenAI/Codex provider/model/thinking configuration from pi-settings.json;
+# routing_tier remains as portable task metadata for the shared router.
 normalize_agent_frontmatter() {
     local file="$1"
     local tmpfile="${file}.tmp"

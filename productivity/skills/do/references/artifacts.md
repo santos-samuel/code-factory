@@ -94,6 +94,8 @@ status: pending | in_progress | complete | blocked
 owner: top-agent | <leaf task name>
 depends_on: []
 files: []
+write_scope: <explicit paths or read-only>
+conflict_key: <stable ownership key>
 ---
 ```
 
@@ -102,6 +104,7 @@ Required body:
 - outcome
 - binary acceptance criteria
 - owned files
+- write scope and conflict key
 - focused validation
 - relevant convention or risk
 
@@ -166,7 +169,8 @@ Permitted events:
 - `DELIVERY_COMPLETE`
 - `BLOCKED`
 
-Optional fields may include task ID, commit SHA, PR URL, measured tokens, or duration.
+Optional fields may include task ID, commit SHA, PR URL, measured tokens, duration, selected route,
+recommended route, route verification, and observed route availability.
 Never log prompts, secrets, complete tool output, individual waits, or status polls.
 
 ## Resume Reconciliation

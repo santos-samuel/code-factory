@@ -35,24 +35,13 @@ The Task returns within ~5-15 seconds with stdout matching:
 Match the regex `started in the background as ([a-zA-Z0-9_-]+)\b` against the rescue stdout.
 On no match, treat as a Codex failure (see Fallback rules).
 
-### 3. Poll
+### 3. Bounded completion wait
 
-Loop calling `Skill(skill="codex:status", args="<jobId> --wait --timeout-ms 100000")`.
-Each call blocks server-side for up to 100s, staying under the 120s Bash kill, and returns as soon as the job reaches `completed`, `failed`, or `cancelled`.
-Parse `Status:` with `/Status:\s+(queued|running|completed|failed|cancelled)\b/i`.
-
-| Status | Action |
-|--------|--------|
-| `queued` | Continue polling. If 6 consecutive polls show `queued`, treat as a worker-launch failure. |
-| `running` | Continue polling. Reset the queued-streak counter. |
-| `completed` | Proceed to Fetch. |
-| `failed` | Fallback. |
-| `cancelled` | Fallback. |
-| Unparseable | Fallback. |
-
-Every 6 iterations (~10 min elapsed), emit one status line so the user knows the job is still progressing.
-There is no upper iteration bound — keep polling until terminal state, the queued watchdog, or a parse failure.
-Do **not** invoke `/codex:cancel` on timeout — leave the job alive so the user can recover the result.
+Use the runtime's completion notification when available. If the initial wait times out, check
+`/codex:status <jobId>` exactly once. If the job is active and fresh progress is visible, issue at
+most one additional `--wait` with the longest permitted timeout. If it still has no terminal state,
+report a blocker and leave the recovery command visible; do not poll, replace, or retry the job.
+For a terminal `completed`, `failed`, or `cancelled` state, continue to Fetch or Fallback.
 
 ### 4. Fetch
 
@@ -169,7 +158,7 @@ Every changed file must appear and be marked ✓.
 | Rescue stdout missing jobId pattern | Report: "Codex review failed (no jobId)." |
 | Codex job status `failed` | Report: "Codex job <jobId> failed." |
 | Codex job status `cancelled` | Report: "Codex job <jobId> cancelled." |
-| Codex job remains `queued` for 6 consecutive polls | Report: "Codex job <jobId> never started." |
+| Codex job remains active after one status check and one extra wait | Report a blocker with `/codex:status <jobId>`. |
 | `/codex:status` output cannot be parsed | Report: "Codex status unparseable." |
 | Worktree creation failed | Pass `Worktree: diff-only fallback` to Codex and explain in the prompt that no live file access is available. |
 

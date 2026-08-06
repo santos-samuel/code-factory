@@ -1,6 +1,7 @@
 ---
 name: implementer
 description: "Implementation agent. Executes code changes according to plan tasks, follows delegated commit ownership, reports blockers, and tracks progress."
+routing_tier: economy
 tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill"]
 skills: ["atcommit"]
 memory: "project"

@@ -1,4 +1,4 @@
-.PHONY: all install lint check check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-do-evals check-claude-settings check-reflect-analyzer check-codex-sync check-codex-agent-routing sync-codex check-codex-config check-codex-rules check-pi-sync sync-pi help
+.PHONY: all install lint check check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-model-routing check-do-evals check-claude-settings check-reflect-analyzer check-codex-sync check-codex-agent-routing sync-codex check-codex-config check-codex-rules check-pi-sync sync-pi help
 
 all: check lint ## Run all checks (frontmatter, agents, refs, structure, plugins, lint)
 
@@ -175,6 +175,9 @@ check-versions: ## Warn if plugin content changed since last commit without a ve
 	done
 	@echo "Done."
 
+check-model-routing: ## Validate cross-surface model routing and bounded fan-out
+	@python3 -B -m unittest scripts/test_model_router.py
+
 check-reflect-analyzer: ## Run deterministic Codex session analyzer fixtures
 	@python3 -B -m unittest productivity/skills/reflect/tests/test_analyze_codex_session.py
 
@@ -205,7 +208,7 @@ sync-pi: ## Sync skills, prompts, agents, extensions, and MCP config to Pi confi
 check-pi-sync: ## Validate Pi sync is up-to-date
 	@./sync-pi.sh --check
 
-check: check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-do-evals check-claude-settings check-reflect-analyzer check-codex-agent-routing check-codex-config check-codex-rules check-pi-sync ## Run all validation checks (frontmatter, agents, refs, structure, plugins)
+check: check-frontmatter check-agents check-refs check-agent-refs check-descriptions check-structure check-versions check-model-routing check-do-evals check-claude-settings check-reflect-analyzer check-codex-agent-routing check-codex-config check-codex-rules check-pi-sync ## Run all validation checks (frontmatter, agents, refs, structure, plugins)
 	@echo "Checking plugin references..."
 	@ok=true; \
 	for source in $$(python3 -c "import json; data=json.load(open('.claude-plugin/marketplace.json')); print('\n'.join(p['source'] for p in data['plugins']))"); do \
