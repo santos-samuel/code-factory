@@ -162,7 +162,7 @@ Every changed file must appear and be marked ✓.
 | `/codex:status` output cannot be parsed | Report: "Codex status unparseable." |
 | Worktree creation failed | Pass `Worktree: diff-only fallback` to Codex and explain in the prompt that no live file access is available. |
 
-For every failure mode in `--codex` mode, ask the user via `ask_question` whether to retry with Claude.
+For every failure mode in `--codex` mode, ask the user via `ask_user_question` whether to retry with Claude.
 In `--claude-codex` mode, continue with Claude-only output prefixed with `Codex unavailable; Claude-only`.
 
 ## Why this pattern

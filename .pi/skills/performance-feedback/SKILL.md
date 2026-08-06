@@ -72,8 +72,8 @@ Use the same 4-level name resolution as `/notes` and `/daily`:
 | 3 | **Accent-insensitive match** — strip accents before comparing | "Alvaro" → `Álvaro Mongil/` |
 | 4 | **Substring match** — input is a clear substring of exactly one name | "Mongil" → `Álvaro Mongil/` |
 
-- **Multiple matches**: use ask_question to present candidates.
-- **No match**: ask for the full name using ask_question. Do not bootstrap a new People entry — the person must already exist in the vault to have meaningful feedback data.
+- **Multiple matches**: use ask_user_question to present candidates.
+- **No match**: ask for the full name using ask_user_question. Do not bootstrap a new People entry — the person must already exist in the vault to have meaningful feedback data.
 
 After resolving, read the person's overview file (`People/<Person>/<Person>.md`)
 to get their attributes (role, team, github username) for external queries.
@@ -172,7 +172,7 @@ mcp({
 After automated collection, ask the user for context that can't be discovered:
 
 ```
-ask_question(
+ask_user_question(
   header: "Additional context for <Person>'s review",
   question: "I've gathered evidence from your notes, GitHub, Jira, and Confluence.
 Before I synthesize, is there anything I should know that isn't in these sources?
@@ -299,4 +299,4 @@ tags: [performance-feedback, period-label-slug, fullname-slug]
 | Career plan file doesn't exist | Skip Growth & Development career plan comparison, note the gap |
 | Achievements file doesn't exist | Skip, note the gap |
 | Review period is in the future | Warn user and adjust to today as end date |
-| Feedback file already exists for this period | Read it, then use `ask_question` with options "Overwrite" / "Append" / "Cancel" so the user picks without typing |
+| Feedback file already exists for this period | Read it, then use `ask_user_question` with options "Overwrite" / "Append" / "Cancel" so the user picks without typing |

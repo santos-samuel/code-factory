@@ -20,32 +20,59 @@ class ModelRouterTest(unittest.TestCase):
         self.assertEqual(economy["codex"], {"model": "gpt-5.6-luna", "effort": "max"})
         self.assertEqual(critical["codex"], {"model": "gpt-5.6-sol", "effort": "xhigh"})
 
-    def test_pi_routes_are_openai_only(self):
-        for tier in self.policy["tiers"].values():
-            self.assertEqual(tier["pi"]["provider"], "datadog-ai-gateway")
-            self.assertTrue(tier["pi"]["model"].startswith("openai/"))
+    def test_pi_routes_use_approved_baseten_models(self):
+        economy = self.policy["tiers"]["economy"]["pi"]
+        critical = self.policy["tiers"]["critical"]["pi"]
+        self.assertEqual(
+            economy,
+            {
+                "provider": "ai-gw-baseten",
+                "model": "baseten/deepseek-ai/DeepSeek-V4-Flash-0731",
+                "thinking": "high",
+            },
+        )
+        self.assertEqual(
+            critical,
+            {
+                "provider": "ai-gw-baseten",
+                "model": "baseten/zai-org/GLM-5.2",
+                "thinking": "max",
+            },
+        )
         result = resolve_route("pi", task="review", override="anthropic/claude-opus:high")
         self.assertEqual(result["selection"], "fail-open-default")
-        self.assertEqual(result["selected"]["provider"], "datadog-ai-gateway")
-        self.assertTrue(result["selected"]["model"].startswith("openai/"))
+        self.assertEqual(result["selected"], critical)
         self.assertEqual(result["observed"], "unknown")
 
     def test_committed_pi_configuration_contains_only_policy_routes(self):
         root = Path(__file__).resolve().parent.parent
         pi_config = json.loads((root / "pi.json").read_text())
         pi_settings = json.loads((root / "pi-settings.json").read_text())
-        self.assertEqual(set(pi_config["providers"]), {"datadog-ai-gateway"})
-        model_ids = {model["id"] for model in pi_config["providers"]["datadog-ai-gateway"]["models"]}
-        self.assertEqual(model_ids, {"openai/gpt-5.6-luna", "openai/gpt-5.6-sol"})
-        self.assertEqual(pi_settings["defaultProvider"], "datadog-ai-gateway")
-        self.assertEqual(pi_settings["defaultModel"], "openai/gpt-5.6-sol")
-        self.assertTrue(all("claude" not in item.lower() for item in pi_settings["enabledModels"]))
+        self.assertEqual(set(pi_config["providers"]), {"ai-gw-baseten"})
+        model_ids = {model["id"] for model in pi_config["providers"]["ai-gw-baseten"]["models"]}
+        self.assertEqual(
+            model_ids,
+            {
+                "baseten/deepseek-ai/DeepSeek-V4-Flash-0731",
+                "baseten/zai-org/GLM-5.2",
+            },
+        )
+        self.assertEqual(pi_settings["defaultProvider"], "ai-gw-baseten")
+        self.assertEqual(pi_settings["defaultModel"], "baseten/zai-org/GLM-5.2")
+        self.assertEqual(pi_settings["defaultThinkingLevel"], "max")
+        self.assertEqual(
+            pi_settings["enabledModels"],
+            [
+                "ai-gw-baseten/baseten/zai-org/GLM-5.2:max",
+                "ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731:high",
+            ],
+        )
 
     def test_available_route_is_verified_without_claiming_usage(self):
         result = resolve_route(
             "pi",
             task="review",
-            available=["datadog-ai-gateway/openai/gpt-5.6-sol"],
+            available=["ai-gw-baseten/baseten/zai-org/GLM-5.2"],
         )
         self.assertEqual(result["verification"], "available")
         self.assertEqual(result["observed"], "available")
@@ -61,16 +88,20 @@ class ModelRouterTest(unittest.TestCase):
         result = resolve_route("codex", task="implementation", override="gpt-5.6-sol:xhigh")
         self.assertEqual(result["selection"], "explicit-override")
         self.assertEqual(result["selected"], {"model": "gpt-5.6-sol", "effort": "xhigh"})
-        pi_result = resolve_route("pi", task="review", override="openai/gpt-5.6-luna:xhigh")
+        pi_result = resolve_route(
+            "pi",
+            task="review",
+            override="ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731:high",
+        )
         self.assertEqual(pi_result["selection"], "explicit-override")
-        self.assertEqual(pi_result["selected"]["model"], "openai/gpt-5.6-luna")
+        self.assertEqual(pi_result["selected"]["model"], "baseten/deepseek-ai/DeepSeek-V4-Flash-0731")
 
     def test_invalid_overrides_fail_open(self):
         malformed = resolve_route("codex", task="implementation", override=":bogus")
         self.assertEqual(malformed["selection"], "fail-open-default")
-        forbidden_pi = resolve_route("pi", task="review", override="openai/claude-opus:xhigh")
+        forbidden_pi = resolve_route("pi", task="review", override="ai-gw-anthropic/anthropic/claude-opus:high")
         self.assertEqual(forbidden_pi["selection"], "fail-open-default")
-        self.assertTrue(forbidden_pi["selected"]["model"].startswith("openai/gpt-5.6"))
+        self.assertEqual(forbidden_pi["selected"]["model"], "baseten/zai-org/GLM-5.2")
 
     def test_parallelism_caps_and_probes_unknown_capacity(self):
         self.assertEqual(plan_parallel(8, capacity=8)["dispatch_now"], 3)

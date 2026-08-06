@@ -30,7 +30,7 @@ it through `eval`.
 If no arguments:
 
 ```
-ask_question(
+ask_user_question(
   header: "Workspace operation",
   question: "What would you like to do?",
   options: [
@@ -99,7 +99,7 @@ If the user-provided name already starts with the prefix, do not double it.
 If no name provided:
 
 ```
-ask_question(
+ask_user_question(
   header: "Workspace name",
   question: "Name for the new workspace? (will be prefixed with '$WS_PREFIX-')",
   options: []
@@ -115,7 +115,7 @@ workspaces list 2>/dev/null | grep -q "<final-name>"
 If a workspace with that name already exists, ask the user:
 
 ```
-ask_question(
+ask_user_question(
   header: "Name conflict",
   question: "Workspace '<final-name>' already exists. What would you like to do?",
   options: [
@@ -144,7 +144,7 @@ the local branch, index, worktree, or `/do` state. The delegated `/do --branch` 
 non-default branch. Without `--claude-prompt`, ask whether to create a new branch locally:
 
 ```
-ask_question(
+ask_user_question(
   header: "Feature branch?",
   question: "Create a new feature branch for this workspace?",
   options: [
@@ -269,7 +269,7 @@ If name not provided, run `workspaces list` first and ask user to pick.
 Confirm before deleting:
 
 ```
-ask_question(
+ask_user_question(
   header: "Delete workspace",
   question: "Delete workspace '<name>'? This removes everything including the home directory.",
   options: [

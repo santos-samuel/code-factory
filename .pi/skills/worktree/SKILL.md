@@ -48,7 +48,7 @@ If `REMOVE_TARGET` is provided:
 If `REMOVE_TARGET` is empty or no match found, ask:
 
 ```
-ask_question(
+ask_user_question(
   header: "Remove which?",
   question: "Which worktree do you want to remove?\n<list of worktree paths with their current branch>",
   options: [one entry per worktree]
@@ -101,7 +101,7 @@ Worktree path: `<worktrees-dir>/<REPO_NAME>-<slug>`
 If path already exists, ask:
 
 ```
-ask_question(
+ask_user_question(
   header: "Worktree exists",
   question: "A worktree already exists at <path>. What would you like to do?",
   options: [
@@ -161,7 +161,7 @@ Build the worktree slug from `$ARGUMENTS` (the full remaining text after strippi
 - If no arguments provided:
 
 ```
-ask_question(
+ask_user_question(
   header: "Worktree name",
   question: "What is this worktree for? Provide a short description or ticket ID.",
   options: []
@@ -173,7 +173,7 @@ Worktree path: `<worktrees-dir>/<REPO_NAME>-<slug>`
 If path already exists:
 
 ```
-ask_question(
+ask_user_question(
   header: "Worktree exists",
   question: "A worktree already exists at <path>. What would you like to do?",
   options: [

@@ -22,7 +22,7 @@ The default site is correct.
 When inference is ambiguous, ask the user:
 
 ```
-ask_question(questions=[{
+ask_user_question(questions=[{
   "question": "Where is <service> deployed?",
   "header": "Environment",
   "multiSelect": false,

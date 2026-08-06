@@ -153,10 +153,10 @@ Inspect `$ARGUMENTS` and conversation for environment signals.
 
 Datadog site is always `datadoghq.com`. Never pass `--site datad0g.com`.
 
-For AMBIGUOUS, use `ask_question`:
+For AMBIGUOUS, use `ask_user_question`:
 
 ```
-ask_question(questions=[{
+ask_user_question(questions=[{
   "question": "Where is <service> deployed?",
   "header": "Environment",
   "multiSelect": false,
@@ -569,4 +569,4 @@ Present a debug summary:
 | Phase 0 subagent returns empty results | Widen time window (1h → 4h → 24h). Verify service name matches Datadog `service:` tag. Confirm correct org (prod=2, staging=197728). |
 | `pup` returns 401 in Phase 0 | Subagent must run `pup auth login` (and `pup auth login --org 197728` for staging) and retry. |
 | Wrong site used (`datad0g.com`) | Stop. Re-run without `--site`. Default `datadoghq.com` is correct for both prod and staging services. |
-| Service environment genuinely ambiguous | `ask_question`: prod / staging / local. Persist to DEBUG.md frontmatter before running Phase 0. |
+| Service environment genuinely ambiguous | `ask_user_question`: prod / staging / local. Persist to DEBUG.md frontmatter before running Phase 0. |

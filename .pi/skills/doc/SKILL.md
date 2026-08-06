@@ -47,7 +47,7 @@ Parse `$ARGUMENTS` to determine intent and options:
 
 - If no `--path`, use current directory for audit/maintain/sync, or prompt for create/update/improve
 - If no `--format` for create, prompt user to select
-- If intent is ambiguous, use ask_question to clarify
+- If intent is ambiguous, use ask_user_question to clarify
 
 ## Writing Style: Semantic Line Feeds
 
@@ -76,7 +76,7 @@ Create a new document from a template.
 1. **Determine format** - If `--format` not provided:
 
 ```
-ask_question(
+ask_user_question(
   header: "Doc format",
   question: "What type of document are you creating?",
   options: [
@@ -92,7 +92,7 @@ ask_question(
 2. **Determine location** - If `--path` not provided:
 
 ```
-ask_question(
+ask_user_question(
   header: "Doc location",
   question: "Where should I create this document?",
   options: [] // free-text response expected
@@ -130,7 +130,7 @@ Apply specific edits to an existing document.
 2. **Identify changes** - Parse `$ARGUMENTS` for the requested change. If unclear:
 
 ```
-ask_question(
+ask_user_question(
   header: "Update type",
   question: "What would you like to update in this document?",
   options: [
@@ -265,7 +265,7 @@ Keep documentation fresh: fix broken links, update references, ensure consistent
 4. **Offer fixes** - For each fixable issue, offer to apply the fix.
 
 ```
-ask_question(
+ask_user_question(
   header: "Apply fixes",
   question: "Found 5 auto-fixable issues. Apply fixes?",
   options: [
@@ -388,7 +388,7 @@ ddoc status --root <path>
 4. **Show status and confirm:**
 
 ```
-ask_question(
+ask_user_question(
   header: "Confirm sync",
   question: "Ready to sync <N> documents to Confluence. Proceed?",
   options: [

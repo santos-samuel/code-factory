@@ -20,10 +20,10 @@ Pick mode based on user intent:
 - **Interactive** (default): User said "tour", "walk me through", "show me". Step-by-step with pauses.
 - **Written**: User said "write a tour", "document the architecture", "write up how X works", or added `--written`. Produces a complete markdown document.
 
-If unclear, pick via `ask_question`:
+If unclear, pick via `ask_user_question`:
 
 ```
-ask_question(
+ask_user_question(
   questions: [{
     header: "Tour mode",
     question: "How would you like the tour delivered?",

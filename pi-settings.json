@@ -1,10 +1,5 @@
 {
   "packages": [
-    "../../dd/datadog-pi-packages/packages/refresh-models",
-    "../../dd/datadog-pi-packages/packages/confluence-adf",
-    "npm:pi-subagents",
-    "npm:pi-mcp-adapter",
-    "npm:pi-web-search@1.3.0",
     "npm:context-mode",
     "npm:pi-subagents",
     "npm:pi-mcp-adapter",
@@ -12,16 +7,18 @@
     "npm:pi-powerline-footer",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:@datadog/pi-plugin",
+    "../../dd/datadog-pi-packages/packages/refresh-models",
     "../../dd/datadog-pi-packages/packages/research-web",
     "../../dd/datadog-pi-packages/packages/session-cost",
-    "../../dd/datadog-pi-packages/packages/compaction-continue"
+    "../../dd/datadog-pi-packages/packages/compaction-continue",
+    "../../dd/datadog-pi-packages/packages/confluence-adf"
   ],
   "enabledModels": [
-    "datadog-ai-gateway/openai/gpt-5.6-sol:xhigh",
-    "datadog-ai-gateway/openai/gpt-5.6-luna:xhigh"
+    "ai-gw-baseten/baseten/zai-org/GLM-5.2:max",
+    "ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731:high"
   ],
   "defaultProvider": "ai-gw-baseten",
   "defaultModel": "baseten/zai-org/GLM-5.2",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "max",
   "theme": "dark"
 }

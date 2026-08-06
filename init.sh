@@ -560,24 +560,15 @@ else
         fi
     done
 
-    # Community packages: pin exact versions so bootstrap is repeatable.
-    PI_NPM_PACKAGES=(
-        "pi-subagents@0.31.1"
-        "pi-mcp-adapter@2.10.0"
-        "pi-web-search@1.3.0"
-    )
-    for pkg in "${PI_NPM_PACKAGES[@]}"; do
-        if pi install "npm:$pkg" 2>&1 | tail -1; then
-            echo "  OK  $pkg"
-        else
-            echo "  WARN  $pkg install failed"
-        fi
-    done
-
-    # Datadog packages: clone-or-update the marketplace repo, then install by local path.
-    # The repo root is intentionally a catalog, not a pi package -- each subdir under
-    # packages/ must be installed individually.
-    DD_PI_REPO="${DD_PI_REPO:-$HOME/dd/datadog-pi-packages}"
+    # Datadog packages use local paths rooted at the canonical checkout because
+    # those exact relative paths are part of the managed settings. When callers
+    # choose another checkout location, expose it through the canonical path
+    # instead of asking Pi to persist a second absolute package reference.
+    DD_PI_CANONICAL_REPO="$HOME/dd/datadog-pi-packages"
+    DD_PI_REPO="${DD_PI_REPO:-$DD_PI_CANONICAL_REPO}"
+    if [[ "$DD_PI_REPO" != /* ]]; then
+        DD_PI_REPO="$PWD/$DD_PI_REPO"
+    fi
     DD_PI_REMOTE="git@github.com:ddoghq-sandbox/datadog-pi-packages.git"
     mkdir -p "$(dirname "$DD_PI_REPO")"
     if [[ -d "$DD_PI_REPO/.git" ]]; then
@@ -594,24 +585,66 @@ else
         fi
     fi
 
-    if [[ -d "$DD_PI_REPO/packages" ]]; then
-        DD_PI_PACKAGES=(
-            "refresh-models"
-            "confluence-adf"
-        )
-        for pkg in "${DD_PI_PACKAGES[@]}"; do
-            pkg_path="$DD_PI_REPO/packages/$pkg"
+    dd_pi_packages_ready=1
+    if [[ "$DD_PI_REPO" != "$DD_PI_CANONICAL_REPO" ]]; then
+        mkdir -p "$(dirname "$DD_PI_CANONICAL_REPO")"
+        if [[ -e "$DD_PI_CANONICAL_REPO" || -L "$DD_PI_CANONICAL_REPO" ]]; then
+            if [[ ! "$DD_PI_CANONICAL_REPO" -ef "$DD_PI_REPO" ]]; then
+                errors+=("pi: $DD_PI_CANONICAL_REPO already exists and does not point to DD_PI_REPO=$DD_PI_REPO")
+                echo "  FAIL  $DD_PI_CANONICAL_REPO conflicts with DD_PI_REPO=$DD_PI_REPO"
+                dd_pi_packages_ready=0
+            fi
+        elif ln -s "$DD_PI_REPO" "$DD_PI_CANONICAL_REPO"; then
+            echo "  LINK  $DD_PI_CANONICAL_REPO -> $DD_PI_REPO"
+        else
+            errors+=("pi: could not link $DD_PI_CANONICAL_REPO to DD_PI_REPO=$DD_PI_REPO")
+            echo "  FAIL  could not link $DD_PI_CANONICAL_REPO -> $DD_PI_REPO"
+            dd_pi_packages_ready=0
+        fi
+    fi
+
+    # Keep package installation in lockstep with the code-factory-owned Pi
+    # settings. Golden npm refs intentionally remain unpinned so rerunning the
+    # bootstrap picks up their current releases.
+    while IFS= read -r package_ref; do
+        [[ -n "$package_ref" ]] || continue
+        if [[ "$package_ref" == npm:* ]]; then
+            if pi install "$package_ref" 2>&1 | tail -1; then
+                echo "  OK  $package_ref"
+            else
+                echo "  WARN  $package_ref install failed"
+            fi
+            continue
+        fi
+
+        if [[ "$package_ref" == ../../dd/datadog-pi-packages/packages/* ]]; then
+            pkg="${package_ref##*/}"
+            pkg_path="$DD_PI_CANONICAL_REPO/packages/$pkg"
+            if [[ "$dd_pi_packages_ready" != "1" ]]; then
+                echo "  WARN  $pkg unavailable because the canonical Datadog package path conflicts"
+                continue
+            fi
             if [[ ! -d "$pkg_path" ]]; then
                 echo "  WARN  $pkg not found at $pkg_path"
                 continue
             fi
-            if pi install "$pkg_path" 2>&1 | tail -1; then
-                echo "  OK  datadog-pi-packages/$pkg"
-            else
-                echo "  WARN  datadog-pi-packages/$pkg install failed"
-            fi
-        done
-    fi
+            # Local packages are loaded directly from the managed settings;
+            # calling `pi install` here would append an absolute path.
+            echo "  OK  datadog-pi-packages/$pkg available"
+            continue
+        fi
+
+        echo "  WARN  unsupported Pi package reference: $package_ref"
+    done < <(python3 - "$SCRIPT_DIR/pi-settings.json" << 'PYEOF'
+import json
+import sys
+
+with open(sys.argv[1]) as stream:
+    settings = json.load(stream)
+for package in settings.get("packages", []):
+    print(package)
+PYEOF
+    )
 fi
 
 # Configure Pi to use Datadog AI Gateway (opt out via PI_AUTOCONFIG=0)
@@ -693,11 +726,12 @@ configure_pi_aigateway() {
         fi
     fi
 
-    # Skip if any current Datadog AI Gateway provider is already present. This
-    # includes /refresh-models-managed "ai-gw-*" names, letting users adopt
-    # /refresh-models as the source of truth without us clobbering their config.
-    if [[ -f "$cfg" ]] && jq -e '(.providers // {}) | keys | map(select(startswith("ai-gw-") or startswith("datadog-ai-gateway"))) | length > 0' "$cfg" >/dev/null 2>&1; then
-        echo "  OK  $cfg already configured"
+    # Only the provider selected by managed settings satisfies autoconfig.
+    # Older Datadog providers must not prevent an upgrade from adding Baseten.
+    local managed_provider="ai-gw-baseten"
+    if [[ -f "$cfg" ]] && jq -e --arg provider "$managed_provider" \
+        '(.providers // {}) | has($provider)' "$cfg" >/dev/null 2>&1; then
+        echo "  OK  $cfg already contains $managed_provider"
         return 0
     fi
 
@@ -712,7 +746,9 @@ configure_pi_aigateway() {
 
     if [[ -f "$cfg" ]]; then
         cp "$cfg" "$cfg.bak.$(date +%s)"
-        echo "$template" | jq --slurpfile existing "$cfg" '.providers + $existing[0].providers as $merged | $existing[0] | .providers = $merged' > "$cfg.tmp"
+        echo "$template" | jq --slurpfile existing "$cfg" \
+            '. as $template | $existing[0] | .providers = (($existing[0].providers // {}) + $template.providers)' \
+            > "$cfg.tmp"
         mv "$cfg.tmp" "$cfg"
         echo "  OK  merged Datadog AI Gateway providers into $cfg"
     else

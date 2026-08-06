@@ -181,10 +181,10 @@ Read `$PENDING_FILE`. If it doesn't exist or is empty:
 
 ### 2B.2: Present for Review
 
-For each pending learning, present it to the user with `ask_question`:
+For each pending learning, present it to the user with `ask_user_question`:
 
 ```
-ask_question(
+ask_user_question(
   header: "Learning",
   question: "[learning text]\nConfidence: [score] | Target: [file] | Evidence: [evidence]",
   options: [

@@ -57,7 +57,7 @@ def validate_policy(policy: dict[str, Any]) -> None:
 
     if not set(policy.get("allowed_efforts", [])) >= {"high", "xhigh", "max"}:
         raise ValueError("policy must define the supported agent effort levels")
-    if not set(policy.get("allowed_pi_thinking", [])) >= {"low", "medium", "high", "xhigh"}:
+    if not set(policy.get("allowed_pi_thinking", [])) >= {"low", "medium", "high", "xhigh", "max"}:
         raise ValueError("policy must define the supported Pi thinking levels")
 
     parallelism = policy.get("parallelism", {})
@@ -96,12 +96,12 @@ def _parse_override(
         raise ValueError("override must include a model")
 
     if surface == "pi":
-        if route.startswith("openai/"):
+        if route in policy["pi_constraints"]["allowed_models"]:
             provider = base["provider"]
             model = route
         else:
             provider, separator, model = route.partition("/")
-        if not route.startswith("openai/") and not separator:
+        if route not in policy["pi_constraints"]["allowed_models"] and not separator:
             provider = base["provider"]
             model = route
         if level and level not in policy["allowed_pi_thinking"]:
@@ -175,7 +175,7 @@ def resolve_route(
             selected = profile_for_tier(surface, fallback_tier, policy)
             selection = "fail-open-default"
             if explicit is not None:
-                reason = "explicit route is forbidden in Pi; retained the configured OpenAI default"
+                reason = "explicit route is forbidden in Pi; retained the configured default"
         else:
             selected = explicit
             selection = "explicit-override"

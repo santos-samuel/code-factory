@@ -261,7 +261,7 @@ Match each name against existing directories using this priority order:
 | 4 | **Substring match** — input is a clear substring of exactly one name | "Mongil" → `Álvaro Mongil/` |
 
 - **Unique match at any priority**: use the full name exactly as it appears (preserving accents/diacritics).
-- **Multiple matches**: use `ask_question` to present candidates and let the user pick.
+- **Multiple matches**: use `ask_user_question` to present candidates and let the user pick.
 - **No match**: bootstrap a new People entry.
   Create `~/docs/People/<Full Name>/<Full Name>.md` with minimal frontmatter
   and an Overview section capturing what you know from context.
@@ -284,7 +284,7 @@ Brief context from the brag entry.
 
 For the relationship tag, use your best guess from context:
 `collaborator`, `peer`, `mentee`, `external`, etc.
-If only a first name is available and you can't infer the full name, ask using `ask_question`.
+If only a first name is available and you can't infer the full name, ask using `ask_user_question`.
 
 Use full names wrapped in Obsidian wikilinks in brag doc entries
 so they are searchable and linkable in the Obsidian graph.
@@ -339,7 +339,7 @@ This applies to: Slack messages, Slack threads, DMs, and any link that requires 
 ### 3e: Present and Confirm
 
 Show proposed additions grouped by section.
-Use `ask_question` with `multiSelect: true` to let the user pick which to include.
+Use `ask_user_question` with `multiSelect: true` to let the user pick which to include.
 Group entries into batches of ~4 options to avoid overwhelming the user.
 
 After confirmation, use `Edit` to append entries under the correct section headers in `~/docs/log/doc.md`.
@@ -354,7 +354,7 @@ Load the question bank from [references/questions.md](references/questions.md).
 
 1. Read state file for context (mentees, guilds, meetings, interview types).
 2. Skip categories already well-covered by automated collection.
-3. Present questions one at a time using `ask_question`.
+3. Present questions one at a time using `ask_user_question`.
 4. **Allow free-text input early** — don't force multiple rounds of "tell me more".
    If the user selects "Yes", the next question should accept free-text directly.
 5. For "skip"/"none" answers, move to the next question.
@@ -374,7 +374,7 @@ If the user doesn't have an exact date, use the closest approximation: `(~2026-0
 For each current mentee in state:
 
 ```
-ask_question(
+ask_user_question(
   header: "Mentorship",
   question: "Any updates on <name> (<context>)?",
   options: [
@@ -390,7 +390,7 @@ ask_question(
 For each meeting in state:
 
 ```
-ask_question(
+ask_user_question(
   header: "Meetings",
   question: "Anything notable from <name> (<cadence>)?",
   options: [

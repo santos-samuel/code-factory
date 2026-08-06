@@ -34,10 +34,10 @@ Without the flag, preserve the default problem-sharpening workflow.
 
 Use `Glob(pattern="*.md", path="~/docs/brainstorms")` to find existing brainstorm files.
 
-For each file, read the frontmatter to extract `status` and the `# Title`. Display the list as a table (slug, title, status, date_modified) so the user can see what exists, then ask via `ask_question`:
+For each file, read the frontmatter to extract `status` and the `# Title`. Display the list as a table (slug, title, status, date_modified) so the user can see what exists, then ask via `ask_user_question`:
 
 ```
-ask_question(
+ask_user_question(
   questions: [{
     header: "Brainstorm",
     question: "Which brainstorm do you want to work on?",
@@ -213,7 +213,7 @@ Suggested next steps by status:
 | Error | Action |
 |-|-|
 | `~/docs/brainstorms/` not writable | Report error and exit |
-| No arguments and no existing brainstorms | Ask for an idea description via a plain open-ended prompt (no `ask_question` — the answer is free-form) |
+| No arguments and no existing brainstorms | Ask for an idea description via a plain open-ended prompt (no `ask_user_question` — the answer is free-form) |
 | Slug conflicts with existing file | Append a number suffix (e.g., `my-idea-2.md`) |
 | Brainstormer agent fails | Save current file state, report error, suggest manual resume |
 | Brainstorm file corrupted or unreadable | Re-create the file with the last known content from conversation history. |

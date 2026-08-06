@@ -16,9 +16,9 @@
         "effort": "max"
       },
       "pi": {
-        "provider": "datadog-ai-gateway",
-        "model": "openai/gpt-5.6-luna",
-        "thinking": "xhigh"
+        "provider": "ai-gw-baseten",
+        "model": "baseten/deepseek-ai/DeepSeek-V4-Flash-0731",
+        "thinking": "high"
       }
     },
     "critical": {
@@ -31,9 +31,9 @@
         "effort": "xhigh"
       },
       "pi": {
-        "provider": "datadog-ai-gateway",
-        "model": "openai/gpt-5.6-sol",
-        "thinking": "xhigh"
+        "provider": "ai-gw-baseten",
+        "model": "baseten/zai-org/GLM-5.2",
+        "thinking": "max"
       }
     }
   },
@@ -52,12 +52,12 @@
     "validation": "critical"
   },
   "pi_constraints": {
-    "allowed_providers": ["datadog-ai-gateway"],
-    "allowed_model_prefixes": ["openai/"],
-    "allowed_models": ["openai/gpt-5.6-luna", "openai/gpt-5.6-sol"]
+    "allowed_providers": ["ai-gw-baseten"],
+    "allowed_model_prefixes": ["baseten/"],
+    "allowed_models": ["baseten/deepseek-ai/DeepSeek-V4-Flash-0731", "baseten/zai-org/GLM-5.2"]
   },
   "allowed_efforts": ["high", "xhigh", "max"],
-  "allowed_pi_thinking": ["low", "medium", "high", "xhigh"],
+  "allowed_pi_thinking": ["low", "medium", "high", "xhigh", "max"],
   "parallelism": {
     "max_leaf_workers": 3,
     "coordinator_reserved_slots": 1,

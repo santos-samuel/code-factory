@@ -167,7 +167,7 @@ Proposed actions:
 **For disagreements**, present each one explicitly:
 
 <interaction>
-ask_question(
+ask_user_question(
   header: "Review disagreement",
   question: "Thread on {path}:{line} — Reviewer says: '{summary}'. How should we handle this?",
   options: [
@@ -181,7 +181,7 @@ ask_question(
 **For everything else**, ask:
 
 <interaction>
-ask_question(
+ask_user_question(
   header: "Proceed?",
   question: "Ready to address {count} threads ({suggestions} suggestions, {changes} code changes, {questions} explanations)?",
   options: [
@@ -353,7 +353,7 @@ Compare timestamps. If the latest commit is **after** the latest bot comment (or
 **Interactive mode:**
 
 <interaction>
-ask_question(
+ask_user_question(
   header: "Re-trigger automated reviews?",
   question: "There are new commits since the last Codex reviews. Re-trigger them?",
   options: [
@@ -387,7 +387,7 @@ Do not wait here; 8c starts the review poller. **Proceed to 8b.**
 **Interactive mode:**
 
 <interaction>
-ask_question(
+ask_user_question(
   header: "Watch CI?",
   question: "Want me to watch CI and auto-fix any failures?",
   options: [
