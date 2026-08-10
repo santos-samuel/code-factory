@@ -18,6 +18,7 @@ description: >
   feedback about a person's performance for review cycles (use `/performance-feedback`).
 argument-hint: "[create | lookup | edit] [description]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date:*), Bash(mkdir:*), Bash(ls:*), AskUserQuestion
 ---
 

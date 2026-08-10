@@ -1,6 +1,7 @@
 ---
 name: "review"
 description: "Use when user says \"review pr\", \"review pull request\", \"pr review\", \"review #123\", or provides a PR number, URL, or branch name to review. Supports --codex and --claude-codex to delegate or cross-check with Codex, --parallel to fan out one sub-agent per review dimension, and --extended to review every line of changed files instead of just the diff hunks."
+disable-model-invocation: true
 ---
 
 # Review PR

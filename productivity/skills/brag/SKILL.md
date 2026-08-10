@@ -7,6 +7,7 @@ description: >
   "update my doc", "brag doc", "end of day", "weekly update".
 argument-hint: "[--week | --month | --since YYYY-MM-DD | --comprehensive | --add | --review | --prep-review]"
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Brag Document Updater

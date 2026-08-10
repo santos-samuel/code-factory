@@ -1,6 +1,7 @@
 ---
 name: "rfc"
 description: "Use when the user wants to write an RFC (Request for Comments), design document, technical proposal, or problem statement with iterative research and refinement. Also use when the user wants to improve, iterate on, or revise an existing RFC. Triggers: \"rfc\", \"write rfc\", \"create rfc\", \"design document\", \"technical proposal\", \"problem statement\", \"write a design doc\", \"new rfc\", \"resume rfc\", \"improve rfc\", \"iterate rfc\", \"revise rfc\", \"update rfc\"."
+disable-model-invocation: true
 ---
 
 # RFC Writer

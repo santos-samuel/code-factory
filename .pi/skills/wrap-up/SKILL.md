@@ -1,6 +1,7 @@
 ---
 name: "wrap-up"
 description: "Use when user says \"wrap up\", \"close session\", \"end session\", \"wrap things up\", \"close out this task\", \"done for now\", \"that's it for today\", or invokes /wrap-up. Runs end-of-session checklist for shipping, reflection, and publishing. Does NOT handle: starting new work, debugging, or mid-session commits (use `/atcommit`)."
+disable-model-invocation: true
 ---
 
 # Session Wrap-Up

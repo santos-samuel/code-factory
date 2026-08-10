@@ -8,6 +8,7 @@ description: >
   Does NOT handle: starting new work, debugging, or mid-session commits (use `/atcommit`).
 argument-hint: "[--skip-ship | --skip-publish]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(gh:*), Skill, AskUserQuestion, Task
 ---
 

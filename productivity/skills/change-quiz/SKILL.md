@@ -12,6 +12,7 @@ description: >
   implementation, or merge requests unless the user explicitly asks to be quizzed.
 argument-hint: "[PR number, URL, branch, or ref] [--base <ref>]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Bash(git rev-parse:*), Bash(git symbolic-ref:*), Bash(git for-each-ref:*), Bash(git merge-base:*), Bash(git log:*), Bash(git diff:*), Bash(git show:*), Bash(git grep:*), Bash(git status:*), Bash(gh pr view:*), Bash(gh pr diff:*), Read, Grep, Glob, AskUserQuestion
 ---
 

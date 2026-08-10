@@ -1,6 +1,7 @@
 ---
 name: "performance-feedback"
 description: "Use when the user wants to write performance feedback, a performance review, or review cycle input for a specific person. Also use when gathering evidence about someone's work for a review, or when preparing talking points for a calibration discussion. Triggers: \"write feedback for Sarah\", \"performance review for Nick\", \"perf review for Alex\", \"review cycle input for Jamie\", \"gather evidence for Sam's review\", \"prepare feedback for Michelle\", \"calibration notes for Alvaro\", \"write review for\", \"perf feedback\". Does NOT handle: personal brag documents (use `/brag`), 1:1 notes or career plans (use `/notes`), daily work journal (use `/daily`)."
+disable-model-invocation: true
 ---
 
 # Performance Feedback

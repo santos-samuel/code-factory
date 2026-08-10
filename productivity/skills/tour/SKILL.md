@@ -6,6 +6,7 @@ description: >
   architecture or code structure. Supports interactive (step-by-step) and written (full document) modes.
 argument-hint: "[topic, service, or code area to tour]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(python3:*), Read, Grep, Glob, Task, Write, AskUserQuestion, mcp__atlassian__searchConfluenceUsingCql, mcp__atlassian__getConfluencePage
 ---
 

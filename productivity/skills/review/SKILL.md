@@ -8,6 +8,7 @@ description: >
   and --extended to review every line of changed files instead of just the diff hunks.
 argument-hint: "[PR number, URL, or branch name] [--codex|--claude-codex] [--parallel] [--extended]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(node:*), Bash(command:*), Bash(sleep:*), Read, Grep, Glob, Task, AskUserQuestion, Skill
 ---
 

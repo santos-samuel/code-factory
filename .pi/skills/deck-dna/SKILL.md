@@ -1,6 +1,7 @@
 ---
 name: "deck-dna"
 description: "Use when the user needs to build a brand-accurate PowerPoint (PPTX) deck that looks like their real client or brand reference decks, not a generic template. Extracts design DNA from reference decks, calibrates a word budget, embeds real backgrounds and fonts so it renders identically anywhere, and runs a render-QA loop. Triggers: \"build a deck\", \"make slides\", \"pptx\", \"powerpoint deck\", \"brand deck\", \"client deck\", \"presentation that matches our brand\", \"deck-dna\"."
+disable-model-invocation: true
 ---
 
 # deck-dna - decks that sit next to your real reference decks without looking out of place

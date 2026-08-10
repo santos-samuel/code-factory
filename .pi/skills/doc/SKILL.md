@@ -1,6 +1,7 @@
 ---
 name: "doc"
 description: "Use when the user wants to create, update, improve, maintain, or audit Markdown documentation. Triggers: \"create doc\", \"update docs\", \"improve documentation\", \"audit docs\", \"sync to confluence\", \"write runbook\", \"fix broken links\", or references to documentation files (.md)."
+disable-model-invocation: true
 ---
 
 # Documentation Management

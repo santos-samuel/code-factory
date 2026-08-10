@@ -1,6 +1,7 @@
 ---
 name: "daily"
 description: "Use when the user narrates what happened during their workday — even if they never say \"daily note\" or \"log\". The key signal is that they are reporting past or current work activity. Also use when the user wants a weekly summary of their personal work. Triggers: \"today I had 3 one-on-ones and merged DATA-1234\", \"eod update: reviewed PRs, booked travel, team seems burnt out\", \"standup: blocked on infra, made progress on benchmarks\", \"kudos to Sarah for jumping in on that production issue\", \"spent the day in meetings\", \"read a great blog post about real-time sync\", \"daily log\", \"daily note\", \"log my day\", \"end of day update\", \"weekly summary\", \"summarize my week\", \"what did I do this week\", \"week in review\", \"last week\", \"prepare my weekly update\". Does NOT handle: structured brag documents or performance review prep (use `/brag`), person-specific accomplishment tracking, feedback about a person's performance, work planning or task breakdowns, team-level reporting."
+disable-model-invocation: true
 ---
 
 # Daily Log

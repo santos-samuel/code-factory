@@ -1,6 +1,7 @@
 ---
 name: "change-quiz"
 description: "Use when any request asks to check, verify, assess, or test a person's understanding of changes in a pull request, branch, ref, migration, fallback, failure mode, blast radius, or unchanged callers, even without saying \"quiz\" and even when target access is not yet available. Also use when a request combines explaining behavioral impact with questions, a comprehension check, or one question at a time before merge. Triggers: \"quiz me on this PR\", \"check whether I understand\", \"verify I understand\", \"test my understanding\", \"ask me one question per turn\", \"pre-merge quiz\", \"what changed, then quiz me\". Do not use for ordinary code review, PR creation or readiness, review-comment fixes, code tours, implementation, or merge requests unless the user explicitly asks to be quizzed."
+disable-model-invocation: true
 ---
 
 # Change Quiz

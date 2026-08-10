@@ -9,6 +9,7 @@ description: >
   "presentation that matches our brand", "deck-dna".
 argument-hint: "[reference deck paths (.pptx) and/or brand/output description]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 

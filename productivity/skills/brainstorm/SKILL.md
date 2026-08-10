@@ -10,6 +10,7 @@ description: >
   "show me variants".
 argument-hint: "[--prototype] [idea, decision, or existing brainstorm]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date:*), Bash(mkdir:*), Task, AskUserQuestion
 ---
 

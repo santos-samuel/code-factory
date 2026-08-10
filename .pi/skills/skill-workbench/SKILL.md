@@ -1,6 +1,7 @@
 ---
 name: "skill-workbench"
 description: "Use when the user wants to create new skills, audit existing skills, improve skill quality, or manage skills and agents in any repository. Triggers: \"create skill\", \"new skill\", \"improve skills\", \"audit skills\", \"skill quality\", \"skill workbench\", \"make skills better\"."
+disable-model-invocation: true
 ---
 
 # Skill Workbench

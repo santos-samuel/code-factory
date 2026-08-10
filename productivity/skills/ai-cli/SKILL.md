@@ -9,6 +9,7 @@ description: >
   "token-efficient CLI", "TOON format", or asks about designing CLIs that AI agents can use.
 argument-hint: "[CLI name, path, or repo to evaluate/improve]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, AskUserQuestion
 ---
 

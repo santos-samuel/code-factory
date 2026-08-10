@@ -18,6 +18,7 @@ description: >
   work planning or task breakdowns, team-level reporting.
 argument-hint: "[today's update or 'summary' for weekly summary]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date:*), Bash(mkdir:*), Bash(ls:*), Bash(gh:*), AskUserQuestion, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__searchConfluenceUsingCql
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: "tour"
 description: "Use when user says \"code tour\", \"give me a tour\", \"walk me through\", \"show me how X works\", \"explain the codebase\", \"guided tour\", \"teach me about\", or asks to understand a service's architecture or code structure. Supports interactive (step-by-step) and written (full document) modes."
+disable-model-invocation: true
 ---
 
 # Code Tour

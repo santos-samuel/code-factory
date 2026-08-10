@@ -1,6 +1,7 @@
 ---
 name: "reflect"
 description: "Use when the user wants to capture session learnings and update knowledge files, review pending learnings from previous sessions, or manually trigger a session reflection. Triggers: \"reflect\", \"capture learnings\", \"update agents.md\", \"review pending learnings\", \"what did we learn\", or at session end via Stop hook."
+disable-model-invocation: true
 ---
 
 # Session Reflection

@@ -14,6 +14,7 @@ description: >
   daily work journal (use `/daily`).
 argument-hint: "<person name> [--period Q1|Q2|Q3|Q4|H1|H2|YYYY-MM-DD..YYYY-MM-DD]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(date:*), Bash(mkdir:*), Bash(ls:*), Bash(gh:*), AskUserQuestion, mcp__atlassian__searchJiraIssuesUsingJql, mcp__atlassian__searchConfluenceUsingCql
 ---
 

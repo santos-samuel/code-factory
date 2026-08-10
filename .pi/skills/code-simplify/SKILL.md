@@ -1,6 +1,7 @@
 ---
 name: "code-simplify"
 description: "Use when the user wants to simplify, clean up, or refactor code for clarity and maintainability without changing behavior. Supports any scope: a single file, directory, package, branch diff, staged changes, or an entire repository. Also use when the user says \"simplify code\", \"clean up this file\", \"reduce complexity\", \"refactor for readability\", \"simplify repo\", \"code cleanup\", or asks to make code simpler, cleaner, or more maintainable."
+disable-model-invocation: true
 ---
 
 # Code Simplification

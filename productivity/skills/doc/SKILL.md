@@ -6,6 +6,7 @@ description: >
   "write runbook", "fix broken links", or references to documentation files (.md).
 argument-hint: "<intent> [--path <path>] [--format <format>] [options]"
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Documentation Management

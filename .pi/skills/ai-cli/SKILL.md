@@ -1,6 +1,7 @@
 ---
 name: "ai-cli"
 description: "Use when the user wants to make a CLI AI-friendly, evaluate a CLI's agent readiness, improve CLI design for AI agents, or add machine-readable output, schema introspection, input hardening, or safety rails to a CLI. Also use when the user says \"ai-cli\", \"make this CLI work with AI\", \"agent-friendly CLI\", \"CLI for AI agents\", \"evaluate CLI agent readiness\", \"agent DX\", \"AXI\", \"agent experience interface\", \"token-efficient CLI\", \"TOON format\", or asks about designing CLIs that AI agents can use."
+disable-model-invocation: true
 ---
 
 # AI-Friendly CLI Design

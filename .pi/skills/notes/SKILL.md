@@ -1,6 +1,7 @@
 ---
 name: "notes"
 description: "Use when the user asks to create, look up, or edit a note in Obsidian — especially people-related notes like 1:1s, meeting notes, career plans, promotion docs, or per-person achievements. Also use for quick person-attribute lookups and updates: \"what's Nick's github\", \"Sarah's email\", \"set birthday to March 15\", \"update role to SE2\", \"who is X\", \"what team is Michelle on\". Triggers: \"note about\", \"log a meeting\", \"record a 1:1\", \"1:1 with Sarah\", \"update career plan for Alex\", \"promotion doc for Sam\", \"track a win for Jamie\", \"add to my notes\", \"write down\", \"log that\", \"record that\", \"find my notes about\", \"look up notes on\", \"meeting notes for\", \"what did I write about\", \"search my notes\", \"search my google docs\", \"find in google drive\", \"check google drive for\", \"X's github\", \"X's email\", \"set X's birthday\", \"update X's role\", \"what team is X on\"."
+disable-model-invocation: true
 ---
 
 # Notes
