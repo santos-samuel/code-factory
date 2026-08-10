@@ -28,7 +28,7 @@ openspec instructions apply --change "<name>" --json [--store "<id>"]
 openspec validate "<name>" --strict [--store "<id>"]
 ```
 
-Record schema, planning paths, artifact completion, task completion, validation, and delta capabilities.
+Record schema, planning paths, artifact completion (treat `status: "skipped"` artifacts as satisfied via `skip_specs`), task completion, validation, and delta capabilities.
 Use each selected entry's `lastModified` from the Step 1 `openspec list --json` output.
 Do not archive any change during preflight.
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Feedback"
+  short_description: "Use when the user wants to submit feedback about OpenSpec — collecting, enric..."
+  default_prompt: "Use $openspec-feedback to submit feedback about OpenSpec — collecting, enriching, and anonymizing context before sending."

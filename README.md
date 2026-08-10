@@ -35,6 +35,7 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 | `/openspec-archive-change` | productivity | Archive completed OpenSpec changes |
 | `/openspec-bulk-archive-change` | productivity | Preflight and archive a selected batch of OpenSpec changes |
 | `/openspec-onboard` | productivity | Learn OpenSpec through a guided real change |
+| `/openspec-feedback` | productivity | Submit anonymized feedback about OpenSpec |
 | `/skill-workbench` | productivity | Create or improve skills and agents |
 | `/review` | productivity | Review a pull request with structured findings |
 | `/tour` | productivity | Guided code walkthroughs (interactive or written) |
@@ -73,7 +74,7 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 - `/code-simplify` -- Code simplification across any scope (file, directory, package, branch diff, staged changes, or entire repo). Preserves behavior while improving clarity and maintainability.
 - `/ai-cli` -- CLI design evaluation and improvement for AI agents: scores against 8 Agent DX axes aligned with the AXI (Agent eXperience Interface) framework (machine-readable output, raw payload input, schema introspection, context window discipline, input hardening, safety rails, agent knowledge packaging, efficiency & composition), recommends prioritized improvements, and guides implementation.
 - `/deck-dna` -- Brand-accurate PowerPoint deck builder: extracts design DNA from reference decks, calibrates word budgets, embeds real backgrounds and fonts, and runs a render-QA loop so output renders identically anywhere.
-- `/openspec-*` -- The complete 12-workflow OpenSpec suite: propose, explore, scaffold, one-artifact continuation, fast-forward, planning reconciliation, implementation, spec sync, verification, single/bulk archive, and guided onboarding. The [MIT-licensed upstream workflows](https://github.com/Fission-AI/OpenSpec/tree/main/skills) are adapted to local conventions with store-aware paths, decision-first reviews, evidence-backed verification, deviation handling, and CLI-driven archiving. The CLI command `openspec update` regenerates assistant instructions; `/openspec-update-change` instead revises one change's existing planning artifacts.
+- `/openspec-*` -- The complete 13-workflow OpenSpec suite: propose, explore, scaffold, one-artifact continuation, fast-forward, planning reconciliation, implementation, spec sync, verification, single/bulk archive, guided onboarding, and feedback submission. The [MIT-licensed upstream workflows](https://github.com/Fission-AI/OpenSpec/tree/main/skills) are adapted to local conventions with store-aware paths, decision-first reviews, evidence-backed verification, deviation handling, and CLI-driven archiving. The CLI command `openspec update` regenerates assistant instructions; `/openspec-update-change` instead revises one change's existing planning artifacts.
 - `/skill-workbench` -- Skill and agent creation/improvement toolkit.
 
 The exploration, planning, brainstorming, implementation, and PR workflows share an unknowns-aware layer:

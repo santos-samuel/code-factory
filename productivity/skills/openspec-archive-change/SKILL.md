@@ -39,7 +39,7 @@ openspec instructions apply --change "<name>" --json [--store "<id>"]
 ```
 
 Use `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext` for reporting.
-List incomplete artifacts or tasks.
+List artifacts that are neither `done` nor `skipped` (a `skipped` artifact is satisfied — the change declares `skip_specs` in `.openspec.yaml`) and any incomplete tasks.
 If work is incomplete, ask for confirmation before proceeding.
 
 Unless the user explicitly passed `--no-validate`, run:
@@ -74,6 +74,7 @@ If archiving fails, confirm the active change remains at `changeRoot`.
 | Multiple changes exist | Ask the user to choose before archiving. |
 | Store id is unknown | Show registered stores and ask for a valid id. |
 | Incomplete work remains | Warn and require confirmation. |
+| An artifact is `skipped` | Treat it as satisfied (`skip_specs`); do not flag it as incomplete. |
 | Validation fails | Stop unless the user explicitly requests `--no-validate`. |
 | CLI prompts unexpectedly | Pause instead of assuming confirmation. |
 | Archive target or spec merge conflicts | Report the CLI error and leave the active change untouched. |

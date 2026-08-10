@@ -34,6 +34,7 @@ openspec status --change "<name>" --json [--store "<id>"]
 ```
 
 Use the schema graph, planning paths, and action context.
+Note `isPlanningComplete` (older CLI versions expose the same value as `isComplete`) and that a `skipped` artifact is satisfied via `skip_specs` — not a gap.
 The only writable files are concrete paths in `artifactPaths.<id>.existingOutputPaths`.
 Never write to a glob `resolvedOutputPath`.
 Do not create missing artifacts or new files under a glob artifact.
@@ -45,7 +46,7 @@ If the user specified a revision, start there.
 Otherwise audit for contradictions, stale decisions, requirement gaps, task drift, and duplication.
 
 Propagate implications in any direction; build order does not prevent an earlier artifact from changing after a later one.
-For missing artifacts or files, record the need and defer creation to `/openspec-continue-change`.
+For missing artifacts or files (excluding `skipped` ones, which are satisfied via `skip_specs`), record the need and defer creation to `/openspec-continue-change`.
 If the artifacts are coherent, make no edits.
 
 ## Step 4: Confirm and Apply Per Artifact
