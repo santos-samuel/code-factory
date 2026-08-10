@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 #
-# sync-pi.sh -- Generate pi.dev-compatible skills, prompts, agents, extensions, and MCP config.
+# sync-pi.sh -- Generate pi.dev-compatible skills, agents, extensions, and MCP config.
 #
 # This script:
 #   1. Discovers plugins from .claude-plugin/marketplace.json
 #   2. Copies skills (with body rewrites + stripped frontmatter) to .pi/skills/{name}/SKILL.md
-#   3. Generates .pi/prompts/{name}.md for every user-invocable skill
-#   4. Transforms agent Markdown files to .pi/agents/{name}.md
-#   5. Copies local Pi extensions from pi-extensions/ (if present)
-#   6. Generates .pi/mcp.json from shared MCP config plus Pi-only overrides
+#   3. Transforms agent Markdown files to .pi/agents/{name}.md
+#   4. Copies local Pi extensions from pi-extensions/ (if present)
+#   5. Generates .pi/mcp.json from shared MCP config plus Pi-only overrides
 #
 # All output stays within the repo (.pi/ directory).
 # Run `make install` to propagate to ~/.pi/agent/.
@@ -30,7 +29,6 @@ EXT_SRC_DIR="$SCRIPT_DIR/pi-extensions"
 PI_DIR="$SCRIPT_DIR/.pi"
 MODEL_ROUTER="$SCRIPT_DIR/scripts/model_router.py"
 SKILLS_DIR="$PI_DIR/skills"
-PROMPTS_DIR="$PI_DIR/prompts"
 AGENTS_DIR="$PI_DIR/agents"
 EXTENSIONS_DIR="$PI_DIR/extensions"
 PI_ADAPTER_CONFIG="$PI_DIR/mcp.json"
@@ -377,22 +375,6 @@ PYEOF
     mv "$tmpfile" "$file"
 }
 
-# generate_prompt: write .pi/prompts/<name>.md for a user-invocable skill.
-# Pi prompt templates have no frontmatter -- just Markdown body with optional {{var}}.
-generate_prompt() {
-    local src_skill="$1" dest_prompt="$2"
-
-    local skill_name short_desc
-    skill_name=$(extract_frontmatter_field "$src_skill" "name")
-    short_desc=$(extract_frontmatter_field "$src_skill" "description" | sed 's/\. .*/\./')
-
-    cat > "$dest_prompt" <<PROMPTEOF
-<!-- $short_desc -->
-
-Use the \`$skill_name\` skill to handle this request: \$ARGUMENTS
-PROMPTEOF
-}
-
 # normalize_agent_frontmatter: pass agent files through, but rename allowed_tools -> tools
 # (pi-subagents convention) and drop fields that don't survive the trip. Claude's
 # model aliases (sonnet/opus) and effort levels are replaced with Pi-specific
@@ -661,7 +643,7 @@ GPEOF
 # ---------------------------------------------------------------------------
 
 main() {
-    local skill_count=0 prompt_count=0 agent_count=0
+    local skill_count=0 agent_count=0
 
     if [[ "$CHECK_MODE" == "true" ]]; then
         local tmpdir
@@ -670,21 +652,22 @@ main() {
         # cannot resolve it later when EXIT fires after main() returns.
         trap "rm -rf '$tmpdir'" EXIT
         local real_skills_dir="$SKILLS_DIR"
-        local real_prompts_dir="$PROMPTS_DIR"
         local real_agents_dir="$AGENTS_DIR"
         local real_extensions_dir="$EXTENSIONS_DIR"
         local real_pi_mcp_config="$PI_ADAPTER_CONFIG"
         SKILLS_DIR="$tmpdir/skills"
-        PROMPTS_DIR="$tmpdir/prompts"
         AGENTS_DIR="$tmpdir/agents"
         EXTENSIONS_DIR="$tmpdir/extensions"
         PI_ADAPTER_CONFIG="$tmpdir/mcp.json"
     else
-        rm -rf "$SKILLS_DIR" "$PROMPTS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
+        rm -rf "$SKILLS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
         rm -f "$PI_ADAPTER_CONFIG"
+        # Remove the legacy prompts directory now that slash-command proxies
+        # were dropped in favor of pi's built-in /skill:<name> commands.
+        rm -rf "$PI_DIR/prompts"
     fi
 
-    mkdir -p "$SKILLS_DIR" "$PROMPTS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
+    mkdir -p "$SKILLS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
 
     while IFS= read -r plugin_dir; do
         [[ -d "$plugin_dir" ]] || continue
@@ -704,17 +687,6 @@ main() {
 
                 skill_count=$((skill_count + 1))
                 [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  skill: $skill_name"
-
-                # --- Prompt (slash command) ---
-                if has_frontmatter_field "$skill_path" "user-invocable"; then
-                    local user_inv
-                    user_inv=$(extract_frontmatter_field "$skill_path" "user-invocable")
-                    if [[ "$user_inv" == "true" ]]; then
-                        generate_prompt "$skill_path" "$PROMPTS_DIR/$skill_name.md"
-                        prompt_count=$((prompt_count + 1))
-                        [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  prompt: $skill_name"
-                    fi
-                fi
             done < <(find "$plugin_dir/skills" -name "SKILL.md" 2>/dev/null | sort)
         fi
 
@@ -746,7 +718,6 @@ main() {
         local stale=false
         for dir_pair in \
             "$SKILLS_DIR:$real_skills_dir" \
-            "$PROMPTS_DIR:$real_prompts_dir" \
             "$AGENTS_DIR:$real_agents_dir" \
             "$EXTENSIONS_DIR:$real_extensions_dir"; do
             local tmp_dir="${dir_pair%%:*}"
@@ -788,7 +759,7 @@ main() {
     fi
 
     echo ""
-    echo "Synced $skill_count skills, $prompt_count prompts, $agent_count agents."
+    echo "Synced $skill_count skills, $agent_count agents."
 }
 
 main

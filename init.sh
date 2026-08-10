@@ -7,7 +7,7 @@
 #   2. Syncs MCP servers into Claude Code.
 #   3. Symlinks Claude Code hooks and rules.
 #   4. Installs managed Codex config, skills, agents, and execpolicy rules.
-#   5. Installs managed Pi skills, prompts, agents, extensions, MCP config, and packages.
+#   5. Installs managed Pi skills, agents, extensions, MCP config, and packages.
 #   6. Installs or updates the OpenSpec CLI.
 #   7. Updates Claude Code CLI and all installed marketplace plugins.
 #
@@ -396,10 +396,10 @@ fi
 
 # Generate Pi assets in the repo
 echo ""
-echo "Syncing Pi skills, prompts, agents, extensions, and MCP config..."
+echo "Syncing Pi skills, agents, extensions, and MCP config..."
 "$SCRIPT_DIR/sync-pi.sh"
 
-# Propagate .pi/{skills,prompts,agents,extensions,mcp.json} to ~/.pi/agent/
+# Propagate .pi/{skills,agents,extensions,mcp.json} to ~/.pi/agent/
 echo ""
 echo "Linking to ~/.pi/agent/..."
 
@@ -431,22 +431,6 @@ if [[ -d "$PI_LOCAL_DIR/skills" ]]; then
             echo "  LINK  skills/$skill_name/"
         fi
     done
-fi
-
-# Symlink each Pi prompt file
-if [[ -d "$PI_LOCAL_DIR/prompts" ]]; then
-    mkdir -p "$PI_GLOBAL_DIR/prompts"
-    while IFS= read -r prompt_src; do
-        prompt_name=$(basename "$prompt_src")
-        prompt_dest="$PI_GLOBAL_DIR/prompts/$prompt_name"
-        if ! ln -sf "$prompt_src" "$prompt_dest"; then
-            errors+=("$prompt_src -> $prompt_dest: ln -sf failed")
-            echo "  FAIL  prompts/$prompt_name"
-        else
-            pi_new_manifest+=("$prompt_dest")
-            echo "  LINK  prompts/$prompt_name"
-        fi
-    done < <(find "$PI_LOCAL_DIR/prompts" -name "*.md" | sort)
 fi
 
 # Symlink each Pi agent file
@@ -747,11 +731,12 @@ configure_pi_aigateway() {
 
     # Only the provider selected by managed settings satisfies autoconfig.
     # Older Datadog providers must not prevent an upgrade from adding Baseten.
+    # Reconcile an existing managed provider too: Pi keeps model metadata in
+    # models.json, so a corrected pi.json must replace stale thinking mappings.
     local managed_provider="ai-gw-baseten"
     if [[ -f "$cfg" ]] && jq -e --arg provider "$managed_provider" \
         '(.providers // {}) | has($provider)' "$cfg" >/dev/null 2>&1; then
-        echo "  OK  $cfg already contains $managed_provider"
-        return 0
+        echo "  OK  $cfg contains $managed_provider; refreshing managed metadata"
     fi
 
     local template
@@ -765,11 +750,23 @@ configure_pi_aigateway() {
 
     if [[ -f "$cfg" ]]; then
         cp "$cfg" "$cfg.bak.$(date +%s)"
-        echo "$template" | jq --slurpfile existing "$cfg" \
-            '. as $template | $existing[0] | .providers = (($existing[0].providers // {}) + $template.providers)' \
+        echo "$template" | jq --arg provider "$managed_provider" --slurpfile existing "$cfg" \
+            'def merge_models($existing; $template):
+                (($existing // []) + ($template // []))
+                | reduce .[] as $model ({}; .[$model.id] = ((.[$model.id] // {}) + $model))
+                | [.[]];
+             . as $template
+             | $existing[0]
+             | .providers = (($existing[0].providers // {}) + {
+                 ($provider): ((($existing[0].providers[$provider] // {}) + ($template.providers[$provider] // {}))
+                     | .models = merge_models(
+                         $existing[0].providers[$provider].models;
+                         $template.providers[$provider].models
+                     ))
+               })' \
             > "$cfg.tmp"
         mv "$cfg.tmp" "$cfg"
-        echo "  OK  merged Datadog AI Gateway providers into $cfg"
+        echo "  OK  reconciled Datadog AI Gateway providers in $cfg"
     else
         echo "$template" > "$cfg"
         echo "  OK  wrote $cfg"

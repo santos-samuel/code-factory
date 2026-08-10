@@ -19,7 +19,8 @@
   ],
   "defaultProvider": "ai-gw-baseten",
   "defaultModel": "baseten/zai-org/GLM-5.2",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "high",
+  "enableSkillCommands": true,
   "theme": "dark",
   "lastChangelogVersion": "0.84.1"
 }
