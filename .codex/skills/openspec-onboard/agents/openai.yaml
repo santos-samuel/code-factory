@@ -1,4 +1,0 @@
-interface:
-  display_name: "Openspec Onboard"
-  short_description: "Use when the user wants a guided first OpenSpec workflow on a real small code..."
-  default_prompt: "Use $openspec-onboard to wants a guided first OpenSpec workflow on a real small codebase change."

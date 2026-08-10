@@ -34,8 +34,6 @@ rtfpessoa's personal marketplace for [Claude Code](https://docs.anthropic.com/en
 | `/openspec-verify-change` | productivity | Verify implementation against OpenSpec artifacts |
 | `/openspec-archive-change` | productivity | Archive completed OpenSpec changes |
 | `/openspec-bulk-archive-change` | productivity | Preflight and archive a selected batch of OpenSpec changes |
-| `/openspec-onboard` | productivity | Learn OpenSpec through a guided real change |
-| `/openspec-feedback` | productivity | Submit anonymized feedback about OpenSpec |
 | `/skill-workbench` | productivity | Create or improve skills and agents |
 | `/review` | productivity | Review a pull request with structured findings |
 | `/tour` | productivity | Guided code walkthroughs (interactive or written) |

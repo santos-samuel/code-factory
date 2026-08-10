@@ -72,8 +72,6 @@
       "Skill(productivity:openspec-verify-change)",
       "Skill(productivity:openspec-archive-change)",
       "Skill(productivity:openspec-bulk-archive-change)",
-      "Skill(productivity:openspec-onboard)",
-      "Skill(productivity:openspec-feedback)",
       "Skill(dd:*)",
       "WebFetch(domain:docs.rs)",
       "WebFetch(domain:docs.google.com)",
