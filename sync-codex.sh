@@ -368,12 +368,15 @@ generate_openai_yaml() {
     local skill_desc
     skill_desc=$(extract_frontmatter_field "$src" "description")
 
+    local disable_mi
+    disable_mi=$(extract_frontmatter_field "$src" "disable-model-invocation")
+
     mkdir -p "$dest_dir/agents"
 
-    python3 - "$skill_name" "$skill_desc" "$dest_dir/agents/openai.yaml" << 'PYEOF'
+    python3 - "$skill_name" "$skill_desc" "$disable_mi" "$dest_dir/agents/openai.yaml" << 'PYEOF'
 import sys, re
 
-name, desc, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+name, desc, disable_mi, out_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 # Display name: hyphen-to-space, title case
 display_name = name.replace('-', ' ').title()
@@ -427,6 +430,12 @@ with open(out_path, 'w') as f:
     f.write(f'  display_name: "{yaml_escape(display_name)}"\n')
     f.write(f'  short_description: "{yaml_escape(short)}"\n')
     f.write(f'  default_prompt: "{yaml_escape(prompt)}"\n')
+    # Codex auto-injection toggle: mirror disable-model-invocation so skills
+    # the user marked user-only are not injected by model relevance matching.
+    # The skill stays explicitly invocable via $<skill-name>.
+    if disable_mi.strip().strip('"').strip("'").lower() in ('true', 'yes', '1'):
+        f.write('policy:\n')
+        f.write('  allow_implicit_invocation: false\n')
 PYEOF
 }
 

@@ -2,3 +2,5 @@ interface:
   display_name: "Brag"
   short_description: "Use when the user wants to update their brag document, log accomplishments, r..."
   default_prompt: "Use $brag to update their brag document, log accomplishments, reflect on recent work, or prepare for performance reviews."
+policy:
+  allow_implicit_invocation: false

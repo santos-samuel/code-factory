@@ -2,3 +2,5 @@ interface:
   display_name: "Wrap Up"
   short_description: "Use when user says \"wrap up\", \"close session\", \"end session\", \"wrap things up..."
   default_prompt: "Use $wrap-up to \"wrap up\", \"close session\", \"end session\", \"wrap things up\", \"close out this task\", \"done for now\", \"that's it for to..."
+policy:
+  allow_implicit_invocation: false

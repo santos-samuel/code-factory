@@ -2,3 +2,5 @@ interface:
   display_name: "Reflect"
   short_description: "Use when the user wants to capture session learnings and update knowledge fil..."
   default_prompt: "Use $reflect to capture session learnings and update knowledge files, review pending learnings from previous sessions, or manually tr..."
+policy:
+  allow_implicit_invocation: false
