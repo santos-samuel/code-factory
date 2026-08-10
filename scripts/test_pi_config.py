@@ -70,6 +70,18 @@ class PiConfigTest(unittest.TestCase):
         self.assertIn('ln -s "$DD_PI_REPO" "$DD_PI_CANONICAL_REPO"', bootstrap)
         self.assertNotIn('pi install "$pkg_path"', bootstrap)
 
+    def test_bootstrap_reconciles_existing_managed_provider_metadata(self):
+        bootstrap = (ROOT / "init.sh").read_text()
+        self.assertNotIn(
+            'echo "  OK  $cfg already contains $managed_provider"\n        return 0',
+            bootstrap,
+        )
+        self.assertIn(
+            '--slurpfile existing "$cfg"',
+            bootstrap,
+            "managed Pi provider metadata must be merged even when the provider already exists",
+        )
+
     def test_sync_check_accepts_absent_empty_extensions_output(self):
         extensions = ROOT / ".pi" / "extensions"
         if extensions.exists():

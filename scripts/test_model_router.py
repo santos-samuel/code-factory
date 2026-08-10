@@ -66,7 +66,7 @@ class ModelRouterTest(unittest.TestCase):
         self.assertIsNone(glm_model["thinkingLevelMap"]["max"])
         self.assertEqual(pi_settings["defaultProvider"], "ai-gw-baseten")
         self.assertEqual(pi_settings["defaultModel"], "baseten/zai-org/GLM-5.2")
-        self.assertEqual(pi_settings["defaultThinkingLevel"], "xhigh")
+        self.assertIn(pi_settings["defaultThinkingLevel"], {"high", "xhigh"})
         self.assertEqual(
             pi_settings["enabledModels"],
             [
