@@ -1,6 +1,7 @@
 ---
 name: "do"
 description: "Use when the user wants to implement, build, fix, or deliver a code change from an approved idea or plan through a pull request. Triggers: \"do\", \"implement the plan\", \"build this\", \"fix this\", \"create feature\", \"ship this\", \"resume feature work\", or references to `/do` state files."
+disable-model-invocation: true
 ---
 
 # Adaptive Code Delivery

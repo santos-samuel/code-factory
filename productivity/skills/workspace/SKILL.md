@@ -8,6 +8,7 @@ description: >
   "ssh workspace", "datadog workspace", "remote dev environment", "connect workspace".
 argument-hint: "[create|list|delete|ssh|connect|validate] [workspace-name] [--claude-prompt <prompt>]"
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # Datadog Workspace Manager

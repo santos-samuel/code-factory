@@ -1,6 +1,7 @@
 ---
 name: "workspace"
 description: "Use when the user wants to manage Datadog workspaces (remote cloud development environments): create, list, delete, SSH, connect IDE, or validate setup. Also use when the `/do` skill needs a remote workspace instead of a local worktree. Triggers: \"workspace\", \"create workspace\", \"list workspaces\", \"delete workspace\", \"ssh workspace\", \"datadog workspace\", \"remote dev environment\", \"connect workspace\"."
+disable-model-invocation: true
 ---
 
 # Datadog Workspace Manager

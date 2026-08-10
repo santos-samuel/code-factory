@@ -7,6 +7,7 @@ description: >
   "ship this", "resume feature work", or references to `/do` state files.
 argument-hint: "[feature description] [--fast|--deep] [--interactive] [--branch|--workspace] [--token-budget <tokens>]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, Task, Skill, AskUserQuestion, WebFetch, WebSearch
 ---
 
