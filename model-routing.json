@@ -33,7 +33,7 @@
       "pi": {
         "provider": "ai-gw-baseten",
         "model": "baseten/zai-org/GLM-5.2",
-        "thinking": "max"
+        "thinking": "xhigh"
       }
     }
   },
@@ -54,7 +54,11 @@
   "pi_constraints": {
     "allowed_providers": ["ai-gw-baseten"],
     "allowed_model_prefixes": ["baseten/"],
-    "allowed_models": ["baseten/deepseek-ai/DeepSeek-V4-Flash-0731", "baseten/zai-org/GLM-5.2"]
+    "allowed_models": ["baseten/deepseek-ai/DeepSeek-V4-Flash-0731", "baseten/zai-org/GLM-5.2"],
+    "thinking_levels_by_model": {
+      "baseten/deepseek-ai/DeepSeek-V4-Flash-0731": ["low", "high", "max"],
+      "baseten/zai-org/GLM-5.2": ["high", "xhigh"]
+    }
   },
   "allowed_efforts": ["high", "xhigh", "max"],
   "allowed_pi_thinking": ["low", "medium", "high", "xhigh", "max"],

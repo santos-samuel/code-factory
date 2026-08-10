@@ -2,7 +2,7 @@
 name: brainstormer
 description: "Problem-focused thinking partner. Helps sharpen vague ideas into clear problem statements through iterative diagnostic questions. Records the brainstorming conversation in a structured file."
 model: ai-gw-baseten/baseten/zai-org/GLM-5.2
-thinking: max
+thinking: xhigh
 routing_tier: critical
 tools: ["Read", "Write", "Edit", "Glob", "Grep", "ask_user_question", "web_search"]
 maxTurns: 30

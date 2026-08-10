@@ -292,7 +292,7 @@ use `gpt-5.6-luna` at `max`; planning, validation, review, grading, and adversar
 ### `model-routing.json` and `scripts/model_router.py`
 
 The shared matrix keeps Claude's source mapping, maps the same task tiers to Codex, and provides
-Pi-specific Baseten routes through Datadog AI Gateway. Critical work uses GLM 5.2 at `max`;
+Pi-specific Baseten routes through Datadog AI Gateway. Critical work uses GLM 5.2 at `xhigh`;
 economy work uses DeepSeek V4 Flash at `high`. The helper is deterministic and network-free; it reports recommended,
 selected, and observed/unverified route state separately. It also validates the three-leaf
 parallelism cap and fail-open behavior used by `/do` and `/review`.
@@ -314,7 +314,7 @@ When an MCP server declares an OAuth `callbackPort`, the script also writes Code
 
 ### `pi-settings.json` (Pi)
 
-Symlinked to `~/.pi/agent/settings.json`. It extends Datadog's golden package list with `confluence-adf`, defaults to GLM 5.2 at `max`, and cycles between GLM 5.2/max and DeepSeek V4 Flash/high. The npm references intentionally follow the golden config without version pins; `init.sh` installs exactly the declared list. Pi rewrites this file directly when installing/removing packages, so `init.sh` backs up and relinks on drift the same way it does for `~/.claude/settings.json`. It deliberately omits `lastChangelogVersion`, a volatile field Pi bumps on every update.
+Symlinked to `~/.pi/agent/settings.json`. It extends Datadog's golden package list with `confluence-adf`, defaults to GLM 5.2 at `xhigh`, and cycles between GLM 5.2/xhigh and DeepSeek V4 Flash/high. The npm references intentionally follow the golden config without version pins; `init.sh` installs exactly the declared list. Pi rewrites this file directly when installing/removing packages, so `init.sh` backs up and relinks on drift the same way it does for `~/.claude/settings.json`. Pi may add `lastChangelogVersion`, a volatile field it bumps on updates; it is not part of routing behavior.
 
 ### `sync-pi.sh`
 

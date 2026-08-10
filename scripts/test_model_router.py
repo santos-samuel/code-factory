@@ -36,7 +36,7 @@ class ModelRouterTest(unittest.TestCase):
             {
                 "provider": "ai-gw-baseten",
                 "model": "baseten/zai-org/GLM-5.2",
-                "thinking": "max",
+                "thinking": "xhigh",
             },
         )
         result = resolve_route("pi", task="review", override="anthropic/claude-opus:high")
@@ -57,13 +57,20 @@ class ModelRouterTest(unittest.TestCase):
                 "baseten/zai-org/GLM-5.2",
             },
         )
+        glm_model = next(
+            model
+            for model in pi_config["providers"]["ai-gw-baseten"]["models"]
+            if model["id"] == "baseten/zai-org/GLM-5.2"
+        )
+        self.assertEqual(glm_model["thinkingLevelMap"]["xhigh"], "xhigh")
+        self.assertIsNone(glm_model["thinkingLevelMap"]["max"])
         self.assertEqual(pi_settings["defaultProvider"], "ai-gw-baseten")
         self.assertEqual(pi_settings["defaultModel"], "baseten/zai-org/GLM-5.2")
-        self.assertEqual(pi_settings["defaultThinkingLevel"], "max")
+        self.assertEqual(pi_settings["defaultThinkingLevel"], "xhigh")
         self.assertEqual(
             pi_settings["enabledModels"],
             [
-                "ai-gw-baseten/baseten/zai-org/GLM-5.2:max",
+                "ai-gw-baseten/baseten/zai-org/GLM-5.2:xhigh",
                 "ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731:high",
             ],
         )
@@ -102,6 +109,23 @@ class ModelRouterTest(unittest.TestCase):
         forbidden_pi = resolve_route("pi", task="review", override="ai-gw-anthropic/anthropic/claude-opus:high")
         self.assertEqual(forbidden_pi["selection"], "fail-open-default")
         self.assertEqual(forbidden_pi["selected"]["model"], "baseten/zai-org/GLM-5.2")
+
+    def test_pi_overrides_respect_model_thinking_levels(self):
+        unsupported_glm = resolve_route(
+            "pi",
+            task="review",
+            override="ai-gw-baseten/baseten/zai-org/GLM-5.2:max",
+        )
+        self.assertEqual(unsupported_glm["selection"], "fail-open-default")
+        self.assertEqual(unsupported_glm["selected"]["thinking"], "xhigh")
+
+        supported_deepseek = resolve_route(
+            "pi",
+            task="review",
+            override="ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731:max",
+        )
+        self.assertEqual(supported_deepseek["selection"], "explicit-override")
+        self.assertEqual(supported_deepseek["selected"]["thinking"], "max")
 
     def test_parallelism_caps_and_probes_unknown_capacity(self):
         self.assertEqual(plan_parallel(8, capacity=8)["dispatch_now"], 3)

@@ -2,7 +2,7 @@
 name: code-quality-reviewer
 description: "Code quality reviewer. Assesses whether implementation is well-built: clean, tested, maintainable, following codebase conventions. Includes plan alignment and architecture review. Dispatched after spec compliance passes during EXECUTE phase."
 model: ai-gw-baseten/baseten/zai-org/GLM-5.2
-thinking: max
+thinking: xhigh
 routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 memory: "project"

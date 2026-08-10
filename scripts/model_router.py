@@ -60,6 +60,14 @@ def validate_policy(policy: dict[str, Any]) -> None:
     if not set(policy.get("allowed_pi_thinking", [])) >= {"low", "medium", "high", "xhigh", "max"}:
         raise ValueError("policy must define the supported Pi thinking levels")
 
+    thinking_levels_by_model = constraints.get("thinking_levels_by_model", {})
+    if set(thinking_levels_by_model) != set(allowed_models):
+        raise ValueError("Pi thinking levels must be defined for every allowed model")
+    allowed_pi_thinking = set(policy["allowed_pi_thinking"])
+    for model, levels in thinking_levels_by_model.items():
+        if not levels or not set(levels) <= allowed_pi_thinking:
+            raise ValueError(f"Pi model {model} uses unsupported thinking levels")
+
     parallelism = policy.get("parallelism", {})
     if parallelism.get("max_leaf_workers") != 3:
         raise ValueError("parallelism must cap automatic fan-out at three leaf workers")
@@ -102,10 +110,14 @@ def _parse_override(
             provider, model = base["provider"], route
         if level and level not in policy["allowed_pi_thinking"]:
             raise ValueError(f"unsupported Pi thinking level: {level}")
+        thinking = level or base["thinking"]
+        supported_levels = policy["pi_constraints"]["thinking_levels_by_model"].get(model, [])
+        if thinking not in supported_levels:
+            raise ValueError(f"unsupported Pi thinking level for model {model}: {thinking}")
         return {
             "provider": provider,
             "model": model,
-            "thinking": level or base["thinking"],
+            "thinking": thinking,
         }
 
     if level and level not in policy["allowed_efforts"]:

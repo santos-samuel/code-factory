@@ -14,12 +14,12 @@
     "../../dd/datadog-pi-packages/packages/confluence-adf"
   ],
   "enabledModels": [
-    "ai-gw-baseten/baseten/zai-org/GLM-5.2:max",
+    "ai-gw-baseten/baseten/zai-org/GLM-5.2:xhigh",
     "ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731:high"
   ],
   "defaultProvider": "ai-gw-baseten",
   "defaultModel": "baseten/zai-org/GLM-5.2",
-  "defaultThinkingLevel": "max",
+  "defaultThinkingLevel": "xhigh",
   "theme": "dark",
-  "lastChangelogVersion": "0.83.0"
+  "lastChangelogVersion": "0.84.1"
 }

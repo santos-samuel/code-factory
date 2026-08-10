@@ -2,7 +2,7 @@
 name: general-purpose
 description: "General-purpose agent for broad research, writing, implementation, and coordination tasks when no specialized agent is required."
 model: ai-gw-baseten/baseten/zai-org/GLM-5.2
-thinking: max
+thinking: xhigh
 tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill", "subagent", "ask_user_question"]
 ---
 

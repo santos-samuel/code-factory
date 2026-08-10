@@ -2,7 +2,7 @@
 name: spec-reviewer
 description: "Spec compliance reviewer. Verifies implementation matches task specification — nothing missing, nothing extra, nothing misunderstood. Dispatched after implementer completes each task during EXECUTE phase."
 model: ai-gw-baseten/baseten/zai-org/GLM-5.2
-thinking: max
+thinking: xhigh
 routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 memory: "project"

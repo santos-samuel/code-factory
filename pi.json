@@ -23,7 +23,7 @@
           "input": ["text"],
           "contextWindow": 500000,
           "maxTokens": 131072,
-          "thinkingLevelMap": {"off": "none", "minimal": null, "low": null, "medium": null, "high": "high", "xhigh": null, "max": "max"}
+          "thinkingLevelMap": {"off": "none", "minimal": null, "low": null, "medium": null, "high": "high", "xhigh": "xhigh", "max": null}
         },
         {
           "id": "baseten/deepseek-ai/DeepSeek-V4-Flash-0731",

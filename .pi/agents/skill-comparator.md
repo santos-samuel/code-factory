@@ -2,7 +2,7 @@
 name: skill-comparator
 description: "Performs blind A/B comparison of two skill outputs using rubric-based evaluation. Judges which output better accomplishes the task without knowing which skill produced which. Use when comparing skill versions or with-skill vs without-skill results."
 model: ai-gw-baseten/baseten/zai-org/GLM-5.2
-thinking: max
+thinking: xhigh
 routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 ---
