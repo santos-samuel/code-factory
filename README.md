@@ -300,6 +300,7 @@ parallelism cap and fail-open behavior used by `/do` and `/review`.
 
 Managed Codex defaults. `codex/config.toml` sets the main orchestrator and plan mode to `gpt-5.6-sol` with `xhigh` reasoning effort. Task-specific generated agents move read-heavy and first-pass implementation work to Luna while keeping planning, validation, verification, and remediation on Sol. Granular approval policy settings prevent Codex from pausing for sandbox approval prompts during non-interactive runs.
 `codex/config.toml` runs with `sandbox_mode = "danger-full-access"` and does not define a granular `permissions.code-factory` profile; trusted project roots are declared via `[projects.*]` entries instead.
+It sets `mcp_oauth_credentials_store = "file"` so Codex persists MCP OAuth tokens in a plaintext file under `~/.codex` instead of the OS keychain, letting `mcp-auth` own and inject credentials. `scripts/check-codex-config.sh` enforces this value so drift fails `make all`.
 Managed shell environments set `TMPDIR`, `TMP`, and `TEMP` to `/tmp` so command temp files are created under an approved writable root.
 
 `codex/rules/code-factory.rules` prompts for concrete dangerous command prefixes such as system mutation, destructive recursive deletion of high-value roots, history-rewriting git operations, and global package installs. Codex execpolicy rules are prefix-based, not full shell-string scanners, so broad shell commands like `zsh -lc "..."` are not inspected the same way Claude's Bash hook can inspect command text.
@@ -310,6 +311,7 @@ Updates `~/.codex/config.toml` from `codex/config.toml` and `mcp.json`, preservi
 The generated sections are marked in the TOML file so rerunning `./init.sh` refreshes managed settings and servers idempotently.
 Managed Codex MCP servers use `default_tools_approval_mode = "auto"` so read-only tools can run normally while Codex prompts for side-effecting MCP operations based on tool metadata.
 When an MCP server declares an OAuth `callbackPort`, the script also writes Codex's global MCP OAuth callback port and localhost callback URL as top-level TOML settings so OAuth providers with fixed redirect URIs can complete login.
+The managed settings block also carries `mcp_oauth_credentials_store = "file"` from `codex/config.toml`, folding any pre-existing out-of-band copy into the managed block on the next install.
 
 ### `pi-settings.json` (Pi)
 
@@ -325,3 +327,4 @@ Generates `.pi/skills`, `.pi/agents` (for `pi-subagents`), and `.pi/mcp.json` (f
 If `ddtool` is authenticated, `init.sh` reconciles the managed `ai-gw-baseten` provider from `pi.json` (providers and known models, with `{{email}}` and `{{team}}` substituted at install time) so corrected model metadata reaches the live catalog even when the provider already exists. Unknown providers and models are preserved. It also removes the legacy repo-managed Anthropic provider, keeping a timestamped backup while leaving other providers untouched. After install, run `/refresh-models preset datadog-golden` to refresh model metadata and migrate legacy managed providers. Opt out of the static seed with `PI_AUTOCONFIG=0`.
 
 `sync-pi.sh` rewrites generated Pi skill and agent references to use package-provided tools: `Task`/`Agent` become `subagent`, `AskUserQuestion` becomes `ask_user_question`, Claude MCP calls become the `mcp` proxy tool, and `WebSearch`/`WebFetch` become the single golden `research-web` `web_search` tool. The generated `.pi/mcp.json` is HTTP-only, lazy, and proxy-mode. Code-factory owns the live settings/MCP symlinks, so do not run `pi-setup` afterward; authenticate new servers inside Pi, using `pi --no-sandbox` for the first Shadowfax OAuth login.
+Unlike Codex, Pi cannot currently be forced off the OS keychain: `pi-mcp-adapter` stores OAuth tokens in the OS credential store in production and exposes only test-only in-memory stores (`PI_MCP_ADAPTER_TEST_AUTH_STORE`); `MCP_OAUTH_DIR`/`oauthDir` are legacy one-time plaintext import paths, not a persistent file store. A file-based auth store would require an upstream adapter change.

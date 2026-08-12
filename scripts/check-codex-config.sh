@@ -69,6 +69,7 @@ required = [
     'sandbox_mode = "danger-full-access"',
     'allow_login_shell = true',
     'approvals_reviewer = "auto_review"',
+    'mcp_oauth_credentials_store = "file"',
     "[approval_policy.granular]",
     "sandbox_approval = false",
     "rules = true",
@@ -95,6 +96,7 @@ singletons = [
     "sandbox_mode",
     "mcp_oauth_callback_port",
     "mcp_oauth_callback_url",
+    "mcp_oauth_credentials_store",
 ]
 for key in singletons:
     count = len(re.findall(rf"(?m)^{re.escape(key)}\s*=", content))
@@ -112,6 +114,9 @@ if data.get("sandbox_mode") != "danger-full-access":
 
 if data.get("approvals_reviewer") != "auto_review":
     raise SystemExit("approvals_reviewer must be auto_review")
+
+if data.get("mcp_oauth_credentials_store") != "file":
+    raise SystemExit("mcp_oauth_credentials_store must be file (not the OS keychain, so mcp-auth can own credentials)")
 
 granular_approvals = data.get("approval_policy", {}).get("granular", {})
 expected_granular_approvals = {
