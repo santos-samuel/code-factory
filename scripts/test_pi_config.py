@@ -46,19 +46,26 @@ class PiConfigTest(unittest.TestCase):
         self.assertFalse((ROOT / ".pi" / "extensions" / "ask-question").exists())
 
     def test_generated_mcp_merges_shared_servers_with_pi_overrides(self):
+        source = json.loads((ROOT / "mcp.json").read_text())
+        source_servers = set(source["mcpServers"].keys())
         overlay = json.loads((ROOT / "pi-mcp-overrides.json").read_text())
+        # Pi overrides may transform shared servers but must not add new ones,
+        # so all three CLIs stay sourced from mcp.json.
+        self.assertTrue(
+            set(overlay["mcpServers"].keys()) <= source_servers,
+            f"Pi override adds servers not in mcp.json: "
+            f"{set(overlay['mcpServers'].keys()) - source_servers}",
+        )
         self.assertEqual(
             overlay["mcpServers"]["atlassian"]["url"],
             "https://mcp.atlassian.com/v1/mcp/authv2",
         )
         generated = json.loads((ROOT / ".pi" / "mcp.json").read_text())
         servers = generated["mcpServers"]
+        # Generated Pi config must expose exactly the mcp.json server set.
+        self.assertEqual(set(servers.keys()), source_servers)
         self.assertEqual(servers["atlassian"]["auth"], "oauth")
         self.assertTrue(servers["atlassian"]["oauth"]["skipIssuerValidation"])
-        self.assertEqual(
-            servers["datadog"]["url"],
-            "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
-        )
         self.assertEqual(servers["slack"]["oauth"]["redirectUri"], "http://localhost:3118/callback")
         self.assertIn("datadog-google-workspace", servers)
 

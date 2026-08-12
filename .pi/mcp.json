@@ -15,11 +15,6 @@
         "skipIssuerValidation": true
       }
     },
-    "datadog": {
-      "url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
-      "lifecycle": "lazy",
-      "directTools": false
-    },
     "datadog-gmail": {
       "url": "https://gmail-mcp-server-834963730936.us-central1.run.app/mcp",
       "lifecycle": "lazy",

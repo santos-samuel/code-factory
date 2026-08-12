@@ -174,12 +174,9 @@
   "enabledMcpjsonServers": [
     "atlassian",
     "datadog-google-workspace",
-    "chrome-devtools",
     "slack"
   ],
-  "disabledMcpjsonServers": [
-    "datadog"
-  ],
+  "disabledMcpjsonServers": [],
   "hooks": {
     "PreToolUse": [
       {

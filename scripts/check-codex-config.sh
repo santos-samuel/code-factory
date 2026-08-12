@@ -52,7 +52,8 @@ EOF
 
 CODEX_HOME="$TMP_DIR" "$ROOT/install-codex-mcp.sh" >/dev/null
 
-python3 - "$TMP_DIR/config.toml" <<'PY'
+python3 - "$TMP_DIR/config.toml" "$ROOT/mcp.json" <<'PY'
+import json
 import re
 import sys
 from pathlib import Path
@@ -167,6 +168,19 @@ for name in [
 
 if "default_tools_approval_mode" in mcp_servers.get("unrelated", {}):
     raise SystemExit("unrelated preserved MCP server should not receive managed approval settings")
+
+# Parity: the managed Codex MCP server set must equal the mcp.json source set
+# so Codex, Claude, and Pi cannot diverge. The fixture preserves an `unrelated`
+# server that is not from mcp.json; it must be the only extra entry.
+source = json.loads(Path(sys.argv[2]).read_text())
+source_servers = set(source.get("mcpServers", {}).keys())
+codex_servers = set(data.get("mcp_servers", {}).keys())
+extra = codex_servers - source_servers
+if extra != {"unrelated"}:
+    raise SystemExit(f"Codex MCP set diverges from mcp.json (extra: {extra})")
+missing = source_servers - codex_servers
+if missing:
+    raise SystemExit(f"Codex MCP set missing mcp.json servers: {missing}")
 PY
 
 DOCTOR_JSON="$TMP_DIR/doctor.json"
