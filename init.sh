@@ -91,11 +91,13 @@ SRCS=(
     "$SCRIPT_DIR/settings.json"
     "$SCRIPT_DIR/opencode.jsonc"
     "$SCRIPT_DIR/claude/CLAUDE.md"
+    "$SCRIPT_DIR/claude/ccstatusline-settings.json"
 )
 DESTS=(
     "$HOME/.claude/settings.json"
     "$HOME/.config/opencode/opencode.jsonc"
     "$HOME/.claude/CLAUDE.md"
+    "$HOME/.config/ccstatusline/settings.json"
 )
 
 for i in "${!SRCS[@]}"; do
