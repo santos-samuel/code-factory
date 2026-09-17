@@ -111,5 +111,5 @@ Examples:
 
 - Never `git push` when in detached HEAD state (`git symbolic-ref HEAD` fails) or when a rebase is in progress (`.git/rebase-merge/` or `.git/rebase-apply/` exists).
 - Never run `git rebase --continue`, `git rebase --skip`, or `git rebase --abort`. Rebases belong to the user. If a rebase is in progress, stop immediately and tell the user. Do not advance it.
-- Committing is allowed in both states (e.g. amending the current rebase stop-point when the user asks).
-- When a rebase is detected, stop and tell the user: the repo is mid-rebase. Make the requested code changes and stage them, but do not continue or push. Wait for the user to run `git rebase --continue` and push.
+- Creating new commits is always allowed. Do not amend unless the user explicitly asks.
+- When a rebase is in progress, make code changes, stage them, and commit in a new commit. Do not push or advance the rebase. Wait for the user to run `git rebase --continue` and push.
