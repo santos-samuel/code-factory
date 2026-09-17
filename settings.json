@@ -217,7 +217,8 @@
     "valet@datadog-claude-plugins": true,
     "codex@openai-codex": true,
     "appgate@datadog-claude-plugins": true,
-    "compute@datadog-claude-plugins": true
+    "compute@datadog-claude-plugins": true,
+    "trajectory@trajectory": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
@@ -249,10 +250,17 @@
         "source": "github",
         "repo": "openai/codex-plugin-cc"
       }
+    },
+    "trajectory": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/samuel.santos/.trajectory/claude-marketplace"
+      }
     }
   },
   "alwaysThinkingEnabled": false,
+  "effortLevel": "high",
   "autoUpdatesChannel": "stable",
   "skipDangerousModePermissionPrompt": true,
-  "effortLevel": "high"
+  "skipWorkflowUsageWarning": true
 }
