@@ -14,10 +14,10 @@ All notes use consistent frontmatter, tags, and People wikilinks for Obsidian gr
 
 ## Vault & Folder Structure
 
-**Vault root:** `~/docs/`
+**Vault root:** `~/Documents/DDNotes/`
 
 ```
-~/docs/
+~/Documents/DDNotes/
 ├── 1-1s/
 │   └── <Person Name>/
 │       └── YYYY-MM-DD.md              # one file per session
@@ -29,7 +29,8 @@ All notes use consistent frontmatter, tags, and People wikilinks for Obsidian gr
 │       └── <Person Name> - Promotion Proposal to <Level>.md  # promotion doc (e.g. "to Senior")
 ├── Meetings/
 │   └── YYYY-MM-DD-<slug>.md           # non-1:1 meeting notes
-├── Daily/                              # managed by /daily — do not write here
+├── daily/                              # managed by /daily — do not write here
+├── Claude/                             # plans and docs from /do, /rfc, /debug, /brainstorm, /brag
 └── Misc/
     └── <freeform>.md
 ```
@@ -59,7 +60,7 @@ Career-growth notes always include the tag `career`.
 
 When composing any note, extract relevant tags from content (topics, themes, locations, events, skills).
 
-- **Reuse existing tags**: Grep `~/docs/**/*.md` for `^tags:` to find tags already in use.
+- **Reuse existing tags**: Grep `~/Documents/DDNotes/**/*.md` for `^tags:` to find tags already in use.
   Prefer existing spelling to avoid duplicates (e.g., use `ops-review` if it exists, not `opsreview`).
 - Use lowercase hyphenated slugs for multi-word tags (e.g., `paris-summit`, `technical-leadership`).
 - Aim for 2-5 content tags per note beyond mandatory ones.
@@ -90,7 +91,7 @@ Slug = lowercase letters and hyphens, max ~5 words derived from the topic.
 
 When the user mentions someone by first name, nickname, or partial name:
 
-1. Use `Glob(pattern="*/", path="~/docs/People")` to get the list of known people.
+1. Use `Glob(pattern="*/", path="~/Documents/DDNotes/People")` to get the list of known people.
 2. Match the input against existing directories using this priority order:
 
 | Priority | Rule | Example |
@@ -102,7 +103,7 @@ When the user mentions someone by first name, nickname, or partial name:
 
 3. **Multiple matches at any priority**: use ask_user_question to present candidates and let the user pick.
 4. **No match**: bootstrap a new People entry.
-   Create `~/docs/People/<Full Name>/<Full Name>.md` with:
+   Create `~/Documents/DDNotes/People/<Full Name>/<Full Name>.md` with:
 
 ```markdown
 ---
@@ -151,7 +152,7 @@ For updates like "set Nick's birthday to March 15", "update Michelle's role to S
    scan existing People files to find if a field for this concept already exists:
 
 ```
-Grep ~/docs/People/ for the concept (e.g., "birthday", "birth", "dob" for birthday)
+Grep ~/Documents/DDNotes/People/ for the concept (e.g., "birthday", "birth", "dob" for birthday)
 ```
 
 | Situation | Action |
@@ -190,8 +191,8 @@ If the user gives a partial date like "March 15" without a year, store as `MM-DD
 
 ### LOOKUP
 
-1. Glob `~/docs/**/*.md` filtered by relevant filename keywords (exclude `Daily/`).
-2. If no filename match: Grep vault content for keywords (exclude `Daily/`).
+1. Glob `~/Documents/DDNotes/**/*.md` filtered by relevant filename keywords (exclude `daily/`).
+2. If no filename match: Grep vault content for keywords (exclude `daily/`).
 3. Search personal Google Drive for matching filenames:
    `Glob(pattern="**/*.gdoc", path="~/google-drive/")` and filter results by keywords.
    Also check `*.gslides` and `*.gsheet` patterns.
@@ -246,8 +247,8 @@ Bullet-only notes (1:1 logs, achievements, daily entries) can skip the guardrail
 
 | Error | Action |
 |-------|--------|
-| `~/docs/` directory doesn't exist | Create it with `mkdir -p` and proceed |
-| `~/docs/People/` directory doesn't exist | Create it with `mkdir -p` when first person is mentioned |
+| `~/Documents/DDNotes/` directory doesn't exist | Create it with `mkdir -p` and proceed |
+| `~/Documents/DDNotes/People/` directory doesn't exist | Create it with `mkdir -p` when first person is mentioned |
 | Person name ambiguous (multiple matches) | Use ask_user_question to clarify |
 | Request is completely vague (e.g., "create a note") | Use ask_user_question to clarify category before doing anything |
 | File has unexpected format | Append content at the end rather than inserting into sections |

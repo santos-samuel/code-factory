@@ -44,10 +44,10 @@ Every RFC goes through the full workflow. A "quick" problem statement, a "simple
 
 ## State Storage
 
-All state is stored in `~/docs/plans/rfc/<short-name>/`:
+All state is stored in `~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/`:
 
 ```
-~/docs/plans/rfc/<short-name>/
+~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/
   RFC-STATE.md          # Canonical state (YAML frontmatter + progress)
   RESEARCH.md           # Research findings (web, Confluence, Jira, GitHub)
   EXPLORATION.md        # Source code analysis (if applicable)
@@ -55,7 +55,12 @@ All state is stored in `~/docs/plans/rfc/<short-name>/`:
   REVIEW.md             # Plan review feedback
 ```
 
-The final RFC is written to: `~/docs/rfcs/<short-name>-<date>.md`
+The final RFC is written to: `~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md`
+
+`<project>` is the kebab-case project or topic the RFC belongs to (service, initiative, epic).
+List `~/Documents/DDNotes/Claude/` and reuse a matching folder; create a new one only when none fits; ask once if ambiguous.
+`<date>` is the RFC creation date (`YYYY-MM-DD`), so RFCs sort chronologically inside each project.
+Iterations reuse the existing state directory instead of creating a new dated one.
 
 Load [references/state-file-schema.md](references/state-file-schema.md) when creating or parsing state files.
 
@@ -117,8 +122,8 @@ Record choices:
 
 Search for all RFC runs and completed outputs:
 
-- Glob for `RFC-STATE.md` under `~/docs/plans/rfc/` (max depth 2)
-- Glob for `*.md` under `~/docs/rfcs/`
+- `Glob(pattern="*/docs/rfc/*/RFC-STATE.md", path="~/Documents/DDNotes/Claude")`
+- `Glob(pattern="*/docs/*-rfc-*.md", path="~/Documents/DDNotes/Claude")`
 
 For each discovered `RFC-STATE.md`, read it and check `current_phase`:
 - **Active**: `current_phase` is not `DONE` — can be resumed
@@ -132,7 +137,7 @@ For each discovered `RFC-STATE.md`, read it and check `current_phase`:
    - If `current_phase` is not `DONE` → route to **Resume** (Step 5)
    - If `current_phase` is `DONE` → route to **Iterate** (Step 4b)
 
-2. **RFC output file reference**: `$ARGUMENTS` is a path to an existing `.md` file that is not a state file (e.g., `~/docs/rfcs/*.md`):
+2. **RFC output file reference**: `$ARGUMENTS` is a path to an existing `.md` file that is not a state file (e.g., `~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md`):
    - Read the file and verify it has RFC structure (title, sections)
    - Route to **Iterate** (Step 4b)
 
@@ -165,15 +170,15 @@ For each discovered `RFC-STATE.md`, read it and check `current_phase`:
 ```bash
 # Derive short-name from topic (kebab-case, max 40 chars)
 SHORT_NAME="<derived-slug>"
+PROJECT="<project>"   # existing or new folder under ~/Documents/DDNotes/Claude/
 DATE=$(date +%Y-%m-%d)
 
-mkdir -p ~/docs/plans/rfc/$SHORT_NAME
-mkdir -p ~/docs/rfcs
+mkdir -p ~/Documents/DDNotes/Claude/$PROJECT/docs/rfc/$DATE-$SHORT_NAME
 ```
 
 ### Create Initial State File
 
-Write `~/docs/plans/rfc/$SHORT_NAME/RFC-STATE.md` (see [references/state-file-schema.md](references/state-file-schema.md) for the full schema).
+Write `~/Documents/DDNotes/Claude/$PROJECT/docs/rfc/$DATE-$SHORT_NAME/RFC-STATE.md` (see [references/state-file-schema.md](references/state-file-schema.md) for the full schema).
 
 Initial frontmatter:
 
@@ -188,7 +193,7 @@ phase_status: not_started
 interaction_mode: <interactive|autonomous>
 created: <ISO timestamp>
 last_checkpoint: <ISO timestamp>
-output_path: ~/docs/rfcs/<short-name>-<date>.md
+output_path: ~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md
 phases:
   REFINE: not_started
   RESEARCH: not_started
@@ -213,11 +218,11 @@ Determine the RFC to iterate on:
 
 | Source | How to load |
 |--------|-------------|
-| RFC output file path (e.g., `~/docs/rfcs/foo-2025-01-01.md`) | Read the file. Derive `short-name` from filename. |
+| RFC output file path (e.g., `~/Documents/DDNotes/Claude/foo/docs/2025-01-01-rfc-foo.md`) | Read the file. Derive `short-name` from filename (strip the `<date>-rfc-` prefix) and `<project>` from the parent folder. |
 | Completed state file | Read `output_path` from state frontmatter. Read that file. |
 | User selected a completed RFC from discovery | Same as state file. |
 
-Look for existing state directory at `~/docs/plans/rfc/<short-name>/`:
+Look for existing state directory at `~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/`:
 - If found: read all artifacts (RFC-STATE.md, RESEARCH.md, EXPLORATION.md, PLAN.md, REVIEW.md)
 - If not found: only the RFC document itself is available as context
 
@@ -251,8 +256,10 @@ Based on improvement type, gather additional input:
 
 ```bash
 SHORT_NAME="<derived from existing RFC>"
-DATE=$(date +%Y-%m-%d)
-mkdir -p ~/docs/plans/rfc/$SHORT_NAME
+PROJECT="<parent project folder of the existing RFC>"
+# Reuse the existing state dir if found in 4b-a; otherwise create one dated with the RFC's date prefix
+STATE_DIR="<existing state dir or ~/Documents/DDNotes/Claude/$PROJECT/docs/rfc/<rfc-date>-$SHORT_NAME>"
+mkdir -p "$STATE_DIR"
 ```
 
 Determine starting phase based on improvement type:
@@ -264,7 +271,7 @@ Determine starting phase based on improvement type:
 | Add new research | RESEARCH | New data needs gathering before revising the document. |
 | Full revision | REFINE | Start from the beginning with the existing RFC as context. |
 
-Write or update `~/docs/plans/rfc/$SHORT_NAME/RFC-STATE.md` with iteration fields (see [references/state-file-schema.md](references/state-file-schema.md)):
+Write or update `$STATE_DIR/RFC-STATE.md` with iteration fields (see [references/state-file-schema.md](references/state-file-schema.md)):
 
 ```yaml
 ---
@@ -277,7 +284,7 @@ phase_status: not_started
 interaction_mode: <from Step 1>
 created: <original created timestamp if known, else now>
 last_checkpoint: <ISO timestamp>
-output_path: ~/docs/rfcs/<short-name>-<date>.md
+output_path: ~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md
 iterates_on: <path to the existing RFC being improved>
 iteration_context: <user's improvement request and feedback summary>
 phases:
@@ -312,7 +319,7 @@ Proceed to **Phase Loop** (Step 6) starting from the determined phase.
 Read the state file. Determine current phase and status.
 
 ```bash
-cat ~/docs/plans/rfc/<short-name>/RFC-STATE.md
+cat ~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/RFC-STATE.md
 ```
 
 Read any existing phase artifacts (RESEARCH.md, EXPLORATION.md, PLAN.md, REVIEW.md).
@@ -376,7 +383,7 @@ Dispatch `productivity:researcher` with:
 - Instruction to search: web (prior art, best practices), Confluence (internal context, existing RFCs), Jira (related tickets), GitHub (related PRs/issues)
 - Each finding must cite its source
 
-Output: Write `~/docs/plans/rfc/<short-name>/RESEARCH.md`
+Output: Write `~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/RESEARCH.md`
 
 ### EXPLORE Phase
 
@@ -387,7 +394,7 @@ Dispatch `productivity:explorer` with:
 - Research findings
 - Instruction to map relevant code areas, interfaces, dependencies, and existing patterns
 
-Output: Write `~/docs/plans/rfc/<short-name>/EXPLORATION.md`
+Output: Write `~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/EXPLORATION.md`
 
 ### PLAN Phase
 
@@ -397,7 +404,7 @@ Dispatch `productivity:planner` with:
 - Instruction to create a section-by-section writing plan
 - Each section plan should include: what to write, which research/exploration findings to cite, quality criteria, open questions to resolve
 
-Output: Write `~/docs/plans/rfc/<short-name>/PLAN.md`
+Output: Write `~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/PLAN.md`
 
 ### CONSISTENCY_CHECK Phase
 
@@ -418,7 +425,7 @@ Present the plan to the user for review. In interactive mode:
 
 In autonomous mode: log the plan summary and proceed unless blocking issues exist.
 
-Output: Write `~/docs/plans/rfc/<short-name>/REVIEW.md` with feedback and decisions.
+Output: Write `~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/REVIEW.md` with feedback and decisions.
 
 ### WRITE Phase
 
@@ -429,7 +436,7 @@ This is the core document creation phase. Dispatch a `general-purpose` agent wit
 - The appropriate RFC template from [references/](references/)
 - Writing guidelines from [references/writing-guidelines.md](references/writing-guidelines.md)
 - Instruction to write each section per the plan, citing sources for every claim
-- The output path: `~/docs/rfcs/<short-name>-<date>.md`
+- The output path: `~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md`
 
 **Multi-pass editorial process:**
 1. Pass 1 (Draft): Write each section per the plan, citing sources, including sharp edges and operational impact
@@ -440,7 +447,7 @@ This is the core document creation phase. Dispatch a `general-purpose` agent wit
 
 **Autonomous mode:** Write the full draft, run self-review, report completion.
 
-Output: RFC document at `~/docs/rfcs/<short-name>-<date>.md`
+Output: RFC document at `~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md`
 
 ### DONE Phase
 

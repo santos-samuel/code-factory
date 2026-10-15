@@ -49,8 +49,8 @@ grep -l "^deploy:" Makefile 2>/dev/null
 Check for in-progress or stale tasks:
 
 ```bash
-ls ~/docs/plans/do/*/FEATURE.md 2>/dev/null
-ls ~/docs/plans/do/*/PLAN.md 2>/dev/null
+ls ~/Documents/DDNotes/Claude/*/docs/do/*/FEATURE.md 2>/dev/null
+ls ~/Documents/DDNotes/Claude/*/docs/do/*/PLAN.md 2>/dev/null
 ```
 
 For each discovered task or plan file:
@@ -99,10 +99,10 @@ Look for these signals:
 For each piece of content:
 
 1. Draft the article for the appropriate platform
-2. Save to `~/docs/drafts/`
+2. Save to `~/Documents/DDNotes/Claude/<project>/docs/<date>-draft-<slug>.md` (`<project>`: reuse a matching folder under `~/Documents/DDNotes/Claude/`, else create one)
 
 ```bash
-mkdir -p ~/docs/drafts
+mkdir -p ~/Documents/DDNotes/Claude/<project>/docs
 ```
 
 **Prose rules for every draft** (Reddit, blog, announcement, tutorial):
@@ -121,7 +121,7 @@ All wrap-up steps complete. I also found potential content to publish:
 
 1. "Title" — Brief description of the content angle.
    Platform: Reddit
-   Draft saved to: ~/docs/drafts/title-slug.md
+   Draft saved to: ~/Documents/DDNotes/Claude/<project>/docs/<date>-draft-title-slug.md
 ```
 
 Wait for the user to respond before posting or finalizing.

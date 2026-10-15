@@ -9,20 +9,20 @@ Announce: "I'm using the /brag skill to update your brag document with recent ac
 
 ## Overview
 
-Maintains a persistent brag document (`~/docs/log/doc.md`) by scanning multiple sources
+Maintains a persistent brag document (`~/Documents/DDNotes/Claude/_meta/log/doc.md`) by scanning multiple sources
 (Slack, Confluence, GitHub, Jira, git, daily logs, Google Drive)
 and asking targeted questions for undiscoverable work.
-Tracks mentees, recurring meetings, and ongoing projects in a state file (`~/docs/log/brag-state.md`).
+Tracks mentees, recurring meetings, and ongoing projects in a state file (`~/Documents/DDNotes/Claude/_meta/log/brag-state.md`).
 
 ## File Locations
 
 | File | Purpose |
 |------|---------|
-| `~/docs/log/doc.md` | Persistent brag document — single file, organized by section |
-| `~/docs/log/brag-state.md` | State file — mentees, meetings, interview types, last run date |
+| `~/Documents/DDNotes/Claude/_meta/log/doc.md` | Persistent brag document — single file, organized by section |
+| `~/Documents/DDNotes/Claude/_meta/log/brag-state.md` | State file — mentees, meetings, interview types, last run date |
 | `~/.claude/projects/` | Session logs for automated scanning |
-| `~/docs/Daily/` | Obsidian daily notes (from `/daily` skill) |
-| `~/docs/People/` | Obsidian People directory — name resolution and backlinks |
+| `~/Documents/DDNotes/daily/` | Obsidian daily notes (from `/daily` skill) |
+| `~/Documents/DDNotes/People/` | Obsidian People directory — name resolution and backlinks |
 | `~/google-drive/` | Google Workspace stub files |
 
 ## Step 1: Initialize
@@ -52,7 +52,7 @@ TODAY=$(date +%Y-%m-%d)
 
 ### 1b: Read State
 
-Read `~/docs/log/brag-state.md`.
+Read `~/Documents/DDNotes/Claude/_meta/log/brag-state.md`.
 If missing, run first-time setup (Step 1c).
 
 The state file is **markdown** (Obsidian-compatible) with these sections:
@@ -71,18 +71,18 @@ The state file is **markdown** (Obsidian-compatible) with these sections:
 If no state file exists:
 
 ```bash
-mkdir -p ~/docs/log
+mkdir -p ~/Documents/DDNotes/Claude/_meta/log
 GH_USER=$(gh api user --jq .login 2>/dev/null || echo "unknown")
 GH_REPOS=$(gh api "user/repos?sort=pushed&per_page=10&type=owner" --jq '.[].full_name' 2>/dev/null || echo "")
 CURRENT_REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || echo "")
 ```
 
-Create `~/docs/log/brag-state.md` with discovered defaults and present to user for confirmation.
+Create `~/Documents/DDNotes/Claude/_meta/log/brag-state.md` with discovered defaults and present to user for confirmation.
 Ask about mentees, guilds, and meetings — these can't be auto-detected.
 
 ### 1d: Read Brag Doc
 
-Read `~/docs/log/doc.md` to understand what's already documented.
+Read `~/Documents/DDNotes/Claude/_meta/log/doc.md` to understand what's already documented.
 If missing, create from [template](references/template.md).
 This enables deduplication in Step 3.
 
@@ -207,7 +207,7 @@ Agent(
 
 ### 2h: Daily Log Entries
 
-Scan `~/docs/Daily/` for notes in the date range.
+Scan `~/Documents/DDNotes/daily/` for notes in the date range.
 Extract items from Work, Achievements, and Kudos sections.
 Skip items too generic to be meaningful.
 
@@ -250,7 +250,7 @@ Items that don't fit go in `## Uncategorized`.
 When collected entries mention people by name,
 resolve them to full names using the People directory in the vault.
 
-Use `Glob(pattern="*/", path="~/docs/People")` to get the list of known people.
+Use `Glob(pattern="*/", path="~/Documents/DDNotes/People")` to get the list of known people.
 
 Match each name against existing directories using this priority order:
 
@@ -264,7 +264,7 @@ Match each name against existing directories using this priority order:
 - **Unique match at any priority**: use the full name exactly as it appears (preserving accents/diacritics).
 - **Multiple matches**: use `an interactive prompt` to present candidates and let the user pick.
 - **No match**: bootstrap a new People entry.
-  Create `~/docs/People/<Full Name>/<Full Name>.md` with minimal frontmatter
+  Create `~/Documents/DDNotes/People/<Full Name>/<Full Name>.md` with minimal frontmatter
   and an Overview section capturing what you know from context.
   Use the same format as existing People files:
 
@@ -343,7 +343,7 @@ Show proposed additions grouped by section.
 Use `an interactive prompt` with `multiSelect: true` to let the user pick which to include.
 Group entries into batches of ~4 options to avoid overwhelming the user.
 
-After confirmation, use `Edit` to append entries under the correct section headers in `~/docs/log/doc.md`.
+After confirmation, use `Edit` to append entries under the correct section headers in `~/Documents/DDNotes/Claude/_meta/log/doc.md`.
 **Never** reorganize or reformat existing entries. Only append.
 
 ## Step 4: Interactive Questions
@@ -404,7 +404,7 @@ End with an open-ended "anything else?" question.
 
 ### 5a: Update State and People Backlinks
 
-Update `~/docs/log/brag-state.md`:
+Update `~/Documents/DDNotes/Claude/_meta/log/brag-state.md`:
 - Set `last_run` to today's date
 - Persist any mentee, guild, meeting, or interview type changes
 - Keep markdown format (Obsidian-compatible)
@@ -429,21 +429,21 @@ If there's already a backlink for the brag doc, update it rather than duplicatin
 | Mentorship | N |
 | ... | ... |
 
-**Document**: ~/docs/log/doc.md
+**Document**: ~/Documents/DDNotes/Claude/_meta/log/doc.md
 **Period scanned**: START_DATE to END_DATE
 **Next run**: Will auto-collect from END_DATE onward
 ```
 
 ## Review Mode (`--review`)
 
-1. Read `~/docs/log/doc.md` in full.
+1. Read `~/Documents/DDNotes/Claude/_meta/log/doc.md` in full.
 2. Identify gaps — sections with no entries or stale entries (>3 months old).
 3. Highlight strengths.
 4. Suggest areas to focus on based on career path dimensions.
 
 ## Prep Review Mode (`--prep-review`)
 
-1. Read `~/docs/log/doc.md` in full.
+1. Read `~/Documents/DDNotes/Claude/_meta/log/doc.md` in full.
 2. Organize entries by career path dimensions (not brag doc sections).
 3. For each dimension, summarize the strongest evidence.
 4. Flag dimensions with weak evidence.
@@ -471,6 +471,6 @@ If there's already a backlink for the brag doc, update it rather than duplicatin
 | Section not found in doc | Append a new section at the end |
 | No new items found | Report and proceed to interactive questions |
 | `~/google-drive/` missing | Skip, warn user, continue |
-| `~/docs/log` not writable | Report error and exit |
-| `~/docs/People/` directory doesn't exist | Create it with `mkdir -p ~/docs/People` when first person is mentioned |
+| `~/Documents/DDNotes/Claude/_meta/log` not writable | Report error and exit |
+| `~/Documents/DDNotes/People/` directory doesn't exist | Create it with `mkdir -p ~/Documents/DDNotes/People` when first person is mentioned |
 | Background agent timeout | Use partial results from the agent, note incomplete scan |

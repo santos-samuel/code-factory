@@ -410,7 +410,7 @@ Write the final document to the output path.
 3. Ask for feedback on each section
 4. Dispatch follow-up edits as needed
 
-**Output:** RFC at `~/docs/rfcs/<short-name>-<date>.md`
+**Output:** RFC at `~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md`
 
 ## DONE Phase
 

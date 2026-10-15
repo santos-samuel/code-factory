@@ -28,12 +28,12 @@ then synthesizing it into a structured review.
 
 ## Vault & Path Structure
 
-**Vault root:** `~/docs/`
+**Vault root:** `~/Documents/DDNotes/`
 
 Relevant directories:
 
 ```
-~/docs/
+~/Documents/DDNotes/
 ├── People/<Person>/
 │   ├── <Person>.md                  # overview, attributes
 │   ├── <Person> - Achievements.md   # cumulative log
@@ -42,7 +42,7 @@ Relevant directories:
 │   └── YYYY-MM-DD.md               # 1:1 session notes
 ├── Meetings/
 │   └── YYYY-MM-DD-<slug>.md        # meeting notes
-└── Daily/
+└── daily/
     └── YYYY/MM/YYYY-MM-DD.md       # daily journal entries
 ```
 
@@ -77,7 +77,7 @@ Store `PERIOD_START` and `PERIOD_END` for all queries.
 
 Use the same 4-level name resolution as `/notes` and `/daily`:
 
-1. Use `Glob(pattern="*/", path="~/docs/People")` to get the list of known people.
+1. Use `Glob(pattern="*/", path="~/Documents/DDNotes/People")` to get the list of known people.
 2. Match the input against existing directories:
 
 | Priority | Rule | Example |
@@ -102,7 +102,7 @@ Skip any source that isn't available — warn the user, continue with the rest.
 ### 3a: 1:1 Notes
 
 ```bash
-ls ~/docs/1-1s/<Person>/ 2>/dev/null
+ls ~/Documents/DDNotes/1-1s/<Person>/ 2>/dev/null
 ```
 
 Read each 1:1 note file within the date range.
@@ -110,18 +110,18 @@ Extract: recurring themes, growth signals, blockers raised, commitments made, fe
 
 ### 3b: Person's Achievements File
 
-Read `~/docs/People/<Person>/<Person> - Achievements.md` if it exists.
+Read `~/Documents/DDNotes/People/<Person>/<Person> - Achievements.md` if it exists.
 Filter entries within the review period by date prefix (`- YYYY-MM-DD: ...`).
 
 ### 3c: Career Plan
 
-Read `~/docs/People/<Person>/<Person> - Career Plan.md` if it exists.
+Read `~/Documents/DDNotes/People/<Person>/<Person> - Career Plan.md` if it exists.
 Note current goals and milestones — compare against achievements to assess progress.
 
 ### 3d: Daily Notes Mentions
 
 Search the person's People file for `## Referenced In` backlinks.
-Filter backlinks pointing to `Daily/` entries within the date range.
+Filter backlinks pointing to `daily/` entries within the date range.
 Read each referenced daily note and extract the relevant context about this person.
 
 ### 3e: Meeting Notes Mentions
@@ -129,7 +129,7 @@ Read each referenced daily note and extract the relevant context about this pers
 Grep meeting notes for the person's name within the date range:
 
 ```bash
-ls ~/docs/Meetings/YYYY-MM-DD-*.md 2>/dev/null  # for each month in range
+ls ~/Documents/DDNotes/Meetings/YYYY-MM-DD-*.md 2>/dev/null  # for each month in range
 ```
 
 Read matching files and extract entries involving the person.
@@ -235,7 +235,7 @@ Each dimension should have **specific examples with dates and links** — not va
 ## Step 6: Generate Output
 
 Create the feedback document at:
-`~/docs/People/<Person>/<Person> - Performance Feedback {PERIOD_LABEL}.md`
+`~/Documents/DDNotes/People/<Person>/<Person> - Performance Feedback {PERIOD_LABEL}.md`
 
 Where `PERIOD_LABEL` is e.g., `2026 Q1`, `2026 H1`, or `2026-01..2026-03`.
 
@@ -289,7 +289,7 @@ tags: [performance-feedback, period-label-slug, fullname-slug]
 
 ## Step 7: Save and Present
 
-1. Run `mkdir -p ~/docs/People/<Person>/`
+1. Run `mkdir -p ~/Documents/DDNotes/People/<Person>/`
 2. Write the feedback document
 3. Update the person's People overview file — append a backlink under `## Referenced In`:
    ```
@@ -305,7 +305,7 @@ tags: [performance-feedback, period-label-slug, fullname-slug]
 
 | Error | Action |
 |-------|--------|
-| Person not found in `~/docs/People/` | Ask for full name. Do not create a new entry — insufficient data for feedback. |
+| Person not found in `~/Documents/DDNotes/People/` | Ask for full name. Do not create a new entry — insufficient data for feedback. |
 | No 1:1 notes found for the period | Warn the user — 1:1s are the richest evidence source. Continue with other sources. |
 | Person's GitHub username not in People file | Skip GitHub collection, warn user, suggest updating via `/notes` |
 | `gh` CLI not installed or not authenticated | Skip GitHub collection, warn user, continue |

@@ -74,17 +74,22 @@ If you catch yourself thinking any of these, STOP and return to Phase 1:
 
 Determine from `$ARGUMENTS` and conversation whether to start a new session or resume:
 
-**If `$ARGUMENTS` references a `~/docs/plans/debug/` state file:** Resume mode (Step 1b).
+**If `$ARGUMENTS` references a `~/Documents/DDNotes/Claude/*/docs/debug/*/DEBUG.md` state file:** Resume mode (Step 1b).
 **Otherwise:** New session.
 
 ### New Session
 
 ```bash
-STATE_ROOT=~/docs/plans/debug
+PROJECT="<project>"   # existing or new folder under ~/Documents/DDNotes/Claude/
+STATE_ROOT=~/Documents/DDNotes/Claude/$PROJECT/docs/debug
 mkdir -p "$STATE_ROOT"
 ```
 
-Generate a session ID: `<timestamp>-<slug>` (slug from the bug description, kebab-case, max 30 chars).
+`<project>` is the kebab-case project or service the bug belongs to.
+List `~/Documents/DDNotes/Claude/` and reuse a matching folder; create a new one only when none fits; ask once if ambiguous.
+
+Generate a session ID: `<YYYY-MM-DD>-<slug>` (today's date, slug from the bug description, kebab-case, max 30 chars).
+Add a `-HHMMSS` suffix only if that directory already exists.
 
 Format all Markdown written to state files with semantic line breaks: one sentence per line, break after clause-separating punctuation (commas, semicolons, colons). Target 120 characters per line.
 

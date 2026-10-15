@@ -5,7 +5,7 @@ Reference for creating and parsing RFC state files.
 ## Directory Structure
 
 ```
-~/docs/plans/<short-name>/
+~/Documents/DDNotes/Claude/<project>/docs/rfc/<date>-<short-name>/
   RFC-STATE.md          # Canonical state
   RESEARCH.md           # Research findings
   EXPLORATION.md        # Source code analysis (optional)
@@ -13,7 +13,7 @@ Reference for creating and parsing RFC state files.
   REVIEW.md             # Review feedback
 ```
 
-Output: `~/docs/rfcs/<short-name>-<date>.md`
+Output: `~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md`
 
 ## RFC-STATE.md
 
@@ -30,7 +30,7 @@ phase_status: <not_started|in_progress|completed|blocked>
 interaction_mode: <interactive|autonomous>
 created: <ISO 8601 timestamp>
 last_checkpoint: <ISO 8601 timestamp>
-output_path: ~/docs/rfcs/<short-name>-<date>.md
+output_path: ~/Documents/DDNotes/Claude/<project>/docs/<date>-rfc-<short-name>.md
 # Iteration fields (optional, present when improving an existing RFC)
 iterates_on: <path to the existing RFC being improved, omit for new RFCs>
 iteration_context: <summary of improvement request and feedback, omit for new RFCs>

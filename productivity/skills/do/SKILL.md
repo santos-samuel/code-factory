@@ -45,7 +45,7 @@ choose one. Otherwise evaluate repository state in this order; the first matchin
 | `--branch` on a clean default branch | Create a feature branch in the current checkout; do not create a worktree |
 | Clean default branch | Create an isolated worktree and feature branch |
 
-For bare resume or status intent, scan `~/docs/plans/do/*/FEATURE.md` and match the recorded
+For bare resume or status intent, scan `~/Documents/DDNotes/Claude/*/docs/do/*/FEATURE.md` and match the recorded
 repository, branch, and status against git. Resume the single match. If several match, ask the
 user to choose; if none match, report that no resumable run exists. Never interpret a failed
 resume lookup as a request to initialize a new run.
@@ -62,7 +62,11 @@ For `--workspace`:
    never claim that implementation is running.
 
 Never write state into the repository.
-State lives under `~/docs/plans/do/<short-name>/`.
+State lives under `~/Documents/DDNotes/Claude/<project>/docs/do/<date>-<short-name>/`.
+`<short-name>` is kebab-case from the feature description (max 40 chars).
+`<project>` is the kebab-case project or topic the feature belongs to (service, initiative, epic).
+List `~/Documents/DDNotes/Claude/` and reuse a matching folder; create a new one only when none fits; ask once if ambiguous.
+`<date>` is the run creation date (`YYYY-MM-DD`), so runs sort chronologically inside each project.
 
 ## Step 2: Select One Execution Profile
 

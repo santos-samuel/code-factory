@@ -15,11 +15,11 @@ well enough to write a weekly summary, prepare for a performance review, or reme
 
 ## Vault & Path Structure
 
-**Vault root:** `~/docs/`
+**Vault root:** `~/Documents/DDNotes/`
 
-**Daily notes live in:** `~/docs/Daily/YYYY/MM/YYYY-MM-DD.md`
+**Daily notes live in:** `~/Documents/DDNotes/daily/YYYY/MM/YYYY-MM-DD.md`
 
-Example: `~/docs/Daily/2026/03/2026-03-07.md`
+Example: `~/Documents/DDNotes/daily/2026/03/2026-03-07.md`
 
 ## Step 1: Get Today's Date
 
@@ -51,7 +51,7 @@ But push back on entries that would be meaningless in retrospect.
 
 When the user mentions someone by first name, nickname, or partial name,
 resolve it to their full name using the People directory in the vault.
-Use `Glob(pattern="*/", path="~/docs/People")` to get the list of known people.
+Use `Glob(pattern="*/", path="~/Documents/DDNotes/People")` to get the list of known people.
 
 Match the input against existing directories using this priority order:
 
@@ -66,7 +66,7 @@ Match the input against existing directories using this priority order:
   (preserving accents/diacritics) and add their name tag to frontmatter.
 - **Multiple matches**: use an interactive prompt to present candidates and let the user pick.
 - **No match**: Bootstrap a new People entry.
-  Create `~/docs/People/<Full Name>/<Full Name>.md` with minimal frontmatter
+  Create `~/Documents/DDNotes/People/<Full Name>/<Full Name>.md` with minimal frontmatter
   and an Overview section capturing what you know from context.
   Use the same format as existing People files:
 
@@ -97,7 +97,7 @@ After writing the daily note, update each mentioned person's People file
 by appending a backlink under their `## Referenced In` section:
 
 ```
-- `Daily/YYYY/MM/YYYY-MM-DD` - Brief context of the mention
+- `daily/YYYY/MM/YYYY-MM-DD` - Brief context of the mention
 ```
 
 If `## Referenced In` doesn't exist, add it.
@@ -124,7 +124,7 @@ A 1:1 where you got a team morale signal goes in both Meetings (the count) and T
 
 ## Step 5: Read or Create the Daily Note
 
-1. Compute the file path: `~/docs/Daily/{YYYY}/{MM}/{YYYY-MM-DD}.md`
+1. Compute the file path: `~/Documents/DDNotes/daily/{YYYY}/{MM}/{YYYY-MM-DD}.md`
 2. Run `mkdir -p` on the parent directory.
 3. Try to Read the file.
 
@@ -221,7 +221,7 @@ date -v-monday +%Y-%m-%d
 date +%V
 ```
 
-Output file path: `~/docs/Daily/YYYY/Week NN.md`
+Output file path: `~/Documents/DDNotes/daily/YYYY/Week NN.md`
 where `NN` is the zero-padded ISO week number (e.g., `Week 10.md`).
 
 #### W2: Collect Data
@@ -233,7 +233,7 @@ Skip any source that isn't available — warn the user, continue with the rest.
 **W2a: Daily Notes**
 
 Read all daily note files for each weekday in the range:
-`~/docs/Daily/{YYYY}/{MM}/{YYYY-MM-DD}.md`
+`~/Documents/DDNotes/daily/{YYYY}/{MM}/{YYYY-MM-DD}.md`
 
 A week can span two months (e.g., Jan 29 in `01/`, Feb 2 in `02/`) — compute each day's path individually.
 Extract all sections — these are the richest source of context.
@@ -244,9 +244,9 @@ Search for notes modified during the target week:
 
 ```bash
 # 1:1 notes
-ls ~/docs/1-1s/*/YYYY-MM-DD.md 2>/dev/null  # for each weekday
+ls ~/Documents/DDNotes/1-1s/*/YYYY-MM-DD.md 2>/dev/null  # for each weekday
 # Meeting notes
-ls ~/docs/Meetings/YYYY-MM-DD-*.md 2>/dev/null  # for each weekday
+ls ~/Documents/DDNotes/Meetings/YYYY-MM-DD-*.md 2>/dev/null  # for each weekday
 ```
 
 Skim for highlights — important decisions, notable conversations.
@@ -386,8 +386,8 @@ tags: [weekly-summary, week-N]
 
 #### W5: Save and Present
 
-1. Compute path: `~/docs/Daily/{YYYY}/Week {NN}.md`
-2. Run `mkdir -p ~/docs/Daily/{YYYY}`
+1. Compute path: `~/Documents/DDNotes/daily/{YYYY}/Week {NN}.md`
+2. Run `mkdir -p ~/Documents/DDNotes/daily/{YYYY}`
 3. Write the file with both formats (Confluence first, `---` divider, then Slack version)
 4. Show the Slack version in chat for easy copy-paste
 5. Report the file path and any data gaps (e.g., "Jira skipped — Atlassian MCP not available")
@@ -395,7 +395,7 @@ tags: [weekly-summary, week-N]
 ### Referring to past entries
 
 If the user says "what did I do last Tuesday?" or "find my notes about the Paris onsite",
-Glob and Grep the `~/docs/Daily/` directory to find relevant entries.
+Glob and Grep the `~/Documents/DDNotes/daily/` directory to find relevant entries.
 
 ### End-of-week or end-of-month
 
@@ -406,8 +406,8 @@ The folder hierarchy (`YYYY/MM/`) naturally groups them.
 
 | Error | Action |
 |-------|--------|
-| `~/docs/` directory doesn't exist | Create it with `mkdir -p ~/docs/Daily` and proceed |
-| `~/docs/People/` directory doesn't exist | Create it with `mkdir -p ~/docs/People` when first person is mentioned |
+| `~/Documents/DDNotes/` directory doesn't exist | Create it with `mkdir -p ~/Documents/DDNotes/daily` and proceed |
+| `~/Documents/DDNotes/People/` directory doesn't exist | Create it with `mkdir -p ~/Documents/DDNotes/People` when first person is mentioned |
 | Date computation fails | Fall back to `date +%Y-%m-%d` for today |
 | Daily note has unexpected format | Append new items at the end rather than inserting into sections |
 | People file has unexpected format | Append `## Referenced In` section at the end |

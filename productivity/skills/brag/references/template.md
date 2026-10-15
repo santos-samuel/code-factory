@@ -1,6 +1,6 @@
 # Brag Document Template
 
-Use this template when creating `~/docs/log/doc.md` for the first time.
+Use this template when creating `~/Documents/DDNotes/Claude/_meta/log/doc.md` for the first time.
 This is a single persistent document — entries accumulate over time, organized by section.
 
 ## Template

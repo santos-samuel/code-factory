@@ -13,10 +13,6 @@ Announce: "I'm using the /brainstorm skill to explore and sharpen this idea."
 TODAY=$(date +%Y-%m-%d)
 ```
 
-```bash
-mkdir -p ~/docs/brainstorms
-```
-
 ## Step 2: Determine Mode
 
 Parse and remove the optional `--prototype` flag, then determine new vs resume.
@@ -25,14 +21,14 @@ Without the flag, preserve the default problem-sharpening workflow.
 | Signal | Mode |
 |-|-|
 | `--prototype` plus a new or existing brainstorm | **Prototype** — create disposable variants for one decision, after creating or loading its brainstorm file |
-| Path to existing `~/docs/brainstorms/*.md` file | **Resume** — load and continue |
+| Path to existing `~/Documents/DDNotes/Claude/*/docs/*-brainstorm-*.md` file | **Resume** — load and continue |
 | Short name matching an existing brainstorm file | **Resume** — find and continue |
 | Idea description (free text) | **New** — create brainstorm file |
 | No arguments | **List** — show existing brainstorms and ask what to do |
 
 ### List mode
 
-Use `Glob(pattern="*.md", path="~/docs/brainstorms")` to find existing brainstorm files.
+Use `Glob(pattern="*/docs/*-brainstorm-*.md", path="~/Documents/DDNotes/Claude")` to find existing brainstorm files.
 
 For each file, read the frontmatter to extract `status` and the `# Title`. Display the list as a table (slug, title, status, date_modified) so the user can see what exists, then ask via `an interactive prompt`:
 
@@ -53,8 +49,14 @@ If the user picks "Start new", ask a follow-up open question for the idea descri
 ### New brainstorm
 
 Derive a slug from the idea description (kebab-case, max 40 chars).
+`<project>` is the kebab-case project or topic the idea belongs to (service, initiative, epic).
+List `~/Documents/DDNotes/Claude/` and reuse a matching folder; create a new one only when none fits; ask once if ambiguous.
 
-Create `~/docs/brainstorms/<slug>.md`:
+```bash
+mkdir -p ~/Documents/DDNotes/Claude/<project>/docs
+```
+
+Create `~/Documents/DDNotes/Claude/<project>/docs/<date>-brainstorm-<slug>.md`:
 
 ```markdown
 ---
@@ -119,10 +121,10 @@ For every variant, include:
 For visual decisions, create the directory and write one self-contained artifact containing all variants:
 
 ```bash
-mkdir -p ~/docs/brainstorms/prototypes/<slug>
+mkdir -p ~/Documents/DDNotes/Claude/<project>/docs/<date>-brainstorm-<slug>-prototype
 ```
 
-Write the artifact to `~/docs/brainstorms/prototypes/<slug>/index.html`.
+Write the artifact to `~/Documents/DDNotes/Claude/<project>/docs/<date>-brainstorm-<slug>-prototype/index.html`.
 Mark it `DISPOSABLE PROTOTYPE`, use fake data, avoid network or production dependencies, and never copy or wire it into the application.
 For approach, naming, or tone decisions, write compact textual variants under a `## Prototype Round: <TODAY>` section in the brainstorm file.
 
@@ -153,7 +155,7 @@ Task(
   description = "<new|resume> brainstorm: <slug>",
   prompt = "
 <brainstorm_file>
-<path>~/docs/brainstorms/<slug>.md</path>
+<path>~/Documents/DDNotes/Claude/<project>/docs/<date>-brainstorm-<slug>.md</path>
 <content>
 <full file content>
 </content>
@@ -187,7 +189,7 @@ After the brainstormer agent completes, read the brainstorm file and report:
 
 | Field | Value |
 |-|-|
-| **File** | `~/docs/brainstorms/<slug>.md` |
+| **File** | `~/Documents/DDNotes/Claude/<project>/docs/<date>-brainstorm-<slug>.md` |
 | **Status** | `draft` / `developing` / `sharp` / `parked` |
 | **Problem sharp?** | Yes/No — apply the Sharp Problem Test: Can you state WHO has the problem, WHAT the problem is, and WHY it matters in one sentence each? If any answer is vague ("users", "it's slow", "it would be nice"), the problem is not sharp yet. |
 | **Next steps** | Suggested actions based on status |
@@ -205,7 +207,7 @@ Suggested next steps by status:
 
 | Error | Action |
 |-|-|
-| `~/docs/brainstorms/` not writable | Report error and exit |
+| `~/Documents/DDNotes/Claude/<project>/docs/` not writable | Report error and exit |
 | No arguments and no existing brainstorms | Ask for an idea description via a plain open-ended prompt (no `an interactive prompt` — the answer is free-form) |
 | Slug conflicts with existing file | Append a number suffix (e.g., `my-idea-2.md`) |
 | Brainstormer agent fails | Save current file state, report error, suggest manual resume |
