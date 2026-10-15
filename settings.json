@@ -146,7 +146,8 @@
       "~/dd",
       "~/go",
       "/tmp",
-      "/private/var/tmp"
+      "/private/var/tmp",
+      "~/Documents/DDNotes"
     ]
   },
   "model": "sonnet[1m]",
@@ -194,7 +195,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "PATH=\"$HOME/.local/node/bin:$PATH\" npx -y ccstatusline@latest",
+    "command": "/Users/samuel.santos/.local/share/aigw-openweights/app/.venv/bin/aigw-openweights-statusline --delegate 'PATH=\"$HOME/.local/node/bin:$PATH\" npx -y ccstatusline@latest'",
     "padding": 0
   },
   "enabledPlugins": {
@@ -235,8 +236,8 @@
     },
     "code-factory": {
       "source": {
-        "source": "github",
-        "repo": "rtfpessoa/code-factory"
+        "source": "directory",
+        "path": "/Users/samuel.santos/workspace/code-factory-obsidian"
       }
     },
     "mrlee-plugins": {
@@ -260,7 +261,14 @@
   },
   "alwaysThinkingEnabled": false,
   "effortLevel": "high",
+  "modelSettings": {
+    "claude-glm-5.3": {
+      "effortLevel": "high"
+    }
+  },
   "autoUpdatesChannel": "stable",
+  "plansDirectory": "/Users/samuel.santos/Documents/DDNotes/Claude/_inbox",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true
 }

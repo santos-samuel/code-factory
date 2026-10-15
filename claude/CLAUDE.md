@@ -89,7 +89,26 @@ When creating rfcs, documentation, commits, pull requests, or any external mediu
 - Personal debugging notes, preferences, and temporary context → auto memory
 - Team/project knowledge (architecture decisions, API changes, implementation runbooks) → follow the project's existing docs structure
 - If the current task already produces the relevant docs, comments, or examples, do not duplicate the same knowledge elsewhere
-- If there is no obvious project doc location, ask before creating a new top-level doc
+- Plans, investigations, design notes and other docs not tied to a repo's docs structure → Obsidian vault (see below)
+
+### Docs and Plans Location
+
+Vault: `~/Documents/DDNotes`. Claude artifacts live under `Claude/`:
+
+```
+Claude/
+  _inbox/                         plan-mode files land here (plansDirectory)
+  _meta/log/                      skill state, no prefix
+  <project>/
+    plans/YYYY-MM-DD-<name>.md    approved plans
+    docs/YYYY-MM-DD-<name>.md     ad-hoc docs, investigations, designs
+    docs/{do,rfc,debug}/YYYY-MM-DD-<name>/   skill workspaces
+```
+
+- `<project>` is the kebab-case project, service, or initiative. List `Claude/` first and reuse a matching folder. Create a new one only when none fits. Ask once if ambiguous.
+- Standalone files get a `YYYY-MM-DD-` prefix with the creation date. Multi-file workspaces get a dated folder; files inside keep their names.
+- Never write docs into `~/.claude/` or a repo unless asked.
+- Plan mode: the harness names the plan file (random slug in `_inbox/`). Right after a plan is approved, first action is `mv` it to `Claude/<project>/plans/YYYY-MM-DD-<descriptive-kebab-name>.md` and use the new path from then on.
 
 ## Success Metrics
 
