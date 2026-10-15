@@ -1,4 +1,6 @@
 interface:
   display_name: "Do"
-  short_description: "Use when the user wants to implement a feature with full lifecycle management."
-  default_prompt: "Use $do to implement a feature with full lifecycle management."
+  short_description: "Use when the user wants to implement, build, fix, or deliver a code change fr..."
+  default_prompt: "Use $do to implement, build, fix, or deliver a code change from an approved idea or plan through a pull request."
+policy:
+  allow_implicit_invocation: false

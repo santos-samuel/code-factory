@@ -1,6 +1,7 @@
 name = "code-quality-reviewer"
 description = "Code quality reviewer. Assesses whether implementation is well-built: clean, tested, maintainable, following codebase conventions. Includes plan alignment and architecture review. Dispatched after spec compliance passes during EXECUTE phase."
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 developer_instructions = '''
 
 # Code Quality Reviewer

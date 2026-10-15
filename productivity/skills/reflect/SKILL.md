@@ -7,7 +7,8 @@ description: >
   "what did we learn", or at session end via Stop hook.
 argument-hint: "[--review to process pending learnings]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task
+disable-model-invocation: true
+allowed-tools: Read, Write, Edit, Glob, Grep, Task, Bash(python3:*)
 ---
 
 # Session Reflection
@@ -63,6 +64,21 @@ Read [extraction-rules.md](references/extraction-rules.md) for the full signal d
 
 Review the conversation history for learning signals: corrections, conventions, patterns, gotchas, and discoveries.
 Score each learning using the confidence thresholds from the reference.
+
+When the user asks to audit a Codex session, use the deterministic analyzer before interpreting
+the conversation:
+
+```bash
+python3 <skill-dir>/scripts/analyze-codex-session.py --list-roots --days 7
+python3 <skill-dir>/scripts/analyze-codex-session.py --root <root-session-id> --days 7
+```
+
+Choose the root by timestamp, working directory, and prompt preview.
+The report recursively includes descendant agents and summarizes measured token categories,
+derived totals, lower-bound observed tool/wait/spawn/build records, and elapsed time.
+Treat `cost_source: unknown` as unknown; never infer price from an unidentified model.
+Do not grep or paste raw JSONL records: embedded prompts and tool outputs can multiply context
+without improving the audit. Inspect individual records only for a specific anomaly the summary identifies.
 
 ### 2A.3: Deduplicate
 
@@ -213,3 +229,5 @@ After processing all items:
 | Edit conflict (content changed since read) | Re-read the file and retry the edit once |
 | No learnings extracted | Report "No actionable learnings found in this session" |
 | Permission denied on file write | Report the error and queue the learning to pending instead |
+| Codex session root is unclear | List recent roots and choose by timestamp, working directory, and prompt preview |
+| Session analyzer encounters malformed JSONL | Continue with valid records and report that totals are lower bounds |

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Explore"
+  short_description: "Use when the user wants to investigate an idea, problem, or existing OpenSpec..."
+  default_prompt: "Use $openspec-explore to investigate an idea, problem, or existing OpenSpec change without implementing."

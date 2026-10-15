@@ -1,40 +1,41 @@
 {
   "providers": {
-    "datadog-ai-gateway": {
-      "baseUrl": "https://ai-gateway.us1.prod.dog/v1",
+    "ai-gw-baseten": {
+      "baseUrl": "https://ai-gateway.{{aigw_dc}}/v1",
       "api": "openai-responses",
-      "apiKey": "!ddtool auth token rapid-ai-platform --datacenter us1.prod.dog",
+      "apiKey": "!ddtool auth token rapid-ai-platform --datacenter {{aigw_dc}}",
       "headers": {
         "source": "pi",
         "org-id": "2",
         "x-llmo-force-redaction": "true",
         "x-dd-tag-dd.user_email": "{{email}}",
         "x-dd-tag-ml_app": "pi",
+        "x-dd-tag-ml_app_id": "aidevx.pi",
+        "x-dd-tag-client_session_id": "$PI_CLIENT_SESSION_ID",
         "x-dd-tag-dd.team": "{{team}}"
       },
       "models": [
-        {"id": "openai/gpt-5.5", "name": "GPT-5.5 (OpenAI)", "reasoning": true, "input": ["text", "image"], "contextWindow": 200000},
-        {"id": "openai/gpt-5.5-mini", "name": "GPT-5.5 Mini (OpenAI)", "reasoning": true, "input": ["text", "image"], "contextWindow": 200000}
-      ]
-    },
-    "datadog-ai-gateway-anthropic": {
-      "baseUrl": "https://ai-gateway.us1.prod.dog",
-      "api": "anthropic-messages",
-      "apiKey": "!ddtool auth token rapid-ai-platform --datacenter us1.prod.dog",
-      "authHeader": true,
-      "headers": {
-        "source": "pi",
-        "org-id": "2",
-        "provider": "anthropic",
-        "x-llmo-force-redaction": "true",
-        "x-dd-tag-dd.user_email": "{{email}}",
-        "x-dd-tag-ml_app": "pi",
-        "x-dd-tag-dd.team": "{{team}}"
-      },
-      "models": [
-        {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5 (AIGW)", "reasoning": true, "input": ["text", "image"], "contextWindow": 200000},
-        {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (AIGW)", "reasoning": true, "input": ["text", "image"], "contextWindow": 200000},
-        {"id": "claude-opus-4-7", "name": "Claude Opus 4.7 (AIGW)", "reasoning": true, "input": ["text", "image"], "contextWindow": 200000}
+        {
+          "id": "baseten/zai-org/GLM-5.2",
+          "name": "Zai Org/GLM 5.2 (Baseten)",
+          "api": "openai-completions",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 500000,
+          "maxTokens": 131072,
+          "thinkingLevelMap": {"off": "none", "minimal": null, "low": null, "medium": null, "high": "high", "xhigh": "xhigh", "max": null}
+        },
+        {
+          "id": "baseten/deepseek-ai/DeepSeek-V4-Flash-0731",
+          "name": "Deepseek AI/DeepSeek V4 Flash 0731 (Baseten)",
+          "api": "openai-completions",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 1048576,
+          "maxTokens": 262144,
+          "compat": {"thinkingFormat": "deepseek"},
+          "thinkingLevelMap": {"off": "none", "minimal": null, "low": "low", "medium": null, "high": "high", "xhigh": null, "max": "max"}
+        }
       ]
     }
   }

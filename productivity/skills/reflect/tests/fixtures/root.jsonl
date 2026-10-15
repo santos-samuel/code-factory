@@ -1,0 +1,7 @@
+{"timestamp":"2026-07-01T00:00:00Z","type":"session_meta","payload":{"id":"root-thread","session_id":"root-thread","cwd":"/workspace/repo","agent_role":"root","agent_path":"/root","timestamp":"2026-07-01T00:00:00Z"}}
+{"timestamp":"2026-07-01T00:00:01Z","type":"session_meta","payload":{"id":"root-thread","session_id":"root-thread","cwd":"/workspace/repo","timestamp":"2026-07-01T00:00:01Z"}}
+{"timestamp":"2026-07-01T00:00:02Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Review https://example.test/private using sk-secretvalue123 and keep the useful routing concise"}]}}
+{"timestamp":"2026-07-01T00:00:03Z","type":"response_item","payload":{"type":"function_call","name":"spawn_agent","arguments":"{}"}}
+{"timestamp":"2026-07-01T00:00:04Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"await tools.wait_agent({}); await tools.exec_command({cmd: \"bzl test //...\"});"}}
+{"timestamp":"2026-07-01T00:00:30Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":60,"output_tokens":10,"reasoning_output_tokens":4,"total_tokens":110}}}}
+{"timestamp":"2026-07-01T00:01:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":200,"cached_input_tokens":150,"output_tokens":20,"reasoning_output_tokens":5,"total_tokens":220}}}}

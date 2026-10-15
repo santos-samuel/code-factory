@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 #
-# init.sh -- Bootstrap code-factory: symlink configs and install OpenCode assets globally.
+# init.sh -- Bootstrap code-factory configuration and supported agent assets.
 #
 # This script:
 #   1. Symlinks configuration files into the user's home directory.
 #   2. Syncs MCP servers into Claude Code.
-#   3. Symlinks Claude Code hooks, rules, and git hooks.
-#   4. Runs sync-opencode.sh to generate OpenCode assets in the repo.
-#   5. Symlinks .opencode/{skills,agents,commands} into ~/.config/opencode/.
-#   6. Updates Claude Code CLI and all installed marketplace plugins.
+#   3. Symlinks Claude Code hooks and rules.
+#   4. Installs managed Codex config, skills, agents, and execpolicy rules.
+#   5. Installs managed Pi skills, agents, extensions, MCP config, and packages.
+#   6. Installs or updates the OpenSpec CLI.
+#   7. Updates Claude Code CLI and all installed marketplace plugins.
 #
 # Behavior:
 #   - If the destination is an existing symlink, it is removed and re-created.
 #   - If the destination is a regular file, the script records an error.
 #     To fix, back up or remove the existing file manually and re-run.
 #   - If the destination does not exist, the symlink is created.
-#   - Parent directories are created as needed (e.g., ~/.claude/, ~/.config/opencode/).
+#   - Parent directories are created as needed (e.g., ~/.claude/, ~/.codex/, ~/.pi/agent/).
 #   - The script exits non-zero if any file fails to link, with a summary at the end.
 #
 # This script is idempotent: running it multiple times produces the same result.
@@ -50,7 +51,7 @@ else
                     ;;
             esac
             if [[ -n "$NODE_ARCH" ]]; then
-                NODE_VERSION="v22.14.0"
+                NODE_VERSION="${NODE_VERSION:-v22.14.0}"
                 NODE_DIST="node-${NODE_VERSION}-linux-${NODE_ARCH}"
                 TMP_DIR=$(mktemp -d)
                 if curl -fsSL "https://nodejs.org/dist/${NODE_VERSION}/${NODE_DIST}.tar.xz" -o "$TMP_DIR/node.tar.xz"; then
@@ -87,17 +88,45 @@ NODEENV
 fi
 echo ""
 
+echo "Installing OpenSpec CLI..."
+if [[ "${OPENSPEC_INSTALL:-1}" == "0" ]]; then
+    echo "  SKIP  OPENSPEC_INSTALL=0"
+elif ! command -v node &>/dev/null; then
+    echo "  SKIP  node not found (install Node.js 20.19+ and re-run init)"
+elif ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 20 || (major === 20 && minor >= 19) ? 0 : 1)' 2>/dev/null; then
+    errors+=("openspec: Node.js 20.19+ is required")
+    echo "  FAIL  node $(node --version) is too old; OpenSpec requires Node.js 20.19+"
+elif ! command -v npm &>/dev/null; then
+    echo "  SKIP  npm not found (install Node.js 20.19+ and re-run init)"
+else
+    OPENSPEC_PACKAGE="${OPENSPEC_NPM_PACKAGE:-@fission-ai/openspec@latest}"
+    OPENSPEC_NPM_CACHE="${OPENSPEC_NPM_CACHE:-$HOME/.cache/code-factory/npm}"
+    mkdir -p "$OPENSPEC_NPM_CACHE"
+    if NPM_CONFIG_CACHE="$OPENSPEC_NPM_CACHE" npm install -g "$OPENSPEC_PACKAGE" 2>&1 | tail -3; then
+        if command -v openspec &>/dev/null; then
+            echo "  OK  openspec installed ($(openspec --version))"
+        else
+            errors+=("openspec: npm install succeeded but openspec is not on PATH")
+            echo "  FAIL  openspec installed but not found on PATH"
+        fi
+    else
+        errors+=("openspec: npm install failed")
+        echo "  FAIL  npm install -g $OPENSPEC_PACKAGE"
+    fi
+fi
+echo ""
+
 SRCS=(
     "$SCRIPT_DIR/settings.json"
-    "$SCRIPT_DIR/opencode.jsonc"
     "$SCRIPT_DIR/claude/CLAUDE.md"
     "$SCRIPT_DIR/claude/ccstatusline-settings.json"
+    "$SCRIPT_DIR/pi-settings.json"
 )
 DESTS=(
     "$HOME/.claude/settings.json"
-    "$HOME/.config/opencode/opencode.jsonc"
     "$HOME/.claude/CLAUDE.md"
     "$HOME/.config/ccstatusline/settings.json"
+    "$HOME/.pi/agent/settings.json"
 )
 
 for i in "${!SRCS[@]}"; do
@@ -122,17 +151,24 @@ for i in "${!SRCS[@]}"; do
         # symlink as a regular copy. Safe to replace with a symlink.
         rm "$dest"
     elif [[ -f "$dest" ]]; then
-        # Regular file with different content — preserve user edits in .bak
-        # before relinking, then error so the user can reconcile manually.
+        # Regular file with different content. Claude Code and Pi rewrite
+        # ~/.claude/settings.json / ~/.pi/agent/settings.json as regular files
+        # when they edit settings, so back up and replace instead of failing.
+        # Other destinations keep the stricter "back up and skip" behaviour so
+        # user edits are preserved.
         backup="${dest}.bak.$(date +%Y%m%d%H%M%S)"
-        if mv "$dest" "$backup"; then
-            errors+=("$src -> $dest: dest differed from source; backed up to $backup")
-            echo "FAIL  $dest differed from source, backed up to $backup and skipped"
-        else
+        if ! mv "$dest" "$backup"; then
             errors+=("$src -> $dest: dest differed from source and backup failed")
             echo "FAIL  could not back up $dest, skipping"
+            continue
         fi
-        continue
+        if [[ "$dest" == "$HOME/.claude/settings.json" || "$dest" == "$HOME/.pi/agent/settings.json" ]]; then
+            echo "WARN  $dest differed from source, backed up to $backup and relinking"
+        else
+            errors+=("$src -> $dest: dest differed from source; backed up to $backup")
+            echo "FAIL  $dest differed from source, backed up to $backup and skipped"
+            continue
+        fi
     elif [[ -e "$dest" ]]; then
         errors+=("$src -> $dest: destination already exists (not a regular file)")
         echo "FAIL  $dest already exists and is not a regular file, cannot link"
@@ -147,11 +183,7 @@ for i in "${!SRCS[@]}"; do
     echo "LINK  $dest -> $src"
 done
 
-# Sync MCP servers: regenerate opencode.jsonc block + install into Claude Code
-echo ""
-echo "Syncing MCP servers..."
-"$SCRIPT_DIR/sync-mcp.sh"
-
+# Install MCP servers into Claude Code
 echo ""
 echo "Installing MCP servers into Claude Code (user scope)..."
 
@@ -233,105 +265,24 @@ for rule_src in "$SCRIPT_DIR/rules"/*.md; do
     fi
 done
 
-# Generate OpenCode assets in the repo
+# Symlink model router script so installed skills can invoke it
 echo ""
-echo "Syncing skills, agents, and commands..."
-"$SCRIPT_DIR/sync-opencode.sh"
-
-# Propagate .opencode/{skills,agents,commands} to ~/.config/opencode/
-echo ""
-echo "Linking to ~/.config/opencode/..."
-
-GLOBAL_DIR="$HOME/.config/opencode"
-OPENCODE_DIR="$SCRIPT_DIR/.opencode"
-MANIFEST="$GLOBAL_DIR/.code-factory-managed"
-
-new_manifest=()
-
-# Read old manifest for cleanup
-old_manifest=()
-if [[ -f "$MANIFEST" ]]; then
-    while IFS= read -r line; do
-        old_manifest+=("$line")
-    done < "$MANIFEST"
+echo "Linking model router script..."
+MODEL_ROUTER_DIR="$HOME/.claude/scripts"
+mkdir -p "$MODEL_ROUTER_DIR"
+router_src="$SCRIPT_DIR/scripts/model_router.py"
+router_dest="$MODEL_ROUTER_DIR/model_router.py"
+if [[ -L "$router_dest" ]]; then
+    rm "$router_dest"
+elif [[ -e "$router_dest" ]]; then
+    errors+=("$router_src -> $router_dest: destination already exists as a regular file")
+    echo "  FAIL  $router_dest already exists as a regular file, cannot link"
+elif ! ln -s "$router_src" "$router_dest"; then
+    errors+=("$router_src -> $router_dest: ln -s failed")
+    echo "  FAIL  could not link $router_dest -> $router_src"
+else
+    echo "  LINK  $router_dest -> $router_src"
 fi
-
-# Symlink each rule file
-RULES_SRC_DIR="$SCRIPT_DIR/rules"
-if [[ -d "$RULES_SRC_DIR" ]]; then
-    mkdir -p "$GLOBAL_DIR/rules"
-    for rule_src in "$RULES_SRC_DIR"/*.md; do
-        [[ -f "$rule_src" ]] || continue
-        rule_name=$(basename "$rule_src")
-        rule_dest="$GLOBAL_DIR/rules/$rule_name"
-        if ! ln -sf "$rule_src" "$rule_dest"; then
-            errors+=("$rule_src -> $rule_dest: ln -sf failed")
-            echo "  FAIL  rules/$rule_name"
-        else
-            new_manifest+=("$rule_dest")
-            echo "  LINK  rules/$rule_name"
-        fi
-    done
-fi
-
-# Symlink each skill directory
-if [[ -d "$OPENCODE_DIR/skills" ]]; then
-    mkdir -p "$GLOBAL_DIR/skills"
-    for skill_src in "$OPENCODE_DIR/skills"/*/; do
-        [[ -d "$skill_src" ]] || continue
-        skill_name=$(basename "$skill_src")
-        skill_dest="$GLOBAL_DIR/skills/$skill_name"
-        if ! ln -sfn "$skill_src" "$skill_dest"; then
-            errors+=("$skill_src -> $skill_dest: ln -sfn failed")
-            echo "  FAIL  skills/$skill_name/"
-        else
-            new_manifest+=("$skill_dest")
-            echo "  LINK  skills/$skill_name/"
-        fi
-    done
-fi
-
-# Symlink agent, command, and plugin files
-for subdir in agents commands plugins; do
-    src_dir="$OPENCODE_DIR/$subdir"
-    dest_dir="$GLOBAL_DIR/$subdir"
-    [[ -d "$src_dir" ]] || continue
-    mkdir -p "$dest_dir"
-
-    while IFS= read -r src_file; do
-        rel="${src_file#"$src_dir"/}"
-        dest_file="$dest_dir/$rel"
-        if ! ln -sf "$src_file" "$dest_file"; then
-            errors+=("$src_file -> $dest_file: ln -sf failed")
-            echo "  FAIL  $subdir/$rel"
-        else
-            new_manifest+=("$dest_file")
-            echo "  LINK  $subdir/$rel"
-        fi
-    done < <(find "$src_dir" -type f \( -name "*.md" -o -name "*.ts" \) | sort)
-done
-
-# Manifest cleanup: remove stale global files
-sorted_manifest=$(printf '%s\n' "${new_manifest[@]}" | sort)
-cleaned=0
-for old_file in "${old_manifest[@]+"${old_manifest[@]}"}"; do
-    [[ -z "$old_file" ]] && continue
-    if ! echo "$sorted_manifest" | grep -qxF "$old_file"; then
-        if [[ -e "$old_file" || -L "$old_file" ]]; then
-            rm -f "$old_file"
-            echo "  CLEAN  $old_file"
-            cleaned=$((cleaned + 1))
-        fi
-        parent=$(dirname "$old_file")
-        rmdir "$parent" 2>/dev/null || true
-    fi
-done
-
-# Write new manifest
-echo "$sorted_manifest" > "$MANIFEST"
-
-echo ""
-echo "Linked ${#new_manifest[@]} files to ~/.config/opencode/. Cleaned $cleaned stale files."
 
 # Generate Codex assets in the repo
 echo ""
@@ -389,6 +340,23 @@ if [[ -d "$CODEX_LOCAL_DIR/agents" ]]; then
     done < <(find "$CODEX_LOCAL_DIR/agents" -name "*.toml" | sort)
 fi
 
+# Symlink each Codex execpolicy rule file
+CODEX_RULES_SRC_DIR="$SCRIPT_DIR/codex/rules"
+if [[ -d "$CODEX_RULES_SRC_DIR" ]]; then
+    mkdir -p "$CODEX_GLOBAL_DIR/rules"
+    while IFS= read -r rule_src; do
+        rule_name=$(basename "$rule_src")
+        rule_dest="$CODEX_GLOBAL_DIR/rules/$rule_name"
+        if ! ln -sf "$rule_src" "$rule_dest"; then
+            errors+=("$rule_src -> $rule_dest: ln -sf failed")
+            echo "  FAIL  rules/$rule_name"
+        else
+            codex_new_manifest+=("$rule_dest")
+            echo "  LINK  rules/$rule_name"
+        fi
+    done < <(find "$CODEX_RULES_SRC_DIR" -name "*.rules" | sort)
+fi
+
 # Codex manifest cleanup: remove stale global files
 if [[ ${#codex_new_manifest[@]} -gt 0 ]]; then
     codex_sorted_manifest=$(printf '%s\n' "${codex_new_manifest[@]}" | sort)
@@ -419,12 +387,21 @@ fi
 echo ""
 echo "Linked ${#codex_new_manifest[@]} entries to ~/.codex/. Cleaned $codex_cleaned stale entries."
 
+echo ""
+echo "Installing MCP servers into Codex config..."
+if "$SCRIPT_DIR/install-codex-mcp.sh"; then
+    echo "  OK  Codex MCP config"
+else
+    errors+=("mcp: failed to install Codex MCP config")
+    echo "  FAIL  Codex MCP config"
+fi
+
 # Generate Pi assets in the repo
 echo ""
-echo "Syncing Pi skills, prompts, agents, and MCP extension..."
+echo "Syncing Pi skills, agents, extensions, and MCP config..."
 "$SCRIPT_DIR/sync-pi.sh"
 
-# Propagate .pi/{skills,prompts,agents,extensions} to ~/.pi/agent/
+# Propagate .pi/{skills,agents,extensions,mcp.json} to ~/.pi/agent/
 echo ""
 echo "Linking to ~/.pi/agent/..."
 
@@ -458,22 +435,6 @@ if [[ -d "$PI_LOCAL_DIR/skills" ]]; then
     done
 fi
 
-# Symlink each Pi prompt file
-if [[ -d "$PI_LOCAL_DIR/prompts" ]]; then
-    mkdir -p "$PI_GLOBAL_DIR/prompts"
-    while IFS= read -r prompt_src; do
-        prompt_name=$(basename "$prompt_src")
-        prompt_dest="$PI_GLOBAL_DIR/prompts/$prompt_name"
-        if ! ln -sf "$prompt_src" "$prompt_dest"; then
-            errors+=("$prompt_src -> $prompt_dest: ln -sf failed")
-            echo "  FAIL  prompts/$prompt_name"
-        else
-            pi_new_manifest+=("$prompt_dest")
-            echo "  LINK  prompts/$prompt_name"
-        fi
-    done < <(find "$PI_LOCAL_DIR/prompts" -name "*.md" | sort)
-fi
-
 # Symlink each Pi agent file
 if [[ -d "$PI_LOCAL_DIR/agents" ]]; then
     mkdir -p "$PI_GLOBAL_DIR/agents"
@@ -488,6 +449,42 @@ if [[ -d "$PI_LOCAL_DIR/agents" ]]; then
             echo "  LINK  agents/$agent_name"
         fi
     done < <(find "$PI_LOCAL_DIR/agents" -name "*.md" | sort)
+fi
+
+# Symlink Pi MCP adapter config
+if [[ -f "$PI_LOCAL_DIR/mcp.json" ]]; then
+    mkdir -p "$PI_GLOBAL_DIR"
+    pi_mcp_src="$PI_LOCAL_DIR/mcp.json"
+    pi_mcp_dest="$PI_GLOBAL_DIR/mcp.json"
+    if [[ -L "$pi_mcp_dest" ]]; then
+        rm "$pi_mcp_dest"
+    elif [[ -f "$pi_mcp_dest" && ! -s "$pi_mcp_dest" ]]; then
+        rm "$pi_mcp_dest"
+    elif [[ -f "$pi_mcp_dest" ]] && cmp -s "$pi_mcp_dest" "$pi_mcp_src"; then
+        rm "$pi_mcp_dest"
+    elif [[ -f "$pi_mcp_dest" ]]; then
+        backup="${pi_mcp_dest}.bak.$(date +%Y%m%d%H%M%S)"
+        if mv "$pi_mcp_dest" "$backup"; then
+            echo "  WARN  $pi_mcp_dest differed from source, backed up to $backup and relinking"
+        else
+            errors+=("$pi_mcp_src -> $pi_mcp_dest: dest differed from source and backup failed")
+            echo "  FAIL  could not back up $pi_mcp_dest, skipping"
+            pi_mcp_dest=""
+        fi
+    elif [[ -e "$pi_mcp_dest" ]]; then
+        errors+=("$pi_mcp_src -> $pi_mcp_dest: destination already exists (not a regular file)")
+        echo "  FAIL  $pi_mcp_dest already exists and is not a regular file, cannot link"
+        pi_mcp_dest=""
+    fi
+    if [[ -n "$pi_mcp_dest" ]]; then
+        if ! ln -s "$pi_mcp_src" "$pi_mcp_dest"; then
+            errors+=("$pi_mcp_src -> $pi_mcp_dest: ln -s failed")
+            echo "  FAIL  mcp.json"
+        else
+            pi_new_manifest+=("$pi_mcp_dest")
+            echo "  LINK  mcp.json"
+        fi
+    fi
 fi
 
 # Symlink each Pi extension directory
@@ -540,11 +537,43 @@ echo "Linked ${#pi_new_manifest[@]} entries to ~/.pi/agent/. Cleaned $pi_cleaned
 # Install curated pi.dev packages
 echo ""
 echo "Installing Pi packages..."
-if command -v pi &>/dev/null; then
-    # Datadog packages: clone-or-update the marketplace repo, then install by local path.
-    # The repo root is intentionally a catalog, not a pi package -- each subdir under
-    # packages/ must be installed individually.
-    DD_PI_REPO="${DD_PI_REPO:-$HOME/dd/datadog-pi-packages}"
+if ! command -v pi &>/dev/null; then
+    if command -v npm &>/dev/null; then
+        echo "  pi CLI not found; installing @earendil-works/pi-coding-agent..."
+        if npm i -g @earendil-works/pi-coding-agent 2>&1 | tail -3; then
+            echo "  OK  pi CLI installed"
+        else
+            echo "  WARN  pi CLI install failed"
+        fi
+    else
+        echo "  SKIP  pi CLI not found and npm unavailable (install Node.js, then re-run init)"
+    fi
+fi
+if ! command -v pi &>/dev/null; then
+    echo "  SKIP  pi CLI still not available"
+else
+    # Remove community packages replaced by the current managed Pi setup.
+    PI_DEPRECATED_NPM_PACKAGES=(
+        "pi-rtk"
+        "pi-webfetch-to-markdown"
+    )
+    for pkg in "${PI_DEPRECATED_NPM_PACKAGES[@]}"; do
+        if pi remove "npm:$pkg" >/dev/null 2>&1; then
+            echo "  OK  removed deprecated $pkg"
+        else
+            echo "  OK  deprecated $pkg not installed"
+        fi
+    done
+
+    # Datadog packages use local paths rooted at the canonical checkout because
+    # those exact relative paths are part of the managed settings. When callers
+    # choose another checkout location, expose it through the canonical path
+    # instead of asking Pi to persist a second absolute package reference.
+    DD_PI_CANONICAL_REPO="$HOME/dd/datadog-pi-packages"
+    DD_PI_REPO="${DD_PI_REPO:-$DD_PI_CANONICAL_REPO}"
+    if [[ "$DD_PI_REPO" != /* ]]; then
+        DD_PI_REPO="$PWD/$DD_PI_REPO"
+    fi
     DD_PI_REMOTE="git@github.com:ddoghq-sandbox/datadog-pi-packages.git"
     mkdir -p "$(dirname "$DD_PI_REPO")"
     if [[ -d "$DD_PI_REPO/.git" ]]; then
@@ -561,26 +590,66 @@ if command -v pi &>/dev/null; then
         fi
     fi
 
-    if [[ -d "$DD_PI_REPO/packages" ]]; then
-        DD_PI_PACKAGES=(
-            "refresh-models"
-            "confluence-adf"
-        )
-        for pkg in "${DD_PI_PACKAGES[@]}"; do
-            pkg_path="$DD_PI_REPO/packages/$pkg"
+    dd_pi_packages_ready=1
+    if [[ "$DD_PI_REPO" != "$DD_PI_CANONICAL_REPO" ]]; then
+        mkdir -p "$(dirname "$DD_PI_CANONICAL_REPO")"
+        if [[ -e "$DD_PI_CANONICAL_REPO" || -L "$DD_PI_CANONICAL_REPO" ]]; then
+            if [[ ! "$DD_PI_CANONICAL_REPO" -ef "$DD_PI_REPO" ]]; then
+                errors+=("pi: $DD_PI_CANONICAL_REPO already exists and does not point to DD_PI_REPO=$DD_PI_REPO")
+                echo "  FAIL  $DD_PI_CANONICAL_REPO conflicts with DD_PI_REPO=$DD_PI_REPO"
+                dd_pi_packages_ready=0
+            fi
+        elif ln -s "$DD_PI_REPO" "$DD_PI_CANONICAL_REPO"; then
+            echo "  LINK  $DD_PI_CANONICAL_REPO -> $DD_PI_REPO"
+        else
+            errors+=("pi: could not link $DD_PI_CANONICAL_REPO to DD_PI_REPO=$DD_PI_REPO")
+            echo "  FAIL  could not link $DD_PI_CANONICAL_REPO -> $DD_PI_REPO"
+            dd_pi_packages_ready=0
+        fi
+    fi
+
+    # Keep package installation in lockstep with the code-factory-owned Pi
+    # settings. Golden npm refs intentionally remain unpinned so rerunning the
+    # bootstrap picks up their current releases.
+    while IFS= read -r package_ref; do
+        [[ -n "$package_ref" ]] || continue
+        if [[ "$package_ref" == npm:* ]]; then
+            if pi install "$package_ref" 2>&1 | tail -1; then
+                echo "  OK  $package_ref"
+            else
+                echo "  WARN  $package_ref install failed"
+            fi
+            continue
+        fi
+
+        if [[ "$package_ref" == ../../dd/datadog-pi-packages/packages/* ]]; then
+            pkg="${package_ref##*/}"
+            pkg_path="$DD_PI_CANONICAL_REPO/packages/$pkg"
+            if [[ "$dd_pi_packages_ready" != "1" ]]; then
+                echo "  WARN  $pkg unavailable because the canonical Datadog package path conflicts"
+                continue
+            fi
             if [[ ! -d "$pkg_path" ]]; then
                 echo "  WARN  $pkg not found at $pkg_path"
                 continue
             fi
-            if pi install "$pkg_path" 2>&1 | tail -1; then
-                echo "  OK  datadog-pi-packages/$pkg"
-            else
-                echo "  WARN  datadog-pi-packages/$pkg install failed"
-            fi
-        done
-    fi
-else
-    echo "  SKIP  pi CLI not found (install via: npm i -g @earendil-works/pi-coding-agent)"
+            # Local packages are loaded directly from the managed settings;
+            # calling `pi install` here would append an absolute path.
+            echo "  OK  datadog-pi-packages/$pkg available"
+            continue
+        fi
+
+        echo "  WARN  unsupported Pi package reference: $package_ref"
+    done < <(python3 - "$SCRIPT_DIR/pi-settings.json" << 'PYEOF'
+import json
+import sys
+
+with open(sys.argv[1]) as stream:
+    settings = json.load(stream)
+for package in settings.get("packages", []):
+    print(package)
+PYEOF
+    )
 fi
 
 # Configure Pi to use Datadog AI Gateway (opt out via PI_AUTOCONFIG=0)
@@ -599,9 +668,33 @@ configure_pi_aigateway() {
         echo "  SKIP  ddtool not installed (see https://datadoghq.atlassian.net/wiki/spaces/~5e9d84f05f50bf0c0b460b93/pages/6699122806)"
         return 0
     fi
-    if ! ddtool auth token rapid-ai-platform --datacenter us1.prod.dog >/dev/null 2>&1; then
-        echo "  SKIP  ddtool not authed (run: ddtool auth login rapid-ai-platform --datacenter us1.prod.dog)"
-        return 0
+    # Choose AI gateway datacenter. Workspaces cannot reach prod vault, so they
+    # use staging by default. Override with DD_AIGW_DC to force a specific DC.
+    # `IN_WORKSPACE=1` is set by the workspaces daemon via /etc/fish/conf.d.
+    local aigw_dc="${DD_AIGW_DC:-}"
+    if [[ -z "$aigw_dc" ]]; then
+        if [[ "${IN_WORKSPACE:-}" == "1" ]]; then
+            aigw_dc="us1.staging.dog"
+        else
+            aigw_dc="us1.prod.dog"
+        fi
+    fi
+    echo "  using ai-gateway datacenter: $aigw_dc"
+    if ! ddtool auth token rapid-ai-platform --datacenter "$aigw_dc" >/dev/null 2>&1; then
+        if [[ ! -t 0 ]]; then
+            echo "  SKIP  ddtool not authed and shell is non-interactive (run: ddtool auth login --datacenter $aigw_dc)"
+            return 0
+        fi
+        echo "  ddtool not authed for rapid-ai-platform; running auth login..."
+        if ! ddtool auth login --datacenter "$aigw_dc"; then
+            echo "  SKIP  ddtool auth login failed"
+            return 0
+        fi
+        if ! ddtool auth token rapid-ai-platform --datacenter "$aigw_dc" >/dev/null 2>&1; then
+            echo "  SKIP  ddtool auth still not valid after login"
+            return 0
+        fi
+        echo "  OK  ddtool authed for rapid-ai-platform"
     fi
 
     local cfg="$PI_GLOBAL_DIR/models.json"
@@ -618,18 +711,39 @@ configure_pi_aigateway() {
         return 1
     fi
 
-    # Skip if any Datadog AI Gateway provider is already present. Detects both
-    # our static seed names ("datadog-ai-gateway", "datadog-ai-gateway-anthropic")
-    # and the /refresh-models-managed "ai-gw-*" names. Lets users adopt
-    # /refresh-models as the source of truth without us clobbering their config.
-    if [[ -f "$cfg" ]] && jq -e '(.providers // {}) | keys | map(select(startswith("ai-gw-") or startswith("datadog-ai-gateway"))) | length > 0' "$cfg" >/dev/null 2>&1; then
-        echo "  OK  $cfg already configured"
-        return 0
+    # Remove the legacy Anthropic provider that this repository used to seed.
+    # Keep a timestamped backup, and leave all unrelated/user-managed providers
+    # untouched.
+    local legacy_anthropic_provider="datadog-ai-gateway-anthropic"
+    if [[ -f "$cfg" ]] && jq -e --arg provider "$legacy_anthropic_provider" \
+        '(.providers // {}) | has($provider)' "$cfg" >/dev/null 2>&1; then
+        local legacy_backup="${cfg}.bak.$(date +%s)"
+        if cp "$cfg" "$legacy_backup" && \
+            jq --arg provider "$legacy_anthropic_provider" \
+                'del(.providers[$provider])' "$cfg" > "$cfg.tmp" && \
+            mv "$cfg.tmp" "$cfg"; then
+            echo "  OK  removed legacy Anthropic provider from $cfg (backup: $legacy_backup)"
+        else
+            rm -f "$cfg.tmp"
+            errors+=("pi: failed to remove legacy Anthropic provider from $cfg")
+            echo "  FAIL  could not remove legacy Anthropic provider from $cfg"
+            return 1
+        fi
+    fi
+
+    # Only the provider selected by managed settings satisfies autoconfig.
+    # Older Datadog providers must not prevent an upgrade from adding Baseten.
+    # Reconcile an existing managed provider too: Pi keeps model metadata in
+    # models.json, so a corrected pi.json must replace stale thinking mappings.
+    local managed_provider="ai-gw-baseten"
+    if [[ -f "$cfg" ]] && jq -e --arg provider "$managed_provider" \
+        '(.providers // {}) | has($provider)' "$cfg" >/dev/null 2>&1; then
+        echo "  OK  $cfg contains $managed_provider; refreshing managed metadata"
     fi
 
     local template
-    if ! template=$(jq --arg email "$email" --arg team "$team" \
-        '(.. | strings) |= (gsub("\\{\\{email\\}\\}"; $email) | gsub("\\{\\{team\\}\\}"; $team))' \
+    if ! template=$(jq --arg email "$email" --arg team "$team" --arg aigw_dc "$aigw_dc" \
+        '(.. | strings) |= (gsub("\\{\\{email\\}\\}"; $email) | gsub("\\{\\{team\\}\\}"; $team) | gsub("\\{\\{aigw_dc\\}\\}"; $aigw_dc))' \
         "$pi_config" 2>/dev/null); then
         errors+=("pi: failed to render $pi_config")
         echo "  FAIL  could not render $pi_config"
@@ -638,9 +752,23 @@ configure_pi_aigateway() {
 
     if [[ -f "$cfg" ]]; then
         cp "$cfg" "$cfg.bak.$(date +%s)"
-        echo "$template" | jq --slurpfile existing "$cfg" '.providers + $existing[0].providers as $merged | $existing[0] | .providers = $merged' > "$cfg.tmp"
+        echo "$template" | jq --arg provider "$managed_provider" --slurpfile existing "$cfg" \
+            'def merge_models($existing; $template):
+                (($existing // []) + ($template // []))
+                | reduce .[] as $model ({}; .[$model.id] = ((.[$model.id] // {}) + $model))
+                | [.[]];
+             . as $template
+             | $existing[0]
+             | .providers = (($existing[0].providers // {}) + {
+                 ($provider): ((($existing[0].providers[$provider] // {}) + ($template.providers[$provider] // {}))
+                     | .models = merge_models(
+                         $existing[0].providers[$provider].models;
+                         $template.providers[$provider].models
+                     ))
+               })' \
+            > "$cfg.tmp"
         mv "$cfg.tmp" "$cfg"
-        echo "  OK  merged Datadog AI Gateway providers into $cfg"
+        echo "  OK  reconciled Datadog AI Gateway providers in $cfg"
     else
         echo "$template" > "$cfg"
         echo "  OK  wrote $cfg"
@@ -653,28 +781,6 @@ configure_pi_aigateway() {
 }
 configure_pi_aigateway
 
-# Install git hooks from .githooks/
-for HOOK_SRC in "$SCRIPT_DIR/.githooks"/*; do
-    [[ -f "$HOOK_SRC" ]] || continue
-    HOOK_NAME=$(basename "$HOOK_SRC")
-    HOOK_DEST="$SCRIPT_DIR/.git/hooks/$HOOK_NAME"
-    if [[ -L "$HOOK_DEST" ]]; then
-        rm "$HOOK_DEST"
-    elif [[ -e "$HOOK_DEST" ]]; then
-        errors+=("$HOOK_SRC -> $HOOK_DEST: destination already exists as a regular file")
-        echo "FAIL  $HOOK_DEST already exists as a regular file, cannot link"
-        continue
-    fi
-    if [[ ! -e "$HOOK_DEST" ]]; then
-        if ! ln -s "$HOOK_SRC" "$HOOK_DEST"; then
-            errors+=("$HOOK_SRC -> $HOOK_DEST: ln -s failed")
-            echo "FAIL  could not link $HOOK_DEST -> $HOOK_SRC"
-        else
-            echo "LINK  $HOOK_DEST -> $HOOK_SRC"
-        fi
-    fi
-done
-
 # Update Claude Code and marketplace plugins (after all setup is complete)
 echo ""
 echo "Updating Claude Code and marketplace plugins..."
@@ -684,7 +790,15 @@ if command -v claude &>/dev/null; then
     else
         echo "  WARN  claude update failed (may already be up-to-date)"
     fi
-    marketplace_repos=$(jq -r '.extraKnownMarketplaces | to_entries[].value.source.repo' "$SCRIPT_DIR/settings.json" 2>/dev/null || true)
+    marketplace_repos=$(jq -r '
+        (.extraKnownMarketplaces // {} | to_entries[].value.source) as $source
+        | if $source.source == "github" then ($source.repo // empty)
+          elif $source.source == "git" then ($source.url // empty)
+          elif $source.source == "directory" then ($source.path // empty)
+          else empty
+          end
+        | select(type == "string" and length > 0)
+    ' "$SCRIPT_DIR/settings.json" 2>/dev/null || true)
     if [[ -n "$marketplace_repos" ]]; then
         while IFS= read -r repo; do
             if claude plugin marketplace add "$repo" 2>&1; then

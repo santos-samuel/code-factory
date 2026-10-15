@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Usage: ./get-pr-comments.sh [-v] [-a] [-f] [-o] [pr-number|pr-url|comment-url]
+# Usage: ./get-pr-comments.sh [-v] [-a] [-f] [-o] [-p] [-r reviewer] [pr-number|pr-url|comment-url]
 #
 # Fetches PR review comment threads as structured JSON with resolution status.
 # Uses GitHub GraphQL API with pagination for accurate thread data.
@@ -10,6 +10,8 @@
 #   -a    Actionable only - filter to unresolved and not outdated threads
 #   -f    Full mode - include diff_hunk fields (default: compact without diff_hunks)
 #   -o    Oldest-first chronological order (default: newest first)
+#   -p    Path-only large output - when output exceeds 25KB, print a small JSON pointer
+#   -r    Reviewer filter - include only threads started by this reviewer login
 #
 # Input formats:
 #   No argument       Auto-detect PR from current branch
@@ -29,13 +31,15 @@
 #
 # Auto-fallback for large output:
 #   When output exceeds 25KB, writes to /tmp/pr-comments-{owner}-{repo}-{pr}.json
-#   and prints a message to stderr. Use the Read tool on that path.
+#   and prints a message to stderr. With -p, stdout is a small JSON pointer.
 
 SPECIFIC_COMMENT_ID=""
 VERBOSE=0
 ACTIONABLE_ONLY=0
 FULL_MODE=0
 OLDEST_FIRST=0
+PATH_ONLY_ON_LARGE=0
+REVIEWER=""
 
 log_verbose() {
   if [ "$VERBOSE" -eq 1 ]; then
@@ -48,12 +52,14 @@ log_error() {
 }
 
 # Parse flags
-while getopts "vafo" opt; do
+while getopts "vafopr:" opt; do
   case $opt in
     v) VERBOSE=1; log_verbose "Verbose mode enabled" ;;
     a) ACTIONABLE_ONLY=1; log_verbose "Actionable-only mode enabled" ;;
     f) FULL_MODE=1; log_verbose "Full mode enabled (including diff_hunks)" ;;
     o) OLDEST_FIRST=1; log_verbose "Oldest-first mode enabled" ;;
+    p) PATH_ONLY_ON_LARGE=1; log_verbose "Path-only mode enabled for large output" ;;
+    r) REVIEWER="$OPTARG"; log_verbose "Reviewer filter: $REVIEWER" ;;
     \?) log_error "Invalid option: -$OPTARG"; exit 1 ;;
   esac
 done
@@ -148,7 +154,8 @@ log_verbose "PR accessible, querying review threads via GraphQL"
 
 # Fetch review threads with pagination
 # Key difference from get-pr-feedback: includes thread-level `id` for resolveReviewThread mutation
-COMMENTS_JSON=$(gh api graphql --paginate -f query="
+# shellcheck disable=SC2016 # jq program and GraphQL cursor use literal $ names.
+if ! COMMENTS_JSON=$(gh api graphql --paginate -f query="
 query(\$cursor: String) {
   repository(owner: \"${OWNER}\", name: \"${REPO_NAME}\") {
     pullRequest(number: ${PR_NUMBER}) {
@@ -218,9 +225,7 @@ query(\$cursor: String) {
       }
     ]
   }
-' 2>&1)
-
-if [ $? -ne 0 ]; then
+' 2>&1); then
   log_error "GraphQL query failed: $COMMENTS_JSON"
   echo "[]"
   exit 1
@@ -237,12 +242,60 @@ log_verbose "Retrieved $TOTAL_THREADS threads with $TOTAL_COMMENTS comments"
 if [ -n "$SPECIFIC_COMMENT_ID" ]; then
   log_verbose "Filtering to thread containing comment #$SPECIFIC_COMMENT_ID"
   THREADS_JSON=$(echo "$THREADS_JSON" | jq --arg cid "$SPECIFIC_COMMENT_ID" \
-    'map(select(.comments[] | .comment_id == ($cid | tonumber)))')
+    '
+      ($cid | tonumber) as $comment_id
+      | map(
+          select(.comments[] | .comment_id == $comment_id)
+          | (.comments[] | select(.comment_id == $comment_id)) as $comment
+          | .path = (.path // $comment.path)
+          | .line = (.line // $comment.line // $comment.original_line)
+          | .start_line = (.start_line // $comment.start_line // $comment.original_start_line)
+        )
+    ')
   FILTERED=$(echo "$THREADS_JSON" | jq 'length')
   log_verbose "Matched $FILTERED threads"
   if [ "$FILTERED" -eq 0 ]; then
-    log_error "Comment #$SPECIFIC_COMMENT_ID not found in PR #$PR_NUMBER"
+    log_verbose "Comment #$SPECIFIC_COMMENT_ID not found in GraphQL threads; trying REST fallback"
+    if ! THREADS_JSON=$(gh api "repos/${OWNER}/${REPO_NAME}/pulls/comments/${SPECIFIC_COMMENT_ID}" --jq '
+      [{
+        thread_id: null,
+        first_comment_id: .id,
+        resolved: false,
+        outdated: (.outdated // false),
+        path,
+        line: (.line // .original_line),
+        start_line: (.start_line // .original_start_line),
+        comments: [{
+          comment_id: .id,
+          author: .user.login,
+          body,
+          path,
+          line: (.line // .original_line),
+          original_line,
+          start_line: (.start_line // .original_start_line),
+          original_start_line,
+          diff_hunk,
+          outdated: (.outdated // false),
+          created_at,
+          updated_at,
+          commit_id,
+          in_reply_to_id,
+          html_url
+        }]
+      }]
+    ' 2>/dev/null); then
+      log_error "Comment #$SPECIFIC_COMMENT_ID not found in PR #$PR_NUMBER"
+      THREADS_JSON="[]"
+    fi
   fi
+fi
+
+# Filter by reviewer if requested. Thread authorship follows the first review comment.
+if [ -n "$REVIEWER" ]; then
+  THREADS_JSON=$(echo "$THREADS_JSON" | jq --arg reviewer "$REVIEWER" \
+    '[.[] | select((.comments[0].author // "") == $reviewer)]')
+  REVIEWER_THREADS=$(echo "$THREADS_JSON" | jq 'length')
+  log_verbose "Filtered to $REVIEWER_THREADS threads from reviewer $REVIEWER"
 fi
 
 # Sort threads
@@ -254,9 +307,13 @@ fi
 
 # Filter to actionable threads (unresolved + not outdated)
 if [ "$ACTIONABLE_ONLY" -eq 1 ]; then
-  THREADS_JSON=$(echo "$THREADS_JSON" | jq '[.[] | select(.resolved == false and .outdated == false)]')
-  ACTIONABLE=$(echo "$THREADS_JSON" | jq 'length')
-  log_verbose "Filtered to $ACTIONABLE actionable threads"
+  if [ -n "$SPECIFIC_COMMENT_ID" ]; then
+    log_verbose "Exact comment requested; keeping matched thread even if resolved or outdated"
+  else
+    THREADS_JSON=$(echo "$THREADS_JSON" | jq '[.[] | select(.resolved == false and .outdated == false)]')
+    ACTIONABLE=$(echo "$THREADS_JSON" | jq 'length')
+    log_verbose "Filtered to $ACTIONABLE actionable threads"
+  fi
 fi
 
 # Remove diff_hunk fields in compact mode (default)
@@ -266,12 +323,23 @@ fi
 
 # Handle large output — auto-write to temp file when >25KB
 OUTPUT_SIZE=$(echo "$THREADS_JSON" | wc -c | tr -d ' ')
+OUTPUT_THREADS=$(echo "$THREADS_JSON" | jq 'length')
+OUTPUT_COMMENTS=$(echo "$THREADS_JSON" | jq '[.[].comments | length] | add // 0')
 
 if [ "$OUTPUT_SIZE" -gt 25000 ]; then
   TEMP_FILE="/tmp/pr-comments-${OWNER}-${REPO_NAME}-${PR_NUMBER}.json"
   echo "$THREADS_JSON" > "$TEMP_FILE"
   log_verbose "Output $OUTPUT_SIZE bytes exceeds 25KB, wrote to: $TEMP_FILE"
   echo "[get-pr-comments] Large output detected — wrote to temp file for Claude to read: $TEMP_FILE" >&2
+  if [ "$PATH_ONLY_ON_LARGE" -eq 1 ]; then
+    jq -n \
+      --arg output_file "$TEMP_FILE" \
+      --argjson bytes "$OUTPUT_SIZE" \
+      --argjson threads "$OUTPUT_THREADS" \
+      --argjson comments "$OUTPUT_COMMENTS" \
+      '{output_file: $output_file, bytes: $bytes, thread_count: $threads, comment_count: $comments}'
+    exit 0
+  fi
 fi
 
 echo "$THREADS_JSON"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Update Change"
+  short_description: "Use when the user wants to revise, refine, reconcile, or audit the coherence ..."
+  default_prompt: "Use $openspec-update-change to revise, refine, reconcile, or audit the coherence of existing OpenSpec planning artifacts or acceptance criteria with..."

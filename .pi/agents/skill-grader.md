@@ -1,6 +1,9 @@
 ---
 name: skill-grader
 description: "Evaluates expectations against execution transcripts and outputs with structured pass/fail evidence. Critiques eval quality and extracts implicit claims. Use when grading skill test results."
+model: ai-gw-baseten/baseten/zai-org/GLM-5.2
+thinking: xhigh
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 ---
 

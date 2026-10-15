@@ -8,6 +8,7 @@ description: >
   "code cleanup", or asks to make code simpler, cleaner, or more maintainable.
 argument-hint: "[file|dir|--branch|--staged|--repo|--package <name>|--diff <ref>] [--checks <cmds>] [--reset]"
 user-invocable: true
+disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash(git:*), Bash(make:*), Bash(npm:*), Bash(cargo:*), Bash(go:*), Task, AskUserQuestion
 ---
 

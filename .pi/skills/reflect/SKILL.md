@@ -1,6 +1,7 @@
 ---
 name: "reflect"
 description: "Use when the user wants to capture session learnings and update knowledge files, review pending learnings from previous sessions, or manually trigger a session reflection. Triggers: \"reflect\", \"capture learnings\", \"update agents.md\", \"review pending learnings\", \"what did we learn\", or at session end via Stop hook."
+disable-model-invocation: true
 ---
 
 # Session Reflection
@@ -56,6 +57,21 @@ Read [extraction-rules.md](references/extraction-rules.md) for the full signal d
 
 Review the conversation history for learning signals: corrections, conventions, patterns, gotchas, and discoveries.
 Score each learning using the confidence thresholds from the reference.
+
+When the user asks to audit a Codex session, use the deterministic analyzer before interpreting
+the conversation:
+
+```bash
+python3 <skill-dir>/scripts/analyze-codex-session.py --list-roots --days 7
+python3 <skill-dir>/scripts/analyze-codex-session.py --root <root-session-id> --days 7
+```
+
+Choose the root by timestamp, working directory, and prompt preview.
+The report recursively includes descendant agents and summarizes measured token categories,
+derived totals, lower-bound observed tool/wait/spawn/build records, and elapsed time.
+Treat `cost_source: unknown` as unknown; never infer price from an unidentified model.
+Do not grep or paste raw JSONL records: embedded prompts and tool outputs can multiply context
+without improving the audit. Inspect individual records only for a specific anomaly the summary identifies.
 
 ### 2A.3: Deduplicate
 
@@ -166,10 +182,10 @@ Read `$PENDING_FILE`. If it doesn't exist or is empty:
 
 ### 2B.2: Present for Review
 
-For each pending learning, present it to the user with `AskUserQuestion`:
+For each pending learning, present it to the user with `ask_user_question`:
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Learning",
   question: "[learning text]\nConfidence: [score] | Target: [file] | Evidence: [evidence]",
   options: [
@@ -206,3 +222,5 @@ After processing all items:
 | Edit conflict (content changed since read) | Re-read the file and retry the edit once |
 | No learnings extracted | Report "No actionable learnings found in this session" |
 | Permission denied on file write | Report the error and queue the learning to pending instead |
+| Codex session root is unclear | List recent roots and choose by timestamp, working directory, and prompt preview |
+| Session analyzer encounters malformed JSONL | Continue with valid records and report that totals are lower bounds |

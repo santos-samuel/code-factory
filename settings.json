@@ -55,6 +55,19 @@
       "Skill(productivity:workspace)",
       "Skill(productivity:datadog)",
       "Skill(productivity:ai-cli)",
+      "Skill(productivity:change-quiz)",
+      "Skill(productivity:deck-dna)",
+      "Skill(productivity:openspec-propose)",
+      "Skill(productivity:openspec-explore)",
+      "Skill(productivity:openspec-new-change)",
+      "Skill(productivity:openspec-continue-change)",
+      "Skill(productivity:openspec-ff-change)",
+      "Skill(productivity:openspec-update-change)",
+      "Skill(productivity:openspec-apply-change)",
+      "Skill(productivity:openspec-sync-specs)",
+      "Skill(productivity:openspec-verify-change)",
+      "Skill(productivity:openspec-archive-change)",
+      "Skill(productivity:openspec-bulk-archive-change)",
       "Skill(dd:*)",
       "WebFetch(domain:docs.rs)",
       "WebFetch(domain:docs.google.com)",
@@ -237,7 +250,7 @@
     "code-factory": {
       "source": {
         "source": "directory",
-        "path": "/Users/samuel.santos/workspace/code-factory-obsidian"
+        "path": "/Users/samuel.santos/workspace/code-factory"
       }
     },
     "mrlee-plugins": {

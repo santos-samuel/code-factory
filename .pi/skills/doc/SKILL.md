@@ -1,6 +1,7 @@
 ---
 name: "doc"
 description: "Use when the user wants to create, update, improve, maintain, or audit Markdown documentation. Triggers: \"create doc\", \"update docs\", \"improve documentation\", \"audit docs\", \"sync to confluence\", \"write runbook\", \"fix broken links\", or references to documentation files (.md)."
+disable-model-invocation: true
 ---
 
 # Documentation Management
@@ -47,7 +48,7 @@ Parse `$ARGUMENTS` to determine intent and options:
 
 - If no `--path`, use current directory for audit/maintain/sync, or prompt for create/update/improve
 - If no `--format` for create, prompt user to select
-- If intent is ambiguous, use AskUserQuestion to clarify
+- If intent is ambiguous, use ask_user_question to clarify
 
 ## Writing Style: Semantic Line Feeds
 
@@ -76,7 +77,7 @@ Create a new document from a template.
 1. **Determine format** - If `--format` not provided:
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Doc format",
   question: "What type of document are you creating?",
   options: [
@@ -92,7 +93,7 @@ AskUserQuestion(
 2. **Determine location** - If `--path` not provided:
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Doc location",
   question: "Where should I create this document?",
   options: [] // free-text response expected
@@ -130,7 +131,7 @@ Apply specific edits to an existing document.
 2. **Identify changes** - Parse `$ARGUMENTS` for the requested change. If unclear:
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Update type",
   question: "What would you like to update in this document?",
   options: [
@@ -265,7 +266,7 @@ Keep documentation fresh: fix broken links, update references, ensure consistent
 4. **Offer fixes** - For each fixable issue, offer to apply the fix.
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Apply fixes",
   question: "Found 5 auto-fixable issues. Apply fixes?",
   options: [
@@ -388,7 +389,7 @@ ddoc status --root <path>
 4. **Show status and confirm:**
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Confirm sync",
   question: "Ready to sync <N> documents to Confluence. Proceed?",
   options: [

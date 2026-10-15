@@ -1,6 +1,7 @@
 ---
 name: "rfc"
 description: "Use when the user wants to write an RFC (Request for Comments), design document, technical proposal, or problem statement with iterative research and refinement. Also use when the user wants to improve, iterate on, or revise an existing RFC. Triggers: \"rfc\", \"write rfc\", \"create rfc\", \"design document\", \"technical proposal\", \"problem statement\", \"write a design doc\", \"new rfc\", \"resume rfc\", \"improve rfc\", \"iterate rfc\", \"revise rfc\", \"update rfc\"."
+disable-model-invocation: true
 ---
 
 # RFC Writer
@@ -75,7 +76,7 @@ Check `$ARGUMENTS` for the `--auto` flag. If present, strip it and pre-select au
 ### 1a: RFC Type
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "RFC type",
   question: "What type of RFC are you writing?",
   options: [
@@ -88,7 +89,7 @@ AskUserQuestion(
 ### 1b: Interaction Mode
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Interaction mode",
   question: "How should the RFC writing be managed?",
   options: [
@@ -132,7 +133,7 @@ For each discovered `RFC-STATE.md`, read it and check `current_phase`:
 
 4. **RFC topic, active or completed runs exist**:
    ```
-   AskUserQuestion(
+   ask_user_question(
      header: "Existing RFCs found",
      question: "Found existing RFC runs. What would you like to do?",
      options: [
@@ -215,7 +216,7 @@ Look for existing state directory at `~/docs/plans/rfc/<short-name>/`:
 ### 4b-b: Ask Improvement Type
 
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Improvement type",
   question: "What kind of improvement do you want to make to this RFC?",
   options: [
@@ -321,7 +322,7 @@ Execute phases in order. After each phase:
 
 **Backtracking (interactive mode only):** After any phase, offer:
 ```
-AskUserQuestion(
+ask_user_question(
   header: "Next step",
   question: "Phase <X> complete. How should we proceed?",
   options: [

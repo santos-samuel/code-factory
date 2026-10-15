@@ -1,0 +1,6 @@
+interface:
+  display_name: "Notes"
+  short_description: "Use when the user asks to create, look up, or edit a note in Obsidian — espec..."
+  default_prompt: "Use $notes to create, look up, or edit a note in Obsidian — especially people-related notes like 1:1s, meeting notes, career plans,..."
+policy:
+  allow_implicit_invocation: false

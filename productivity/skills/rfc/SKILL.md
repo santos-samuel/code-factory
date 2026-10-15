@@ -9,6 +9,7 @@ description: >
   "iterate rfc", "revise rfc", "update rfc".
 argument-hint: "[RFC topic, path to existing RFC, or path to state file] [--auto to skip questions]"
 user-invocable: true
+disable-model-invocation: true
 ---
 
 # RFC Writer

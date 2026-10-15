@@ -1,6 +1,7 @@
 name = "reviewer"
 description = "Plan review agent. Critically analyzes execution plans for completeness, safety, and executability. Identifies missing steps, risks, and suggests fixes."
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 developer_instructions = '''
 
 # Plan Reviewer

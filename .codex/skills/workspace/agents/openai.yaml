@@ -1,4 +1,6 @@
 interface:
   display_name: "Workspace"
-  short_description: "Use when the user wants to manage Datadog workspaces (remote cloud development."
-  default_prompt: "Use $workspace to manage Datadog workspaces (remote cloud development."
+  short_description: "Use when the user wants to manage Datadog workspaces (remote cloud developmen..."
+  default_prompt: "Use $workspace to manage Datadog workspaces (remote cloud development environments): create, list, delete, SSH, connect IDE, or validat..."
+policy:
+  allow_implicit_invocation: false

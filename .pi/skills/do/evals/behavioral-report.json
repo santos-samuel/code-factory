@@ -1,0 +1,326 @@
+{
+  "schema_version": 3,
+  "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+  "definitions_digest": "c68af862fb70be2af0b9c90e5e83e06ba2debddae295360e6d20d2f05bba68f3",
+  "generated_at": "2026-08-10T15:18:41Z",
+  "method": "Fresh answer-hidden read-only Codex application sessions with bundled raw rollouts",
+  "baseline": {
+    "root_session_id": "019f89ff-7e93-7782-b695-34e59b081285",
+    "total_tokens": 708856911,
+    "unique_sessions": 99,
+    "spawn_records": 129,
+    "wait_records": 1421
+  },
+  "results": [
+    {
+      "id": "fast-approved-fix",
+      "session_id": "019fec3c-7489-7b32-837f-e4a4f5bdb4ac",
+      "execution_mode": "codex-exec",
+      "duration_ms": 44690,
+      "total_tokens": 62191,
+      "prompt_sha256": "393c1a7bf8432e086f60b3bdcc296c1074f656f18b7d09bc0261f766fd6b7059",
+      "scenario_digest": "75386e76342e961a02420703063a789f138f81754589a9b40a43e06b4e8780de",
+      "transcript_file": "transcripts/fast-approved-fix.jsonl.gz",
+      "transcript_sha256": "82bb0f9177ff4e27dc4c289a3a14f16353bd8db20d01d205b18956fe87c2b2db",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "75386e76342e961a02420703063a789f138f81754589a9b40a43e06b4e8780de"
+      },
+      "output": "Fast profile: one implementation leaf, one independent reviewer, then PR delivery with one status fetch and no CI polling.",
+      "output_sha256": "88d11a3a677fbe047ccea0ad250e93e65f96c0b8ad3b0b23fa97d025128b5f54",
+      "observed": {
+        "profile": "fast",
+        "implementation_leaves": 1,
+        "reviewer_sessions": 1,
+        "max_agent_depth": 1,
+        "controller_dispatches": 0,
+        "pr_status_fetches": 1,
+        "ci_polling": false,
+        "red_before_implementation": true,
+        "green_before_full_validation": true,
+        "review_after_validation": true,
+        "delivery_after_review": true
+      }
+    },
+    {
+      "id": "standard-evidence-gap",
+      "session_id": "019fec3c-744c-7bd3-a8e9-76a9749e1d06",
+      "execution_mode": "codex-exec",
+      "duration_ms": 38384,
+      "total_tokens": 43984,
+      "prompt_sha256": "1f6bae7afd77605a74816dcb793d313a07c2b62c49cdba48939ff1821b779406",
+      "scenario_digest": "f6a6049b38c0927a547beea9056c2ac4d96cae7324c0820acde153c328255514",
+      "transcript_file": "transcripts/standard-evidence-gap.jsonl.gz",
+      "transcript_sha256": "5050cce4187bda51e2494f2efbd7c0214586c865a0fa63d8e71411a2b24b091c",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "f6a6049b38c0927a547beea9056c2ac4d96cae7324c0820acde153c328255514"
+      },
+      "output": "Select Standard: one research leaf for the local convention gap, one implementation leaf, and one independent final reviewer; reuse completed external research.",
+      "output_sha256": "0552e0e90fd1143ad6ccd3e961b6ed712ece7c518526ca49492bac4848922305",
+      "observed": {
+        "profile": "standard",
+        "research_leaves": 1,
+        "implementation_leaves": 1,
+        "reviewer_sessions": 1,
+        "evidence_repeated": false,
+        "max_agent_depth": 1
+      }
+    },
+    {
+      "id": "deep-independent-work",
+      "session_id": "019fec3c-742e-7100-9b01-37c90efe028c",
+      "execution_mode": "codex-exec",
+      "duration_ms": 38317,
+      "total_tokens": 42627,
+      "prompt_sha256": "6a3b41acb6c7fed50c1304794d2c502a7d16b6625b730e7c021b2cdafd70a7e4",
+      "scenario_digest": "89e1275c0e73496d2b232a35961d4e54c406f06fddd00dc03be6a2c66aebbe10",
+      "transcript_file": "transcripts/deep-independent-work.jsonl.gz",
+      "transcript_sha256": "8be13365c8ca912ae8387d986599db4caf2f384761bfee4455551c291b77e1fb",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "89e1275c0e73496d2b232a35961d4e54c406f06fddd00dc03be6a2c66aebbe10"
+      },
+      "output": "Deep: dispatch three disjoint implementation leaves on economy and one independent whole-diff task-critic reviewer on critical; no controller dispatch.",
+      "output_sha256": "147fb8fe989bdb5831ed6bc14540bfbd64829cda5ee395ee425e6fec03b0dd53",
+      "observed": {
+        "profile": "deep",
+        "implementation_leaves": 3,
+        "reviewer_sessions": 1,
+        "max_agent_depth": 1,
+        "overlapping_file_ownership": false,
+        "controller_dispatches": 0
+      }
+    },
+    {
+      "id": "review-rejection-cap",
+      "session_id": "019fec3c-7467-7a33-a733-570b8c0f3104",
+      "execution_mode": "codex-exec",
+      "duration_ms": 38689,
+      "total_tokens": 67200,
+      "prompt_sha256": "466e9c6a157ab903086bce8a2eeb81e098cdeda4c17b6c4ab94de3c739f58c61",
+      "scenario_digest": "38cc292c90032546cb4f8adb2aa48f391cbcae0af2e7a8d7d3df97f9bb7d0989",
+      "transcript_file": "transcripts/review-rejection-cap.jsonl.gz",
+      "transcript_sha256": "abf7be12ac8b10895712be8b1aef95e2df039317b53bb9a1daaf179b6ea8b435",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "38cc292c90032546cb4f8adb2aa48f391cbcae0af2e7a8d7d3df97f9bb7d0989"
+      },
+      "output": "Mark BLOCKED and report the remaining proven findings; do not spawn a replacement reviewer or deliver.",
+      "output_sha256": "5acc90b7cfff1194ce46403592356deae03f4d7022cd1b70a6c5a58ed77a0d14",
+      "observed": {
+        "reviewer_sessions": 1,
+        "review_rechecks": 1,
+        "replacement_reviewers": 0,
+        "delivery_blocked": true
+      }
+    },
+    {
+      "id": "existing-pr-followup",
+      "session_id": "019fec3c-74c7-7520-bc2e-bd111d133702",
+      "execution_mode": "codex-exec",
+      "duration_ms": 62453,
+      "total_tokens": 65416,
+      "prompt_sha256": "9baf209838332af44a9b7e00a62b6a24516f0522bf401733091ef1b01779d89f",
+      "scenario_digest": "a95bda2e0e8ef23c9cf89c86cb1fbf380949c0abc4db02b54b98abec7bc759d5",
+      "transcript_file": "transcripts/existing-pr-followup.jsonl.gz",
+      "transcript_sha256": "559e5dc1b3e44008ef31a0a0fdf921002e776d9f047dc0d59a0df5c3ffd1c75b",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "a95bda2e0e8ef23c9cf89c86cb1fbf380949c0abc4db02b54b98abec7bc759d5"
+      },
+      "output": "Fast profile; reused valid /do state without phase restarts; updated the same PR; fetched status once; no /pr-fix or CI polling.",
+      "output_sha256": "3adfd37419316b7663af9620a49e6af78e74e9f4456b0e76b93c7fcf513ce839",
+      "observed": {
+        "profile": "fast",
+        "state_reused": true,
+        "phase_restarts": 0,
+        "same_pr_updated": true,
+        "pr_status_fetches": 1,
+        "pr_fix_invocations": 0,
+        "ci_polling": false
+      }
+    },
+    {
+      "id": "bounded-waiting",
+      "session_id": "019fec3c-7486-7c03-9088-a808ef6a7fec",
+      "execution_mode": "codex-exec",
+      "duration_ms": 63986,
+      "total_tokens": 69095,
+      "prompt_sha256": "3311f6f1f1d32f1e601354fcf2290ffbb4ee4c1f8a742fcfb5ac22ffdaa4dc98",
+      "scenario_digest": "2ff746e0bc004587f8e9681af65bbe9eb20df47fab37b3809ca18e9c9f9e869b",
+      "transcript_file": "transcripts/bounded-waiting.jsonl.gz",
+      "transcript_sha256": "74b942c8f58b40dfacff02c0d9c9a8d4ddaa526cc579472dd3f8b95083136890",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "2ff746e0bc004587f8e9681af65bbe9eb20df47fab37b3809ca18e9c9f9e869b"
+      },
+      "output": "Report the worker as a blocker; do not poll or spawn a replacement until it is confirmed stopped.",
+      "output_sha256": "721a807a765c5bbf9051ffc62cf86e022a592517486e76192e66558865927f00",
+      "observed": {
+        "status_checks": 1,
+        "additional_completion_waits": 1,
+        "status_only_followups": false,
+        "agent_list_loops": false,
+        "replacement_while_active": false,
+        "reported_blocker": true
+      }
+    },
+    {
+      "id": "bounded-full-artifacts",
+      "session_id": "019fec3c-74b5-7c32-899c-221b476635a7",
+      "execution_mode": "codex-exec",
+      "duration_ms": 72912,
+      "total_tokens": 46323,
+      "prompt_sha256": "9bc7ba9f6af806afbc2b9d7bf5b85dc1b3d14e51c1f686b09cd17c58ba0f5bc7",
+      "scenario_digest": "24fd80522638810a17db5766692a3bb9d2d6dd493aee16ae6a91804643991697",
+      "transcript_file": "transcripts/bounded-full-artifacts.jsonl.gz",
+      "transcript_sha256": "766fcf43dcec580202dbc2f5cf7c2b088125b500cf99b3f80d6d5b57039a4105",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "24fd80522638810a17db5766692a3bb9d2d6dd493aee16ae6a91804643991697"
+      },
+      "output": "Standard: one research leaf and one implementation leaf, plus one independent final reviewer; events.jsonl records lifecycle events only, while unrelated findings remain documented without expanding scope.",
+      "output_sha256": "7e62ee4cda9158747bb9c08578edba02fc8dbe80bbc4e72edfcada77501ecf39",
+      "observed": {
+        "required_non_task_artifacts": [
+          "FEATURE.md",
+          "RESEARCH.md",
+          "CONVENTIONS.md",
+          "PLAN.md",
+          "REVIEW.md",
+          "VALIDATION.md",
+          "SNAPSHOT.md",
+          "events.jsonl"
+        ],
+        "artifact_caps": [
+          "FEATURE.md: 150 lines",
+          "RESEARCH.md: 150 lines",
+          "CONVENTIONS.md: 150 lines",
+          "PLAN.md: 150 lines",
+          "REVIEW.md: 100 lines",
+          "VALIDATION.md: 100 lines",
+          "SNAPSHOT.md: 60 lines",
+          "tasks/TASK-*.md: 80 lines each"
+        ],
+        "reused_gates_still_have_artifacts": true,
+        "task_bundles_conditional": true,
+        "tool_events_recorded": false,
+        "wait_events_recorded": false,
+        "unrelated_findings_expand_scope": false
+      }
+    },
+    {
+      "id": "workspace-handoff",
+      "session_id": "019fec3f-3e1b-70c2-a3fd-84ac9acfb194",
+      "execution_mode": "codex-exec",
+      "duration_ms": 71081,
+      "total_tokens": 47471,
+      "prompt_sha256": "c77862283ca6e9c25e206dc825ede9d61c2010adea09768e045a16c8876c44c4",
+      "scenario_digest": "4a1c06c894312f3394e0d70e8b1c57c180a2de79f9be82741e64d192f897cce7",
+      "transcript_file": "transcripts/workspace-handoff.jsonl.gz",
+      "transcript_sha256": "a53a2d968dcf38a0d5a1dba5ff24f0cce9dba2a4c62bc7a92097a653821a554f",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "4a1c06c894312f3394e0d70e8b1c57c180a2de79f9be82741e64d192f897cce7"
+      },
+      "output": "Delegate once to /workspace create <slug> --claude-prompt <opaque-prompt>, forwarding the complete feature request and applicable flags. The remote prompt invokes /do with --branch and omits --workspace. After tmux has-session -t main returns zero, report the SSH join command and stop locally; otherwise report a blocker.",
+      "output_sha256": "74eab431ed54f01f580928b662748472acc7aa17f0f3bf1e7d0d2285b5593af6",
+      "observed": {
+        "workspace_skill_invocations": 1,
+        "local_checkout_or_state_mutated": false,
+        "feature_context_forwarded": true,
+        "remote_start_confirmed": true,
+        "local_run_stops_after_remote_start": true,
+        "recursive_workspace_flag_forwarded": false,
+        "join_command_reported": true
+      }
+    },
+    {
+      "id": "branch-only-default",
+      "session_id": "019fec3b-c2c6-72b3-948b-f24bd937db9d",
+      "execution_mode": "codex-exec",
+      "duration_ms": 28492,
+      "total_tokens": 41612,
+      "prompt_sha256": "cf0de21f5ca049b191c5ba3301f844444353563587af6c4fc8e9dba81c1b7e4f",
+      "scenario_digest": "c22645d227d7c410606ffdee3415107addaded6a2a36844efd81a0393380d5ca",
+      "transcript_file": "transcripts/branch-only-default.jsonl.gz",
+      "transcript_sha256": "2d24d80207bdd7b2b0b00479a310ebfc1c594066f3e4aaff07251782b22b7867",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "c22645d227d7c410606ffdee3415107addaded6a2a36844efd81a0393380d5ca"
+      },
+      "output": "Create a local feature branch in the current checkout; do not create a worktree.",
+      "output_sha256": "3def83855b23aefe19ee767f761fb8c9cf3b2b604c31c7f2528e0b5aefa8a548",
+      "observed": {
+        "feature_branch_created": true,
+        "worktree_created": false,
+        "current_checkout_reused": true
+      }
+    },
+    {
+      "id": "bare-resume-discovery",
+      "session_id": "019fec3c-749a-7c90-b581-056665e85b8c",
+      "execution_mode": "codex-exec",
+      "duration_ms": 30064,
+      "total_tokens": 43788,
+      "prompt_sha256": "2f9105b40fc7481b5fd922a7aaa8577b472b3be4ae07558a0f6e616831c73a97",
+      "scenario_digest": "862c81baf8ba64edeb6cd4e2e69ef01961f5ab9e394611f919f40a97090dda8d",
+      "transcript_file": "transcripts/bare-resume-discovery.jsonl.gz",
+      "transcript_sha256": "d7b48d0b3c60443a2910c5d171de6be4b97328ba581cc05efc5487a28319570d",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "862c81baf8ba64edeb6cd4e2e69ef01961f5ab9e394611f919f40a97090dda8d"
+      },
+      "output": "Discover matching /do state; two active matches were found, so ask the user to choose. Do not create a new run or worktree.",
+      "output_sha256": "f5df48efaab25e5e2e9bb29b0054b544456392f9832b81dfb7ffe34054aaf6bd",
+      "observed": {
+        "state_discovery_performed": true,
+        "new_run_created": false,
+        "user_choice_requested": true,
+        "duplicate_worktree_created": false
+      }
+    },
+    {
+      "id": "advisory-token-budget",
+      "session_id": "019fec3c-73ea-73a0-ac01-a5b87008e7fd",
+      "execution_mode": "codex-exec",
+      "duration_ms": 65154,
+      "total_tokens": 69219,
+      "prompt_sha256": "2ac3e13a84d12a724e0683feca3ddc980c1261f5402a542b73042d0d0a9d4355",
+      "scenario_digest": "47e963d682f9e6e058371e688c55ef196f383701523185d26db41527a5fbdc09",
+      "transcript_file": "transcripts/advisory-token-budget.jsonl.gz",
+      "transcript_sha256": "d07db2332834dca9c175a258e6cafdb5e2277b3f996ece35675b79348e9ac646",
+      "eval_spawn_calls": 0,
+      "evidence": {
+        "skill_digest": "07cf285dedb8ec20533698ac5421d9abf06d45b9b49609525fac3585ea1565c3",
+        "scenario_digest": "47e963d682f9e6e058371e688c55ef196f383701523185d26db41527a5fbdc09"
+      },
+      "output": "Stop before another optional leaf: measured completed-delegate usage is 52000, at or above the 50000 advisory threshold; exclude and do not estimate unknown usage.",
+      "output_sha256": "b2b2bb3c88f6d64cd37991be5aab541129b87534332733ddd2311fdda52f3dbc",
+      "observed": {
+        "measured_completed_delegate_tokens": 52000,
+        "accounting_includes_only_completed_delegates": true,
+        "unknown_usage_estimated": false,
+        "hard_ceiling_claimed": false,
+        "next_optional_leaf_dispatched": false,
+        "excluded_usage": [
+          "top agent",
+          "tools",
+          "active delegates",
+          "future work"
+        ]
+      }
+    }
+  ]
+}

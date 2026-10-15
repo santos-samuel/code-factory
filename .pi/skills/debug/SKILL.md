@@ -153,10 +153,10 @@ Inspect `$ARGUMENTS` and conversation for environment signals.
 
 Datadog site is always `datadoghq.com`. Never pass `--site datad0g.com`.
 
-For AMBIGUOUS, use `AskUserQuestion`:
+For AMBIGUOUS, use `ask_user_question`:
 
 ```
-AskUserQuestion(questions=[{
+ask_user_question(questions=[{
   "question": "Where is <service> deployed?",
   "header": "Environment",
   "multiSelect": false,
@@ -188,13 +188,13 @@ service: <service-name or null>
 Only runs when `scope != LOCAL`. For the full template and command recipe, see
 [references/production-telemetry.md](references/production-telemetry.md).
 
-Dispatch a Task subagent that invokes the `/datadog` skill with the correct org:
+Dispatch the named `researcher` agent to invoke the `/datadog` skill with the correct org:
 
 ```
-Task(
-  subagent_type = "general-purpose",
+subagent(
+  agent = "researcher",
   description = "Phase 0 telemetry for <service> in <env>",
-  prompt = "
+  task = "
   <context>
   Bug: <one-line description>
   Service: <service-name>
@@ -326,10 +326,10 @@ git bisect good <known-good-commit>
 Dispatch the `explorer` agent to map the relevant code area:
 
 ```
-Task(
-  subagent = "explorer",
+subagent(
+  agent = "explorer",
   description = "Explore bug area: <brief description>",
-  prompt = "
+  task = "
   <bug_context>
   <error message, stack trace, and reproduction steps>
   </bug_context>
@@ -361,10 +361,10 @@ Task(
 If the bug involves external APIs, libraries, or unfamiliar patterns, also dispatch the `researcher`:
 
 ```
-Task(
-  subagent = "researcher",
+subagent(
+  agent = "researcher",
   description = "Research: <library/API involved>",
-  prompt = "
+  task = "
   <bug_context>
   <error message and relevant code snippets>
   </bug_context>
@@ -463,10 +463,10 @@ Fix the root cause — not the symptom. Change one thing at a time.
 Dispatch a fresh `implementer` if the fix requires significant code changes:
 
 ```
-Task(
-  subagent = "implementer",
+subagent(
+  agent = "implementer",
   description = "Fix bug: <brief description>",
-  prompt = "
+  task = "
   <root_cause>
   <confirmed root cause with evidence>
   </root_cause>
@@ -502,6 +502,10 @@ Task(
 ### 6c: Add Defense-in-Depth
 
 After the primary fix, add validation at intermediate layers to prevent regression. See [references/defense-in-depth.md](references/defense-in-depth.md).
+
+If validation proves a narrow defect in the delegated implementation, the top agent applies that
+remediation directly and re-runs only the affected checks. Do not return ordinary review-fix work
+to the initial implementer.
 
 The four layers:
 1. **Entry point validation** — Reject invalid input at API boundaries
@@ -565,4 +569,4 @@ Present a debug summary:
 | Phase 0 subagent returns empty results | Widen time window (1h → 4h → 24h). Verify service name matches Datadog `service:` tag. Confirm correct org (prod=2, staging=197728). |
 | `pup` returns 401 in Phase 0 | Subagent must run `pup auth login` (and `pup auth login --org 197728` for staging) and retry. |
 | Wrong site used (`datad0g.com`) | Stop. Re-run without `--site`. Default `datadoghq.com` is correct for both prod and staging services. |
-| Service environment genuinely ambiguous | `AskUserQuestion`: prod / staging / local. Persist to DEBUG.md frontmatter before running Phase 0. |
+| Service environment genuinely ambiguous | `ask_user_question`: prod / staging / local. Persist to DEBUG.md frontmatter before running Phase 0. |

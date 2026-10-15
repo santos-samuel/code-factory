@@ -1,6 +1,7 @@
 name = "spec-reviewer"
 description = "Spec compliance reviewer. Verifies implementation matches task specification — nothing missing, nothing extra, nothing misunderstood. Dispatched after implementer completes each task during EXECUTE phase."
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 developer_instructions = '''
 
 # Spec Compliance Reviewer

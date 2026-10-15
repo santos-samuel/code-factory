@@ -4,7 +4,7 @@ Reference for the `pr-fix` skill. Triggers automated code reviews (Codex), proce
 
 ## Overview
 
-After CI passes (or CI loop completes), trigger automated reviewers via PR comments, wait for their feedback, fix actionable issues, and loop. Maximum **3 iterations** per reviewer.
+Trigger automated reviewers via PR comments, wait for their feedback, fix actionable issues, and loop. This can run in parallel with CI waiting. Maximum **3 iterations** per reviewer.
 
 ## Phase 1: Trigger Reviews
 
@@ -18,20 +18,23 @@ gh pr comment {number} --body "@codex review"
 
 ## Phase 2: Wait for Reviews
 
-Record the current review/comment state before triggering, then use the background polling script.
+Record the current root bot review comment state before triggering, then use the background polling script.
 
 **NEVER poll for reviews with inline `sleep` loops or `sleep N && gh api ... comments`.** The script below is the ONLY permitted method — it checks immediately on first poll and consumes zero tokens while waiting.
 
 ```bash
-# Capture baseline counts first
-COMMENT_COUNT=$(gh api "repos/{owner}/{repo}/pulls/{number}/comments" --paginate 2>/dev/null | jq -s 'add | length')
-REVIEW_COUNT=$(gh api "repos/{owner}/{repo}/pulls/{number}/reviews" --paginate 2>/dev/null | jq -s 'add | [.[] | select(.state != "COMMENTED")] | length')
+# Capture compact bot-only baseline counts first
+BOT_PATTERN="{bot-pattern}"
+COMMENT_COUNT=$(gh api "repos/{owner}/{repo}/pulls/{number}/comments" --paginate 2>/dev/null | jq -s --arg bp "$BOT_PATTERN" 'add | [.[] | select((.user.login // "") | test($bp; "i")) | select((.in_reply_to_id // null) == null) | select(.path != null)] | length')
+REVIEW_COUNT=$(gh api "repos/{owner}/{repo}/pulls/{number}/reviews" --paginate 2>/dev/null | jq -s --arg bp "$BOT_PATTERN" 'add | [.[] | select((.user.login // "") | test($bp; "i")) | select(.state != "COMMENTED")] | length')
+ISSUE_COMMENT_COUNT=$(gh api "repos/{owner}/{repo}/issues/{number}/comments" --paginate 2>/dev/null | jq -s --arg bp "$BOT_PATTERN" 'add | [.[] | select((.user.login // "") | test($bp; "i"))] | length')
 
 # Run background poller — pass a bot pattern regex matching your automated reviewers
-${CLAUDE_PLUGIN_ROOT}/skills/pr-fix/scripts/poll-reviews.sh {number} {owner}/{repo} "$COMMENT_COUNT" "$REVIEW_COUNT" "{bot-pattern}"
+${CLAUDE_PLUGIN_ROOT}/skills/pr-fix/scripts/poll-reviews.sh {number} {owner}/{repo} "$COMMENT_COUNT" "$REVIEW_COUNT" "$BOT_PATTERN" 30 30 0 "$ISSUE_COMMENT_COUNT"
 ```
 
 **MUST run with `run_in_background: true`.** The `{bot-pattern}` parameter is a regex matching bot reviewer login names (e.g., `"codex|mybot|app"`). Default: `"bot|app|\[bot\]"`.
+The final `0` keeps unchanged progress quiet; pass a positive `log-every` only when the user asked for live progress.
 
 The script handles `:eyes:` emoji detection automatically — it waits until the emoji clears from PR comments and body before checking for new feedback. Polls every 30 seconds for up to 15 minutes.
 
@@ -39,18 +42,27 @@ The script handles `:eyes:` emoji detection automatically — it waits until the
 
 | State | Action |
 |-------|--------|
-| `REVIEWS_READY` | New review comments or reviews detected. Parse the JSON output (included in script output). Continue to Phase 3. |
+| `REVIEWS_READY` | New review comments, submitted reviews, or non-clean top-level bot comments detected. Read the printed `NEW_*_FILE`. Continue to Phase 3. |
+| `REVIEWS_CLEAN` | Clean top-level bot comment or completed `:eyes:` with no file comments. Read `NEW_ISSUE_COMMENTS_FILE` if present; report clean review. |
 | `NO_NEW_REVIEWS` | No bot activity after 15 minutes — reviewer may not be configured. Skip for the rest of the loop. |
 | `TIMEOUT` | `:eyes:` was active but never completed. Report to user. |
 
-**On `REVIEWS_READY`:** the script output includes the full review/comment data. Use this directly — no follow-up API call needed.
+**On `REVIEWS_READY` or `REVIEWS_CLEAN`:** the script writes only new bot data since the baseline to the printed file path.
+Read that file; do not fetch the full PR comment history.
 
 ## Phase 3: Read Review Comments
 
-Fetch all review comments from bot reviewers:
+Use the JSON file from Phase 2. Do not fetch the full PR comment history.
+
+If Phase 2 printed `NEW_ISSUE_COMMENTS_FILE`, inspect the issue comment summary.
+If the state is `REVIEWS_CLEAN` and the summary says the reviewer found no major issues, record a clean automated review and skip to Phase 8.
+If the state is `REVIEWS_READY`, report direct questions or concrete requests as top-level automated comments for human follow-up.
+
+If the poller output is missing or truncated, fetch only compact root comments from bot reviewers:
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/{number}/comments --jq '[.[] | select(.user.login | test("codex"; "i")) | select(.in_reply_to_id == null)]'
+gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate \
+  | jq -s --arg bp "codex" 'add | [.[] | select((.user.login // "") | test($bp; "i")) | select((.in_reply_to_id // null) == null) | select(.path != null) | {comment_id: .id, path, line: (.line // .original_line), body, author: .user.login, html_url, commit_id}]'
 ```
 
 For each comment, extract:
@@ -107,12 +119,12 @@ git push
 
 ## Phase 6: Reply to Comments
 
-For each processed comment, reply in a **separate comment** (not in the same thread as Codex):
+For each processed comment, reply to the original review comment:
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/replies \
+gh api repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies \
   -X POST -f body="$(cat <<'EOF'
-*Automated response from Claude:*
+*Automated response from {agent}:*
 
 {response text}
 EOF
@@ -129,6 +141,7 @@ Response format — always reference the commit that addressed the comment:
 | Not fixable (architectural) | `This requires an architectural change outside the scope of this PR. Leaving for the author to decide.` |
 | Not fixable (ambiguous) | `The suggestion is unclear or debatable. Leaving for the author to review.` |
 
+Use `{agent}` as the current agent name or `pr-fix`.
 **Do NOT resolve threads** from automated reviewers — let the reviewer tool or human author resolve them.
 
 ## Phase 7: Loop or Exit

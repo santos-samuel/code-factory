@@ -1,6 +1,7 @@
 ---
 name: "review"
 description: "Use when user says \"review pr\", \"review pull request\", \"pr review\", \"review #123\", or provides a PR number, URL, or branch name to review. Supports --codex and --claude-codex to delegate or cross-check with Codex, --parallel to fan out one sub-agent per review dimension, and --extended to review every line of changed files instead of just the diff hunks."
+disable-model-invocation: true
 ---
 
 # Review PR
@@ -47,6 +48,12 @@ Rules:
 - If multiple non-flag tokens appear, treat the first as `PR_REF` and warn about the rest.
 - If `PR_REF` is empty after parsing, fall through to current-branch detection in Step 3.
 
+Before dispatch, classify the review as `review` task evidence and resolve the route with
+`python3 scripts/model_router.py route --surface <claude|codex|pi> --task review`. Claude keeps
+the source `opus/xhigh` mapping, Codex uses `gpt-5.6-sol/xhigh`, and Pi uses the OpenAI/Codex Sol
+route only. A valid explicit user override wins; an unavailable or unverifiable route fails open
+to the configured surface default and must be reported as unverified with observed usage unknown.
+
 ## Step 2: Verify Prerequisites
 
 Run in parallel:
@@ -73,7 +80,7 @@ Determine the PR from `PR_REF`:
 | Branch name | `gh pr list --head <branch> --json number --jq '.[0].number'` |
 | Empty | `gh pr view --json number --jq '.number' 2>/dev/null` |
 
-**If no PR found:** use `AskUserQuestion` to request a PR number, URL, or branch name. List recent PRs with `gh pr list --limit 5` as suggestions.
+**If no PR found:** use `ask_user_question` to request a PR number, URL, or branch name. List recent PRs with `gh pr list --limit 5` as suggestions.
 
 Bind the resolved number to `PR_NUMBER`.
 
@@ -200,14 +207,18 @@ When `PARALLEL=false` (default), for each module, in a single agent:
 5. Identify missing or insufficient tests and follow-up cleanup needed before merge.
 6. Tick the file coverage checklist for each file reviewed.
 
-When `PARALLEL=true`, replace the per-module loop with one `Task` call per level,
-launched in a single message (all three sub-agents run concurrently):
+When `PARALLEL=true`, replace the per-module loop with one `subagent` call per level,
+launched in a single message (all three sub-agents run concurrently) only while the global
+three-leaf cap has capacity. Reserve one coordinator slot, require disjoint module ownership, and
+use wait-any completion before refilling. If capacity is unknown, launch one probe first. On the
+first failure, stop new dispatch, drain active leaves, and skip undispatched levels or modules;
+do not retry by cycling models or silently replace a failed reviewer:
 
 ```
-Task(
-  subagent_type = "general-purpose",
+subagent(
+  agent = "task-critic",
   description = "Review module <module-name>: Level <N>",
-  prompt = <prompt including module files, scope budget, the specific level's
+  task = <prompt including module files, scope budget, the specific level's
             checks from three-level-framework.md, and the required findings
             table format from output-format.md>
 )
@@ -262,10 +273,10 @@ Background mode forks a detached worker and returns in seconds, so the Bash time
 ### Step 10b.1: Delegate (background)
 
 ```
-Task(
-  subagent = "codex-rescue",
+subagent(
+  agent = "codex-rescue",
   description = "Codex PR review: #<PR_NUMBER>",
-  prompt = "--background\n\n" + <template with PR_TITLE, PR Intent, refs, worktree path, framework, output format, and full PR diff>
+  task = "--background\n\n" + <template with PR_TITLE, PR Intent, refs, worktree path, framework, output format, and full PR diff>
 )
 ```
 
@@ -283,31 +294,13 @@ Bind the captured group to `JOB_ID`.
 
 If no match (or the rescue returns empty stdout), apply the Codex empty-stdout fallback below and skip Steps 10b.3 and 10b.4.
 
-### Step 10b.3: Poll for terminal state
+### Step 10b.3: Bounded completion wait
 
-Loop until terminal state. Each iteration:
-
-1. `Skill(skill="codex:status", args="<JOB_ID> --wait --timeout-ms 100000")`.
-   Server-side `--wait` blocks until terminal or 100s elapse, safely under the 120s Bash kill.
-2. Parse `Status:` with the regex `/Status:\s+(queued|running|completed|failed|cancelled)\b/i`.
-3. Branch on the captured status:
-
-| Status | Action |
-|--------|--------|
-| `completed` | Exit loop. Proceed to Step 10b.4. |
-| `failed` | Apply Codex empty-stdout fallback. Stop. |
-| `cancelled` | Apply Codex empty-stdout fallback. Stop. |
-| `queued` | Continue loop. Increment a `queued_streak` counter. |
-| `running` | Continue loop. Reset `queued_streak` to 0. |
-| Unparseable | Apply Codex empty-stdout fallback. Stop. |
-
-Watchdog: if `queued_streak` reaches 6 (the job never started running), report `Codex job <JOB_ID> never started` and apply the fallback.
-
-Progress note: every 6 iterations (~10 min elapsed), emit a single line to the user:
-`Codex job <JOB_ID> still running after ~N minutes; continuing to poll`.
-
-There is no upper iteration bound — the loop exits only on a terminal state, the queued watchdog, or a parse failure.
-The job is never auto-cancelled; the user can recover the result later via `/codex:result <JOB_ID>`.
+Use the runtime's completion notification when available. If the initial wait times out, check
+`/codex:status <JOB_ID>` exactly once. If the worker is active and fresh progress is visible,
+issue at most one additional `--wait` with the longest permitted timeout. If the worker still has
+no terminal result, report a blocker and the recovery command; do not poll, replace, or retry it.
+For a terminal `completed`, `failed`, or `cancelled` result, continue with the matching branch below.
 
 ### Step 10b.4: Fetch result
 
@@ -319,7 +312,7 @@ Do not paraphrase, summarize, or add commentary before or after.
 ### Codex empty-stdout fallback
 
 Shared by Steps 10b.2, 10b.3, and 10b.4:
-- `MODE=codex` → ask the user via `AskUserQuestion` whether to retry with Claude.
+- `MODE=codex` → ask the user via `ask_user_question` whether to retry with Claude.
 - `MODE=claude-codex` → continue with Claude-only output, prefixed with `Codex unavailable; Claude-only`.
 
 ## Step 10c: Merge Dual Reviews
@@ -378,7 +371,7 @@ If no findings exist at any level, state that and recommend approval.
 | Both `--codex` and `--claude-codex` present | Ask user to pick one. Stop. |
 | `--parallel` with `MODE=codex` | Warn that `--parallel` is a no-op in Codex-only mode. Continue without fanout. |
 | `--extended` with `WORKTREE=false` | Warn that `--extended` is a no-op without a worktree. Continue with diff-only scope. |
-| A `--parallel` sub-agent fails | Re-run that level inline in the main agent. Do not drop the level. |
+| A `--parallel` sub-agent fails | Stop new dispatch, drain active leaves, and report undispatched work; do not replace it silently. |
 | PR not found | Report. List recent PRs with `gh pr list --limit 5`. |
 | Empty or binary-only diff | Report "no reviewable text changes". List binary files. Cleanup worktree if created. |
 | `git worktree add` fails | Warn, fall back to diff-only mode, continue. |
@@ -387,6 +380,6 @@ If no findings exist at any level, state that and recommend approval.
 | Rescue stdout missing jobId pattern | Report "Codex review failed (no jobId)". Apply Codex empty-stdout fallback. |
 | `/codex:status` output cannot be parsed | Treat as failure. Apply Codex empty-stdout fallback. |
 | Codex job status `failed` or `cancelled` | Report `Codex job <id> <status>`. Apply Codex empty-stdout fallback. |
-| Codex job remains `queued` for 6 consecutive polls | Report worker-launch failure. Apply Codex empty-stdout fallback. |
+| Codex worker remains active after the one status check and one extra wait | Report a blocker with the recovery command. Do not replace or poll the worker. |
 | Stale worktree from prior run | `git worktree remove --force` then retry (built into Step 5). |
 | Network/API failure | Report `gh` error. Cleanup worktree. Let user retry. |

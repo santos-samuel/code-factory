@@ -1,3 +1,6 @@
 .claude/settings.local.json
 .plans/
 .idea/
+.pi-subagents/
+__pycache__/
+*.pyc

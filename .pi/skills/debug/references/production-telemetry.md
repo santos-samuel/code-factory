@@ -22,7 +22,7 @@ The default site is correct.
 When inference is ambiguous, ask the user:
 
 ```
-AskUserQuestion(questions=[{
+ask_user_question(questions=[{
   "question": "Where is <service> deployed?",
   "header": "Environment",
   "multiSelect": false,
@@ -38,14 +38,14 @@ Persist the answer to `DEBUG.md` frontmatter as `scope`, `org`, `service`.
 
 ## Phase 0 Subagent Dispatch
 
-Dispatch a general-purpose subagent that invokes the `/datadog` skill. The
+Dispatch the named `productivity:researcher` agent to invoke the `/datadog` skill. The
 subagent has no prior context — give it everything it needs in the prompt.
 
 ```
-Task(
-  subagent_type = "general-purpose",
+subagent(
+  agent = "researcher",
   description = "Phase 0 telemetry for <service> in <env>",
-  prompt = "
+  task = "
   <context>
   Bug: <one-line description>
   Service: <service-name>

@@ -1,0 +1,40 @@
+{
+  "schema_version": 2,
+  "skill_name": "do",
+  "source": "audited live Codex root session",
+  "root_session_id": "019f89ff-7e93-7782-b695-34e59b081285",
+  "audited_at": "2026-07-24T16:19:21.724Z",
+  "metrics": {
+    "unique_sessions": 99,
+    "spawn_records": 129,
+    "wait_records": 1421,
+    "tool_records": 4573,
+    "shell_records_mentioning_bzl": 333,
+    "wall_seconds": 181738.401,
+    "input_tokens": 707121423,
+    "cached_input_tokens": 687840000,
+    "output_tokens": 1735488,
+    "reasoning_output_tokens": 604961,
+    "total_tokens": 708856911,
+    "cost_usd": null,
+    "cost_source": "unknown"
+  },
+  "observed_failures": [
+    "Nested root, phase, milestone, implementer, critic, validation, and delivery ownership.",
+    "Independent polling loops at multiple agent depths.",
+    "Repeated lifecycle dispatch for already approved follow-up changes.",
+    "Review layers accumulated instead of replacing one another.",
+    "Large duplicated state artifacts were repeatedly loaded into long-lived contexts.",
+    "Full validation and Bazel analysis were repeated across task and phase boundaries.",
+    "Post-push CI and review pollers ran instead of handing the PR back to the user.",
+    "The previous GREEN checker validated prose fragments and a hand-authored pass report, not behavior."
+  ],
+  "metric_provenance": {
+    "tokens": "derived from one final cumulative record per unique thread",
+    "sessions": "derived",
+    "spawn_records": "lower_bound",
+    "wait_records": "lower_bound",
+    "tool_records": "lower_bound",
+    "cost_usd": "unknown"
+  }
+}

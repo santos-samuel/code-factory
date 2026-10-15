@@ -1,6 +1,9 @@
 ---
 name: validator
 description: "Validation agent. Runs automated checks, verifies acceptance criteria, and produces validation reports with evidence. Includes quality scorecard grading."
+model: ai-gw-baseten/baseten/zai-org/GLM-5.2
+thinking: xhigh
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 ---
 

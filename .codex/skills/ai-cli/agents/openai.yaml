@@ -1,4 +1,6 @@
 interface:
   display_name: "Ai Cli"
   short_description: "Use when the user wants to make a CLI AI-friendly, evaluate a CLI's agent rea..."
-  default_prompt: "Use $ai-cli to make a CLI AI-friendly, evaluate a CLI's agent readiness,."
+  default_prompt: "Use $ai-cli to make a CLI AI-friendly, evaluate a CLI's agent readiness, improve CLI design for AI agents, or add machine-readable o..."
+policy:
+  allow_implicit_invocation: false

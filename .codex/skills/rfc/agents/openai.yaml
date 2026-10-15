@@ -1,4 +1,6 @@
 interface:
   display_name: "Rfc"
   short_description: "Use when the user wants to write an RFC (Request for Comments), design docume..."
-  default_prompt: "Use $rfc to write an RFC (Request for Comments), design document,."
+  default_prompt: "Use $rfc to write an RFC (Request for Comments), design document, technical proposal, or problem statement with iterative researc..."
+policy:
+  allow_implicit_invocation: false

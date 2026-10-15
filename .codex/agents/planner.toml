@@ -1,6 +1,7 @@
 name = "planner"
 description = "Plan authoring agent. Converts research into actionable execution plans with milestones, tasks, and validation strategies. References both local codebase and external findings."
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 developer_instructions = '''
 
 # Plan Author

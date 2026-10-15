@@ -1,6 +1,7 @@
 ---
 name: "code-simplify"
 description: "Use when the user wants to simplify, clean up, or refactor code for clarity and maintainability without changing behavior. Supports any scope: a single file, directory, package, branch diff, staged changes, or an entire repository. Also use when the user says \"simplify code\", \"clean up this file\", \"reduce complexity\", \"refactor for readability\", \"simplify repo\", \"code cleanup\", or asks to make code simpler, cleaner, or more maintainable."
+disable-model-invocation: true
 ---
 
 # Code Simplification
@@ -145,11 +146,11 @@ Pick the next batch of pending files from the tracking file — up to 10 files a
 For each file in the batch, launch a `productivity:code-simplifier` agent in the background:
 
 ```
-Task(
-  subagent = "code-simplifier",
+subagent(
+  agent = "code-simplifier",
   description = "Simplify: <filename>",
   run_in_background = true,
-  prompt = "
+  task = "
 <assignment>
 Simplify this file: <absolute-file-path>
 Repository root: <REPO_ROOT>

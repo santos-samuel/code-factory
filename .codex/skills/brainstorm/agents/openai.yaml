@@ -1,4 +1,6 @@
 interface:
   display_name: "Brainstorm"
-  short_description: "Use when the user wants to brainstorm an idea, explore a problem space,."
-  default_prompt: "Use $brainstorm to brainstorm an idea, explore a problem space,."
+  short_description: "Use when the user wants to brainstorm an idea, explore a problem space, think..."
+  default_prompt: "Use $brainstorm to brainstorm an idea, explore a problem space, think through a project proposal, develop an idea before implementing, o..."
+policy:
+  allow_implicit_invocation: false

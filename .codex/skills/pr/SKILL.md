@@ -9,17 +9,17 @@ Announce: "I'm using the pr skill to open a GitHub pull request from the current
 
 ## Step 1: Gather Context and Determine Mode
 
-Parse `$ARGUMENTS` to determine the operation mode:
+Parse the user's invocation prompt to determine the operation mode:
 
 | Argument | Mode |
-|----------|------|
+|-|-|
 | `ready` (as first word) | **Ready mode** — mark existing draft PR as ready for review |
 | Anything else or empty | **Create mode** — always creates a draft PR |
 
-Strip `ready` from `$ARGUMENTS` before further parsing (remaining text is treated as title or `--base` flags).
-
 **PRs are ALWAYS created as drafts.** There is no flag to create a non-draft PR directly.
 Use `/pr ready` after internal review to open the PR for team review.
+
+Strip `ready` from the user's invocation prompt before further parsing (remaining text is treated as title or `--base` flags).
 
 Run in parallel:
 - `git branch --show-current` (head branch name)
@@ -39,7 +39,7 @@ Run in parallel:
 
 Base branch resolution, in order:
 
-1. **Explicit override**: if `$ARGUMENTS` contains `--base <branch>`, use that value, set `STACKED=false`, and skip to Step 3.
+1. **Explicit override**: if the user's invocation prompt contains `--base <branch>`, use that value, set `STACKED=false`, and skip to Step 3.
 2. **Stack parent detection** (Step 2a) — if a parent is found, use it as the base.
 3. **Default branch detection** (Step 2b) — fall back to `main` / `master`.
 
@@ -75,7 +75,7 @@ Pick the candidate with the **smallest positive** distance — that is the immed
 Tie-breaking (multiple candidates at the same distance):
 
 1. Prefer a candidate with an open PR: `gh pr list --head <branch> --state open --json number --limit 1`.
-2. If still tied, ask the user via AskUserQuestion to pick the parent.
+2. If still tied, ask the user via an interactive prompt to pick the parent.
 
 If no candidate remains, there is no stack — fall through to Step 2b.
 
@@ -105,16 +105,12 @@ Determine the default branch:
 
 **If no base branch can be determined:**
 
-<interaction>
-AskUserQuestion(
-  header: "Base branch",
-  question: "Could not detect the default branch. Which branch should the PR target?",
-  options: [
-    "main" -- Use main as the base branch,
-    "master" -- Use master as the base branch
-  ]
-)
-</interaction>
+**Pause and ask the user. Wait for their answer before proceeding.**
+
+> **Base branch** -- Could not detect the default branch. Which branch should the PR target?
+>
+> - **main** -- Use main as the base branch
+> - **master** -- Use master as the base branch
 
 ## Step 3: Validate Branch
 
@@ -141,7 +137,7 @@ Also scan commit messages for:
 Determine the PR complexity tier from the file list and commit count gathered in Step 4:
 
 | Tier | Criteria | Summary Style |
-|------|----------|---------------|
+|-|-|-|
 | **Simple** | 1-3 files AND single commit | Brief bullet points |
 | **Medium** | 4-10 files OR 2-5 commits | Grouped sub-sections by concern |
 | **Complex** | 11+ files OR 6+ commits OR touches critical paths | Narrative with code snippets, alerts, collapsible sections |
@@ -169,7 +165,7 @@ git diff origin/<base>..HEAD -- <file1> <file2> ...
 While reading the diff, classify each meaningful change:
 
 | Category | What qualifies | Presentation |
-|----------|---------------|--------------|
+|-|-|-|
 | **Critical** | Validation, auth/security, billing, data integrity, concurrency, hot paths | `> [!IMPORTANT]` alert block |
 | **Notable** | Non-obvious design decisions, new data models, sequencing choices, coordination patterns | Described with context prose |
 | **Routine** | Mechanical changes, re-exports, import reordering, formatting, boilerplate | Brief mention or collapsed in `<details>` |
@@ -179,33 +175,70 @@ Also identify:
 - **Logical groupings**: cluster related files by concern (e.g. "authentication flow", "API endpoint + handler + types"), NOT by file path.
 - **Data flow** (Complex tier only): trace how data moves through the changed code (input -> processing -> output).
 
+For Medium and Complex PRs, also collect reviewer-context evidence without inventing it:
+
+- **Demonstrations**: user-supplied or repository-backed screenshots, recordings, before/after output, or reproducible demo commands. Record exact links or commands. If the change is user-facing and none exist, record `Demonstration evidence unavailable`.
+- **Problem and chosen bet**: the concrete problem and selected approach, grounded in commits, linked design artifacts, or observable behavior.
+- **Expert-review questions**: one to three questions about critical paths, interaction effects, failure modes, or irreversible choices that require reviewer judgment.
+- **Known deviations**: plan amendments or implementation departures documented in linked OpenSpec, `/do`, RFC, or commit context. If no canonical evidence is available, record `No deviation evidence available`; do not claim there were no deviations.
+- **Non-goals**: explicit exclusions from canonical artifacts or user context. If none are documented, record that fact instead of inferring promises from unchanged files.
+
 ## Step 6: Build PR Title and Body
+
+### Content Quality (read before writing the body)
+
+A good PR description answers reviewer questions in order: *why does this exist*, *what changes in behavior*, *what should I focus on*.
+The diff already answers *what changed line-by-line* — prose that re-narrates the diff is noise.
+
+| Priority | What to write | Concrete shape |
+|-|-|-|
+| **Why** | The trigger, constraint, or incident that forced the change. The alternative that was rejected, if non-obvious. | "Refresh tokens were silently dropped at the 24h mark, bouncing logged-in users to the login screen (DEMO-1842)." |
+| **Behavior change** | The user-visible or system-visible effect, not the file change. | "Logged-in sessions now persist across token refresh." NOT "Updated `auth/refresh.go`." |
+| **Reviewer focus** | Specific files, edge cases, or risks. Inline alert blocks for security or data-integrity changes. | "Migration runs concurrently with reads — confirm lock ordering in `tokens.go:47`." |
+
+**Anti-patterns. Rewrite if any appear in the draft.**
+
+| Anti-pattern | Why it reads as LLM-slop | Fix |
+|-|-|-|
+| "Added X" / "Updated Y" bullets with no reason | Reviewer still has to ask "why?" | State the trigger or constraint. |
+| Restating file names in prose | The diff already shows the file. | Describe the behavior change, drop the path. |
+| AI-slop vocabulary: robust, comprehensive, seamlessly, leverage, crucial, pivotal, streamline, empower, delve | Sounds like a vendor landing page. | Concrete verbs and concrete nouns. |
+| Per-commit bullets that mirror commit messages | Reviewer can read `git log`. | Group commits by theme. Explain the theme once. |
+| Padding lists to three bullets | Filler. | Two bullets is fine. So is one. |
+| Closing "this change improves..." paragraph | Repeats what was already said. | End at the last fact. |
+| Em dashes, curly quotes, "It is important to note that..." | Sounds AI-generated. | Plain prose. Periods. Straight quotes. |
+
+**Signature test** before continuing: would the author defend every sentence as their own in code review? If not, rewrite.
 
 ### Title
 
 Determine the PR title in two stages.
 
-**Stage 1 — Determine the base title** using this priority:
-1. If `$ARGUMENTS` provides a title (text that is not a `--base` flag), use it as-is.
-2. If the branch name contains a ticket ID (e.g. `feat/PROJ-1234-add-widget`), strip the ticket ID and user prefix, then convert the remainder to readable text (e.g. `add-widget` → `Add widget`).
+**Stage 1. Determine the base title** using this priority:
+1. If the user's invocation prompt provides a title (text that is not a `--base` flag), use it as-is.
+2. If the branch name contains a ticket ID (e.g. `feat/PROJ-1234-add-widget`), strip the ticket ID and user prefix, then convert the remainder to readable text (e.g. `add-widget` -> `Add widget`).
 3. If there is a single commit, use its subject as the title.
-4. Otherwise, synthesize a concise title from the commit subjects: identify the primary theme across commits, then write a single phrase capturing the overall change (e.g., commits "Add user model", "Add auth middleware", "Add login endpoint" → "Add user authentication").
+4. Otherwise, synthesize a concise title from the commit subjects: identify the primary theme across commits, then write a single phrase capturing the overall change (e.g., commits "Add user model", "Add auth middleware", "Add login endpoint" -> "Add user authentication").
 
-**Stage 2 — Prepend the ticket ID prefix:**
+**Stage 2. Prepend the ticket ID prefix.**
 Collect the ticket ID from (in priority order):
-1. The branch name — scan for patterns like `[A-Z]+-[0-9]+` (e.g. `RAWL-3408`, `PROJ-1234`).
+1. The branch name: scan for patterns like `[A-Z]+-[0-9]+` (e.g. `RAWL-3408`, `PROJ-1234`).
 2. Commit messages scanned in Step 4.
 
 If a ticket ID is found AND the base title does not already start with `[TICKET-ID]`,
 prepend it: `[TICKET-ID] <base title>`.
 Example: base title `Add new feature xpto` with ticket `EXPL-1234`
-→ final title `[EXPL-1234] Add new feature xpto`.
+-> final title `[EXPL-1234] Add new feature xpto`.
 
 ### Body
 
 Construct the PR body using this template. **Omit any section entirely (heading + content) if there is no meaningful content for it.**
 
 <pr-body-template>
+## 🎥 Demonstration
+
+{available evidence for Medium and Complex PRs}
+
 ## 📎 Documentation
 
 - [RFC]({URL})
@@ -220,26 +253,60 @@ Construct the PR body using this template. **Omit any section entirely (heading 
 ## 📋 Summary
 
 {content varies by complexity tier}
+
+## 🔎 Expert review questions
+
+- {decision or failure mode requiring expert judgment}
+
+## ↪️ Known deviations
+
+- {canonical deviation evidence, or an explicit evidence-unavailable statement}
+
+## 🚧 Non-goals
+
+- {documented exclusion, or an explicit not-documented statement}
 </pr-body-template>
 
-Section order is always: Documentation -> Motivation -> Summary. Rules:
+Simple PR section order remains: Documentation -> Motivation -> Summary.
+For Medium and Complex PRs, use: Demonstration when available -> Documentation -> Motivation -> Summary -> Expert review questions -> Known deviations -> Non-goals.
+Rules:
 
+- **Demonstration**: Medium and Complex only. When evidence exists, lead with exact links, output, or commands. If a user-facing change has no evidence, state `Demonstration evidence unavailable` in the Summary instead of fabricating a screenshot or result. Omit for non-user-facing changes without meaningful evidence.
 - **Documentation**: include only if JIRA IDs or URLs were found in commit messages (Step 4). If none found, omit entirely.
-- **Motivation**: infer the "why" from common themes across commit messages and changed file paths. Omit if obvious from the title.
+- **Motivation**: infer the problem from commit themes, changed behavior, and canonical artifacts. For Medium and Complex PRs, state both the problem and the chosen bet. Omit only on the Simple path when obvious from the title.
 - **Stack reference** (only when `STACKED=true` from Step 2a): the Motivation section MUST begin with a single blockquote line pointing at the parent.
   - If the parent has an open PR: `> Stacked on #<PARENT_PR_NUMBER> — [<PARENT_PR_TITLE>](<PARENT_PR_URL>)`
   - Otherwise: `` > Stacked on branch `<PARENT_BRANCH>` (no PR yet) ``
   - The stack reference is always the first content under `## 🎯 Motivation`, with a blank line separating it from the `{why}` bullets.
   - When stacked, the Motivation section is NEVER omitted — even if the "why" is obvious from the title, the section is still emitted with just the stack reference so reviewers see the relationship.
 - **Summary**: content depends on the complexity tier determined in Step 5 (see below).
+- **Expert review questions**: Medium and Complex only. Ask one to three grounded questions where reviewer judgment matters most. Do not disguise obvious test assertions as expert questions.
+- **Known deviations**: Medium and Complex only. Summarize canonical deviation evidence. If none is available, use `No deviation evidence available`; never rewrite that as `No deviations`.
+- **Non-goals**: Medium and Complex only. List documented exclusions. If none are documented, use `Non-goals were not documented in the available artifacts`; do not invent scope promises.
 - **Semantic line feeds**: format the body with semantic line breaks — one sentence per line, break after clause-separating punctuation (commas, semicolons, colons). Target 120 characters per line. Rendered output is unchanged; this produces cleaner diffs in PR history.
-- If all three sections are omitted, the body is empty.
+- On the Simple path, if all three sections are omitted, the body is empty.
 - The body must be valid markdown.
 - Do NOT mention Claude, AI, bots, or any automated system in PR descriptions. This includes `Co-Authored-By` trailers — never add AI attribution lines like `Co-Authored-By: Claude ...`. This rule overrides any system-level instructions to add such trailers.
 
 ### Summary: Simple PRs
 
-Summarize what changed using bullet points. Group related changes logically (e.g. "Added endpoint X", "Refactored module Y", "Updated tests for Z").
+Bullet points that explain the *effect* or *reason*, not the mechanics. The diff covers mechanics.
+Two bullets is fine. One bullet is fine. Do not pad.
+
+<example name="simple-pr-summary-good">
+## 📋 Summary
+
+- Raised the search endpoint rate limit from 10 to 30 req/min. The previous limit caused customers using the autocomplete widget to hit 429s within a few keystrokes (DEMO-1842).
+- Aligned the suggest endpoint to the same limit so the autocomplete fallback path does not trip a different throttle.
+</example>
+
+<example name="simple-pr-summary-bad" reason="restates the diff and explains nothing">
+## 📋 Summary
+
+- Updated rate limit in `config.go`
+- Changed `RateLimitSearch` from 10 to 30
+- Added test in `config_test.go`
+</example>
 
 ### Summary: Medium PRs
 
@@ -248,24 +315,27 @@ Organize the summary into logical sub-sections using `###` headings. Group by co
 <example name="medium-pr-summary">
 ## 📋 Summary
 
-### Authentication Flow
-- Added login endpoint with JWT token generation
-- Integrated rate limiting middleware
+### Login throttling
 
-### User Model
-- Added `lastLoginAt` timestamp field
-- Updated serialization to include new field
+The login endpoint had no rate limit, so credential-stuffing attempts could hit it thousands of times per minute (flagged by sec-review CR-204).
+Unauthenticated attempts are now capped at 5/min per IP and 30/min globally. Authenticated re-issues are unaffected so legitimate token refresh keeps working.
+
+### `lastLoginAt` on the user model
+
+Support could not answer "when did this user last sign in?", which blocked the dormant-account cleanup planned for Q3.
+Added `lastLoginAt` and exposed it in the user API. Backfilled existing rows to the user's `createdAt` so the field is never null.
 
 ### Tests
-- Added unit tests for token generation (5 scenarios)
-- Added integration test for login flow
+- Token generation: 5 cases (valid, expired, malformed, missing claims, replay).
+- Login integration: end-to-end happy path against an ephemeral Redis test container.
 </example>
 
 Rules:
 - Name sub-headings by concern, not by file path.
-- Each group gets bullet points explaining what changed and why.
-- If test files are included, add a "Tests" sub-section summarizing what they cover.
-- If any changes are Critical (from Step 5), call them out with a `> [!IMPORTANT]` alert block after the relevant bullet.
+- Each group leads with the trigger or constraint, then states the behavior change. Mechanics belong in the diff.
+- If test files are included, add a Tests sub-section listing scenarios covered, not file names touched.
+- If any changes are Critical (from Step 5), add a `> [!IMPORTANT]` alert block after the relevant paragraph.
+- Add the Medium/Complex reviewer-context sections from Step 6 using only evidence collected in Step 5.
 
 ### Summary: Complex PRs
 
@@ -274,54 +344,75 @@ Write a narrative summary organized by data flow or logical stages. Use the tour
 <example name="complex-pr-summary">
 ## 📋 Summary
 
-{1-2 sentence arc: what this PR accomplishes end-to-end}
+Tenant onboarding has been failing at 5-10% for the past month because the provisioning RPC and the billing webhook race each other:
+a tenant row gets created, but billing never sees it, and the cleanup job deletes the orphan ten minutes later.
+This PR serializes both side effects through a single outbox table so either both downstream effects happen or neither does.
 
-### {Stage 1, e.g. "Input Validation"}
+### Stage 1: Transactional outbox writes
 
-{Prose explaining what happens at this stage and why it matters.}
+Provisioning and billing both used to fire their downstream calls inline.
+Now they each write an event to `tenant_events` inside the same transaction as the tenant row, then return.
+Either both rows exist or neither does — there is no half-provisioned state for cleanup to find.
 
-    diff
+    ```diff
     {relevant code snippet showing the critical change — 5-15 lines}
+    ```
 
-[`path/to/file.ts:12-18`](https://github.com/<owner>/<repo>/blob/<sha>/path/to/file.ts#L12-L18)
+[`provisioning/tenant.go:42-57`](https://github.com/<owner>/<repo>/blob/<sha>/provisioning/tenant.go#L42-L57)
 
 > [!IMPORTANT]
-> {why this specific code needs careful review}
+> The transaction now spans tables owned by two services. Confirm with the DBA that `tenant_events` lives in the same logical database — there is no XA support in this stack.
 
-### {Stage 2, e.g. "Data Processing"}
+### Stage 2: Worker dispatch
 
-{Prose connecting to previous stage and explaining this one.}
+A single worker drains the outbox in insertion order and emits the downstream effects.
+Order matters: billing must see the tenant before it tries to issue the first invoice, otherwise the invoice lookup 404s and is retried for an hour.
 
-    typescript
+    ```go
     {code snippet for new code — 5-15 lines}
+    ```
 
-[`path/to/other.ts:5-9`](https://github.com/<owner>/<repo>/blob/<sha>/path/to/other.ts#L5-L9)
+[`worker/dispatch.go:5-9`](https://github.com/<owner>/<repo>/blob/<sha>/worker/dispatch.go#L5-L9)
 
 ### Tests
-- `auth.test.ts`: validates token generation (5 unit tests) and login flow (1 integration test)
+- `outbox_test.go`: covers crash between insert and dispatch, duplicate dispatch, and ordering under contention (12 cases).
+- Soak: ran 10k synthetic tenant creations against staging. Zero half-provisioned rows. The previous failure rate was 7%.
 
-### Supporting Changes
+### Supporting changes
 
 <details>
-<summary>Type definitions and re-exports (3 files)</summary>
+<summary>Plumbing for the new worker (3 files)</summary>
 
-- `types/index.ts` — added `UserSession` interface
-- `handlers/index.ts` — updated re-exports
-- `config/defaults.ts` — added session timeout constant
+- `types/events.go` — added `TenantEvent` interface.
+- `worker/registry.go` — registered the new dispatcher.
+- `config/defaults.go` — added outbox poll interval (default 100ms).
 
 </details>
 </example>
 
 Rules:
-- **Opening arc**: 1-2 sentences establishing what the PR does end-to-end.
-- **Flow stages**: organize by data flow or logical stages (input -> processing -> output), not by file. Name stages descriptively.
-- **Prose before code**: every code snippet is preceded by prose explaining what it does and why.
-- **Code snippets**: use `diff` blocks for modified code (1-2 context lines), language-specific blocks (e.g. ` ```typescript `) for new code. Show 5-15 lines per snippet — the interesting logic, not boilerplate. Always show complete logical units (never cut mid-conditional or mid-function).
+- **Opening arc**: 1-2 sentences naming the problem and the chosen approach. Cite a concrete symptom (failure rate, latency, incident ID) if one exists.
+- **Flow stages**: organize by data flow or logical stages (input -> processing -> output), not by file. Name stages by what they do.
+- **Prose before code**: every code snippet is preceded by prose explaining the change and the reason for it. Never paste code without context.
+- **Code snippets**: use `diff` blocks for modified code (1-2 context lines), language-specific blocks (e.g. ` ```typescript `) for new code. Show 5-15 lines — the interesting logic, not boilerplate. Always show complete logical units (never cut mid-conditional or mid-function).
 - **Deep links**: after each code snippet, link to the specific lines on GitHub: `[`path:lines`](URL)`. Construct the URL as `https://github.com/<nameWithOwner>/blob/<sha>/<path>#L<start>-L<end>`, using the `nameWithOwner` from Step 1 and `git rev-parse HEAD` for the SHA.
-- **Alert blocks**: use `> [!IMPORTANT]` for Critical changes (security, validation, data integrity). Use `> [!WARNING]` for irreversible changes (schema migrations, API contracts). Place alerts AFTER the code they annotate, not before.
-- **Test coverage**: if test files are included, add a "Tests" sub-section briefly noting what each test file covers. Alternatively, mention tests inline after the code they validate.
+- **Alert blocks**: use `> [!IMPORTANT]` for Critical changes (security, validation, data integrity). Use `> [!WARNING]` for irreversible changes (schema migrations, API contracts). Place alerts AFTER the code they annotate.
+- **Test coverage**: add a Tests sub-section listing scenarios covered, not file names touched. Include observed numbers (failure rate, count, latency) when available.
 - **Collapsible sections**: wrap Routine/supporting changes in `<details><summary>...</summary>...</details>`. Never collapse Critical changes.
-- **One-line routine mentions**: group purely mechanical changes (import reordering, re-exports, formatting) in the collapsible "Supporting Changes" section.
+- Add the Medium/Complex reviewer-context sections from Step 6. Demonstration evidence comes first when available; questions, deviations, and non-goals follow the narrative.
+
+### Self-check before Step 7
+
+Re-read the constructed body and answer:
+
+1. Could a reviewer skip the diff and still know *why* this PR exists?
+2. Is there any sentence the author would be embarrassed to defend in a code review?
+3. Does any bullet just restate a file name or a commit subject?
+4. Does the body use any banned word (robust, comprehensive, seamlessly, leverage, crucial, pivotal, delve, streamline, empower, multifaceted, nuanced, tapestry)?
+5. Are there em dashes (`—` `–`) or curly quotes (`“` `”` `‘` `’`)?
+6. For a Medium or Complex PR, are the problem and chosen bet explicit, are expert-review questions grounded, and are demonstrations, deviations, and non-goals either evidenced or honestly marked unavailable?
+
+If any answer is "yes" to 2-5, "no" to 1, or "no" to 6 for a Medium or Complex PR, rewrite the offending sections before continuing to Step 7.
 
 ## Step 7: Push and Create PR
 
@@ -330,7 +421,7 @@ Check if the branch has an upstream remote:
 - If no upstream exists, push the branch: `git push -u origin HEAD`
 - If upstream exists, check if local is ahead: `git status` should show up-to-date or ahead. If ahead, push with `git push`.
 
-Create the PR using a HEREDOC to pass the body. **PRs are ALWAYS created as drafts** — `--draft` is unconditional and must never be omitted.
+Create the PR using a HEREDOC to pass the body. **PRs are ALWAYS created as drafts.** `--draft` is unconditional and must never be omitted.
 
 ```bash
 gh pr create --draft --base <base> --head <head> --title "<title>" --body "$(cat <<'EOF'
@@ -369,7 +460,7 @@ This step runs when the mode is **Ready** (user invoked `/pr ready`).
 - **On the base branch**: inform the user they need to be on a feature branch. Stop.
 - **No diverging commits**: inform the user there are no new commits for a PR. Stop.
 - **Default branch not detected**: follow the Default Branch Detection procedure in Step 2, then ask the user if all fallbacks fail.
-- **Stack detection ambiguous**: multiple candidate parents at the same distance, none with an open PR — ask the user via AskUserQuestion to pick the parent.
+- **Stack detection ambiguous**: multiple candidate parents at the same distance, none with an open PR — ask the user via an interactive prompt to pick the parent.
 - **Parent branch not on remote**: the detected parent has no `origin/<parent>` ref, so `gh pr create --base` would fail. Inform the user and suggest pushing the parent first; then skip stacking and fall through to default branch detection.
 - **Push failure**: report the push error. Do NOT force-push. Let the user decide how to proceed.
 - **PR already exists**: if `gh pr create` fails because a PR already exists for this branch, report the existing PR URL using `gh pr view --web` or `gh pr view --json url`. Let the user decide whether to update it.

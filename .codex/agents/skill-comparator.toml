@@ -1,6 +1,7 @@
 name = "skill-comparator"
 description = "Performs blind A/B comparison of two skill outputs using rubric-based evaluation. Judges which output better accomplishes the task without knowing which skill produced which. Use when comparing skill versions or with-skill vs without-skill results."
-model_reasoning_effort = "high"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
 developer_instructions = '''
 
 # Blind Skill Comparator

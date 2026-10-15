@@ -1,0 +1,2 @@
+{"timestamp":"2026-07-01T00:00:30Z","type":"session_meta","payload":{"id":"child-thread","session_id":"root-thread","parent_thread_id":"root-thread","agent_role":"worker","agent_path":"/root/worker","timestamp":"2026-07-01T00:00:30Z"}}
+{"timestamp":"2026-07-01T00:01:20Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":90,"cached_input_tokens":70,"output_tokens":8,"reasoning_output_tokens":2,"total_tokens":98}}}}

@@ -1,0 +1,39 @@
+model = "gpt-5.6-sol"
+plan_mode_reasoning_effort = "xhigh"
+model_reasoning_effort = "xhigh"
+
+sandbox_mode = "danger-full-access"
+
+allow_login_shell = true
+approvals_reviewer = "auto_review"
+
+# Store MCP OAuth tokens in a plaintext file under ~/.codex instead of the OS
+# keychain so mcp-auth can own and inject credentials. Codex defaults to the OS
+# keychain; this must be set explicitly to keep tokens file-based.
+mcp_oauth_credentials_store = "file"
+
+[approval_policy.granular]
+sandbox_approval = false
+rules = true
+mcp_elicitations = true
+request_permissions = true
+skill_approval = true
+
+[shell_environment_policy]
+inherit = "all"
+set = { BROWSER = "/usr/bin/open", TMPDIR = "/tmp", TMP = "/tmp", TEMP = "/tmp" }
+
+[projects."/Users/rodrigo.fernandes/dev"]
+trust_level = "trusted"
+
+[projects."/Users/rodrigo.fernandes/worktrees"]
+trust_level = "trusted"
+
+[projects."/Users/rodrigo.fernandes/dd"]
+trust_level = "trusted"
+
+[projects."/Users/rodrigo.fernandes/go"]
+trust_level = "trusted"
+
+[projects."/Users/rodrigo.fernandes/docs"]
+trust_level = "trusted"

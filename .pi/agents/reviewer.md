@@ -1,6 +1,9 @@
 ---
 name: reviewer
 description: "Plan review agent. Critically analyzes execution plans for completeness, safety, and executability. Identifies missing steps, risks, and suggests fixes."
+model: ai-gw-baseten/baseten/zai-org/GLM-5.2
+thinking: xhigh
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 maxTurns: 15
 ---

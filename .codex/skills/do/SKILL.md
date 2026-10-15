@@ -1,527 +1,279 @@
 ---
 name: "do"
-description: "Use when the user wants to implement a feature with full lifecycle management. Triggers: \"do\", \"implement feature\", \"build this\", \"create feature\", \"start new feature\", \"resume feature work\", or references to FEATURE.md state files."
+description: "Use when the user wants to implement, build, fix, or deliver a code change from an approved idea or plan through a pull request. Triggers: \"do\", \"implement the plan\", \"build this\", \"fix this\", \"create feature\", \"ship this\", \"resume feature work\", or references to `/do` state files."
 ---
 
-# Feature Development Orchestrator
+# Adaptive Code Delivery
 
-Announce: "I'm using the /do skill to orchestrate feature development with lifecycle tracking."
+Announce: "I'm using `/do` to implement and deliver this change with a risk-sized workflow."
 
-## Outer Loop Rules
+## Step 1: Ground the Run
 
-These rules govern the SKILL.md outer loop.
-Phase-level rules passed to every orchestrator dispatch live in [references/workflow-rules.md](references/workflow-rules.md).
-Detailed phase behaviors live in [references/phase-flow.md](references/phase-flow.md).
+Read the repository instructions and inspect the current git state before changing files.
 
-- **Preferences before everything.** Step 1 runs IMMEDIATELY on invocation,
-  before discovering runs, parsing arguments, or doing any phase work.
-- **Never skip phases.** Every feature goes through REFINE → RESEARCH → PLAN_DRAFT → PLAN_REVIEW → EXECUTE → VALIDATE → DONE.
-  "Simple" features are where unexamined assumptions cause the most rework.
-  REFINE can be brief for well-specified descriptions, but phases themselves are non-negotiable.
-- **State is sacred.** State lives in `~/docs/plans/do/<short-name>/`, never in the repo.
-  Update FEATURE.md frontmatter after every phase transition — state files are the only handoff mechanism between phases.
-- **Hard stop on blockers.** When encountering ambiguity or missing information, stop and report.
-  Guessing creates cascading errors that multiply rework.
-- **Discovered work must be filed, not disavowed.** Failures, broken tests, or out-of-scope issues surfaced in any phase
-  MUST become a `discovered_from` bundle in `tasks/`. Deleting, disabling, or silently skipping a failing test is a
-  workflow violation. See Discovery Capture Protocol in phase-flow.md.
-- **Source isolation (worktree/workspace modes).** No code files written in the original source directory —
-  the worktree or workspace is the only write target.
-- **Subagent dispatch discipline.** Instruct subagents to keep final responses under 2000 characters (outcomes, not process).
-  Never call TaskOutput twice for the same Task — if it times out, increase the timeout instead of re-reading.
+Parse these flags:
 
-## Interaction Modes
-
-**Interactive (default):** User reviews and explicitly approves outputs at every phase transition before the outer loop proceeds.
-Feedback can be provided at any checkpoint.
-
-**Autonomous (`--auto` flag):** Proceed through all phases without interruption;
-report at completion or on blockers.
-
-Phase-transition checkpoints — interactive mode pauses and waits for approval at each:
-
-| After Phase | What the user reviews |
+| Flag | Meaning |
 |-|-|
-| REFINE | Problem statement, chosen approach, scope, acceptance criteria |
-| RESEARCH | Codebase map, research brief, assumptions, risks |
-| PLAN_DRAFT | Milestones, task breakdown, validation strategy |
-| PLAN_REVIEW | Review feedback, final plan readiness |
-| EXECUTE (per batch) | Completed tasks, test status, discoveries |
-| VALIDATE | Validation results, quality scorecard |
-| DONE | PR creation, merge, keep branch, or discard |
+| `--fast` | Use one implementation leaf and skip optional research leaves |
+| `--deep` | Allow bounded leaf agents for high-risk or independent workstreams |
+| `--interactive` | Pause for user decisions and approval at material checkpoints |
+| `--auto` | Backward-compatible alias for autonomous execution |
+| `--branch` | Create or reuse a local feature branch without a separate worktree |
+| `--workspace` | Create a remote workspace and start this `/do` run there |
+| `--token-budget <tokens>` | Advisory stop threshold for measured completed-delegate tokens |
+| `--budget <USD>` | Legacy budget; enforce only when the runtime supplies an exact cost source |
 
-## State Storage and Iteration
+`--branch` and `--workspace` are mutually exclusive. If both are present, ask the user to
+choose one. Otherwise evaluate repository state in this order; the first matching row wins:
 
-All state lives in `~/docs/plans/do/<short-name>/`, independent of the working directory.
-`<short-name>` is kebab-case from the feature description (max 40 chars).
-See [references/state-file-schema.md](references/state-file-schema.md) for the full file listing and schemas.
-
-After Step 1 (preferences), analyze the user's query:
-
-- **Fresh start** (new feature description) → Step 4 (new mode)
-- **Resume** (references a state file or short-name) → Step 5a
-- **Iterating** (feedback on current run) → address within the current phase
-- **No arguments** → handle per Step 3
-
-## Step 1: Ask Preferences (ALWAYS FIRST)
-
-This step runs IMMEDIATELY on invocation, before discovering runs or doing any other work.
-
-```bash
-REPO_ROOT=$(git rev-parse --show-toplevel)
-```
-
-### 1a: Parse Flags
-
-Parse `$ARGUMENTS` for flags and strip them from the feature description:
-
-- `--auto` → pre-select autonomous mode
-- `--branch` → pre-select branch-only workdir mode
-- `--budget <USD>` → validate positive number, store as `token_budget_usd` (invalid → warn and ignore)
-
-Store the stripped feature description as `feature_description` — used for workspace dispatch.
-If `--budget` is not present, `token_budget_usd` remains null (unlimited).
-
-### 1b: Workspace and Automation Preferences
-
-**Fast-path — `--branch` + `--auto`:** skip all preference questions.
-Set `workdir_mode: branch_only`, `base_branch: default`, `interaction_mode: autonomous`. Proceed to Step 2.
-
-**Fast-path — `--branch` only:** skip the "Feature setup" question,
-set `workdir_mode: branch_only`, and jump to the branch-and-automation question below.
-
-**Otherwise, present ALL four options exactly as written. Never omit the Workspace option:**
-
-```
-AskUserQuestion(
-  header: "Feature setup",
-  question: "How should this feature be developed?",
-  options: [
-    "Worktree + branch (Recommended)" -- Isolated worktree with a feature branch. Source repo stays completely clean.,
-    "Branch only" -- Feature branch in the current directory.,
-    "Current branch" -- Work directly on the current branch.,
-    "Workspace" -- Remote cloud dev environment. Spins up a remote CDE on EC2. Claude starts there with /do to create a branch and work.
-  ]
-)
-```
-
-**If `workdir_mode` is `workspace`:** skip the branch question.
-No local branch — the remote `/do` session handles creation.
-If `--auto` was not in arguments, ask automation mode only:
-
-```
-AskUserQuestion(
-  header: "Automation mode",
-  question: "Should the remote workspace session run autonomously?",
-  options: [
-    "Interactive (Recommended)" -- Review at each phase in the workspace,
-    "Autonomous" -- Proceed without interruption in the workspace
-  ]
-)
-```
-
-Record: `workdir_mode: workspace`, `interaction_mode` from above, `base_branch: null`. Proceed to Step 2.
-
-**If `workdir_mode` is `current_branch`:** skip the branch question; ask interaction mode only.
-
-**Otherwise (worktree or branch_only):** detect the current and default branches,
-then present a combined branch-and-automation question.
-
-```bash
-CURRENT_BRANCH=$(git symbolic-ref --short HEAD)
-DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
-# Fallback: main
-```
-
-**Replace `<name>` in option titles with the actual current branch. Use descriptions EXACTLY as written —
-do NOT substitute branch names into descriptions.**
-
-```
-AskUserQuestion(
-  header: "Branch and automation",
-  question: "Configure the new feature branch:",
-  options: [
-    "Default branch, Interactive (Recommended)" -- Branch off the repo default. Review at each phase.,
-    "Default branch, Autonomous" -- Branch off the repo default. Proceed without interruption.,
-    "Current branch (<name>), Interactive" -- Branch off your current checkout. Review at each phase.,
-    "Current branch (<name>), Autonomous" -- Branch off your current checkout. Proceed without interruption.
-  ]
-)
-```
-
-**If the current branch IS the default branch:** omit the "Current branch" options —
-show only the two "Default branch" options and the free-text option.
-
-If the user types a custom branch name, use it as the base and ask interaction mode separately.
-**If `--auto` was in arguments:** skip the automation question — present only the base branch options.
-
-Record:
-
-- `workdir_mode`: `worktree` | `branch_only` | `current_branch` | `workspace`
-- `base_branch`: `default` | `<current branch>` | `<user-typed branch>` (null for workspace)
-- `interaction_mode`: `interactive` | `autonomous`
-
-### 1c: Source Isolation Rule
-
-| Workdir Mode | Code changes | State files | Source repo touched? |
-|-|-|-|-|
-| **Worktree + branch** | Worktree only | `~/docs/plans/do/<short-name>/` | **No** |
-| **Branch only** | Current repo (on branch) | `~/docs/plans/do/<short-name>/` | Yes (code only, on branch) |
-| **Current branch** | Current repo | `~/docs/plans/do/<short-name>/` | Yes (code only) |
-| **Workspace** | Remote workspace | Remote (workspace `/do` session) | **No (locally)** |
-
-State files always live in `~/docs/plans/do/`, never in the repo.
-
-## Step 2: Discover Existing Runs
-
-Run `Glob(pattern="*/FEATURE.md", path="~/docs/plans/do")` to find existing runs.
-For each file, read it and treat runs without `current_phase: DONE` as active.
-Parse active runs for: `short_name`, `current_phase`, `phase_status`, `branch`, `worktree_path`, `last_checkpoint`.
-
-**Stale detection:** compute age from `last_checkpoint` — `<7d` active, `7-30d` stale, `>30d` abandoned.
-Include age markers in the run list. Offer to archive stale/abandoned runs to `~/docs/plans/do/.archive/`.
-
-## Step 3: Mode Selection
-
-When arguments are a feature description, start the full workflow.
-Do not implement directly, regardless of perceived simplicity.
-
-Classify in priority order:
-
-1. **Analysis-only detection** — `$ARGUMENTS` contains analysis keywords
-   ("analyze", "assess", "evaluate", "audit", "compare", "investigate") WITHOUT implementation keywords
-   ("implement", "build", "create", "add", "fix"):
-   - Route through REFINE → RESEARCH only (skip PLAN_DRAFT onward)
-   - Do NOT create a feature branch or worktree — analysis writes to an output file, not the repo
-   - Report findings as a standalone analysis document
-
-2. **State file reference** — `$ARGUMENTS` contains `FEATURE.md` or is a path to an existing state file
-   (NOT a URL starting with `http://` or `https://`):
-   - Verify the file exists, parse phase status, route to **Resume Mode** (Step 5a)
-   - Inherit `interaction_mode` from the state file unless overridden in Step 1
-
-3. **Feature description, no active runs** → **New Mode** (Step 4)
-
-4. **Feature description, active runs exist:**
-   - **Autonomous mode:** auto-select "Start new feature"
-   - **Interactive mode:**
-
-```
-AskUserQuestion(
-  header: "Active runs found",
-  question: "Found <N> active feature runs. What would you like to do?",
-  options: [
-    "Start new feature" -- Begin a fresh workflow for the new feature,
-    "<short-name>: <feature-name> (phase: <phase>)" -- Resume this run
-  ]
-)
-```
-
-5. **No arguments:** list active runs (if any) and ask which to resume, or prompt for a new feature description.
-
-## Step 4: Workdir Setup (New Mode)
-
-Preferences were collected in Step 1 — execute the chosen setup.
-
-### 4a: Execute Workdir Setup
-
-**For `base_branch: default`** — use the `/worktree` and `/branch` skills (they auto-detect main/master):
-
-| Choice | Actions |
+| Repository state | Action |
 |-|-|
-| **Worktree + branch** | `Skill("worktree", "<slug>")` → `Skill("branch", "<slug>")` → `WORKDIR_PATH` = worktree path |
-| **Branch only** | `Skill("branch", "<slug>")` → `WORKDIR_PATH` = `REPO_ROOT` |
-| **Current branch** | Record current branch → `WORKDIR_PATH` = `REPO_ROOT` |
-| **Workspace** | `Skill("workspace", "create <ws-prefix>-<slug>")` -- delegates to `/workspace` skill (handles creation + auth setup). See 4a-workspace. |
+| Unrelated dirty changes | Stop and ask how to isolate the work |
+| `--workspace` | Follow the remote handoff below; do not create a local branch, worktree, or state |
+| Existing `/do` state explicitly referenced | Resume it after reconciling state with git |
+| Resume or status intent without a state path | Discover matching state; never start a new run |
+| Dedicated worktree or non-default feature branch | Reuse it |
+| `--branch` on a clean default branch | Create a feature branch in the current checkout; do not create a worktree |
+| Clean default branch | Create an isolated worktree and feature branch |
 
-**For custom `base_branch`** — `/worktree` and `/branch` auto-detect main, so use direct git commands:
+For bare resume or status intent, scan `~/docs/plans/do/*/FEATURE.md` and match the recorded
+repository, branch, and status against git. Resume the single match. If several match, ask the
+user to choose; if none match, report that no resumable run exists. Never interpret a failed
+resume lookup as a request to initialize a new run.
 
-| Choice | Actions |
-|-|-|
-| **Worktree + branch** | `git fetch origin <base>` → `git worktree add --detach <path> origin/<base>` → `cd <path>` → `git checkout -b <branch-name>` |
-| **Branch only** | `git fetch origin <base>` → `git checkout -b <branch-name> origin/<base>` |
+For `--workspace`:
 
-**Naming conventions:**
+1. Preserve the complete feature request and applicable profile, interaction, and advisory-budget flags.
+2. Derive a short workspace slug and delegate once to
+   `/workspace create <slug> --claude-prompt <opaque-prompt>`.
+3. Set the opaque prompt to invoke `/do` with the preserved feature request and `--branch` in
+   the remote checkout. Omit `--workspace` so the handoff cannot recurse.
+4. Wait for `/workspace` to confirm that the detached remote session started, then report its
+   join command and stop the local run. If remote startup is not confirmed, report a blocker;
+   never claim that implementation is running.
 
-- Branch: `<prefix>/<slug>` where `prefix` = first token of `git config user.name`, lowercased
-- Workspace: `<ws-prefix>-<slug>` where `ws-prefix` = `whoami | cut -d. -f1`
+Never write state into the repository.
+State lives under `~/docs/plans/do/<short-name>/`.
 
-**Workspace creation flags:** `--region eu-west-3 --instance-type aws:m6gd.4xlarge --shell fish`
+## Step 2: Select One Execution Profile
 
-### 4a-workspace: Pre-Flight, Creation, and Handoff
+Choose one profile automatically and report it in one line.
+Profiles are alternatives, never additive lifecycle layers.
 
-**Pre-flight validation BEFORE workspace creation:**
-
-1. **Verify wmux is available** (preferred auth evaluator):
-
-   ```bash
-   which wmux 2>/dev/null
-   ```
-
-   If not installed, warn but continue -- the `/workspace` skill falls back to manual auth checks.
-
-2. **Validate workspace secrets** -- required API keys must be registered BEFORE creation
-   (secrets only propagate to future workspaces):
-
-   If `wmux` is available:
-   ```bash
-   wmux validate-workspace-config 2>&1
-   ```
-
-   If not available, check manually:
-   ```bash
-   workspaces secrets list 2>&1
-   ```
-
-   Verify `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are present and exported.
-
-   If secrets are missing, guide the user through registration:
-   ```bash
-   workspaces secrets set ANTHROPIC_API_KEY=<key> --export
-   workspaces secrets set OPENAI_API_KEY=<key> --export
-   ```
-
-   Re-validate after registration. Block until resolved -- creating a workspace without secrets
-   means Claude/Codex won't work, and secrets cannot be injected after creation.
-
-3. **Delegate workspace creation and auth to the `/workspace` skill:**
-
-   ```
-   Skill(skill="workspace", args="create <ws-prefix>-<slug> --repo <repo> --branch <branch>")
-   ```
-
-   The `/workspace` skill handles creation (background, ~10-20 min),
-   SSH agent validation, post-creation auth setup (wmux auth checks, OIDC device-code surfacing),
-   secrets validation, health check, and SSH config.
-   Wait for it to complete before proceeding.
-
-4. **Post-workspace verification** -- confirm workspace is ready before launching remote `/do`:
-
-   Verify workspace is running:
-   ```bash
-   workspaces list 2>/dev/null | grep "<ws-name>"
-   ```
-
-   Verify SSH connectivity:
-   ```bash
-   ssh -A workspace-<ws-name> "echo ok" 2>&1
-   ```
-
-   If SSH fails, run `workspaces ssh-config <ws-name>` and retry once.
-   If still failing:
-
-   ```
-   AskUserQuestion(
-     header: "Workspace connection failed",
-     question: "Cannot SSH into workspace '<ws-name>'. How to proceed?",
-     options: [
-       "Retry" -- Try SSH again after a moment,
-       "Delete and recreate" -- Delete this workspace and start over,
-       "Use branch-only mode instead" -- Fall back to working locally on a branch
-     ]
-   )
-   ```
-
-   If "Use branch-only mode": set `workdir_mode: branch_only`, proceed to Step 4b.
-
-5. **Construct the remote `/do` command** from stored `feature_description` + `--branch` +
-   (`--auto` if autonomous) + (`--budget <X>` if set).
-   **SSH in, start tmux with Claude running `/do`:**
-
-   ```bash
-   REMOTE_CMD="/do <feature_description> --branch [--auto] [--budget <X>]"
-   ssh -A workspace-<ws-name> "cd /workspaces/<repo> && tmux new-session -d -s main -c /workspaces/<repo> \"claude '$REMOTE_CMD'\""
-   ```
-
-   Quoting matters -- escape single quotes in the feature description before embedding.
-
-   Verify tmux session started:
-   ```bash
-   ssh -A workspace-<ws-name> "tmux has-session -t main 2>&1"
-   ```
-
-   If tmux verification fails, retry the tmux command once.
-
-6. **Report the join command and STOP:**
-
-   ```
-   Workspace "<ws-name>" is ready. Claude is running `/do` on the remote session.
-
-   Join:        ssh -A workspace-<ws-name> -t "tmux new-session -A -s main"
-   iTerm2 -CC:  ssh -A workspace-<ws-name> -t "tmux -CC new-session -A -s main"
-   IDE:         workspaces connect <ws-name> --editor intellij
-   Status:      workspaces list
-   Delete:      workspaces delete <ws-name>
-   ```
-
-   **STOP here.** The remote Claude session handles branch creation and feature development.
-   Do NOT proceed to Step 4b or any further step locally.
-
-### 4b: Initialize State Directory
-
-```bash
-SHORT_NAME="<derived-slug>"   # kebab-case from feature description, max 40 chars
-STATE_ROOT=~/docs/plans/do
-mkdir -p "$STATE_ROOT/$SHORT_NAME"
-```
-
-Create `$STATE_ROOT/$SHORT_NAME/FEATURE.md` using the schema in state-file-schema.md,
-with `current_phase: REFINE` and `phase_status: not_started`.
-
-### 4c: Context Hydration
-
-Deterministically extract and pre-fetch external references from the feature description.
-This grounds downstream phases in actual content rather than link-only references.
-
-| Source | Detection | Action |
+| Profile | Use when | Work leaves |
 |-|-|-|
-| GitHub repos | `github.com/<owner>/<repo>` (no `/pull/`, `/issues/`, etc.) | `git clone --depth 1` to `/tmp/<repo>`, set as analysis target |
-| URLs (http/https) | Non-repo URLs in feature description | `WebFetch` each, save summary to `CONTEXT/` |
-| GitHub PRs/issues | `#NNN` or GitHub URL patterns | `gh pr view` or `gh issue view`, save to `CONTEXT/` |
-| Ticket references | JIRA-NNN, PROJ-NNN patterns | CLI fetch if available, save to `CONTEXT/` |
+| **Fast** | Goal, acceptance criteria, and approach are settled; one coherent behavior slice; no material unknown | One implementation leaf |
+| **Standard** | One or more local evidence or design gaps remain, or the change crosses a moderate subsystem boundary | One research leaf and one implementation leaf |
+| **Deep** | Explicit `--deep`; auth/security; concurrency; destructive migration; multi-repository delivery; or at least three independent workstreams | Up to three bounded research or implementation leaves |
 
-Skip if no external references are found.
-Pass hydrated content to the orchestrator via `<hydrated_context>` tags in the dispatch prompt.
+The independent final reviewer in Step 6 is required for every profile and is separate from these
+optional research or implementation leaves.
 
-### 4d: Brainstorm Option (Interactive Mode Only)
+Before dispatching a leaf, classify its task evidence and resolve the cross-surface route with
+`python3 scripts/model_router.py route --surface <runtime> --task <task-class>`. Fast and Standard
+implementation leaves normally use the `economy` tier; research and exploration do too; planning,
+validation, review, grading, and adversarial work use `critical`. Deep keeps the same tier mapping
+while adding bounded fan-out. A valid explicit user model override wins. If availability is not
+known, keep the configured route, mark it unverified, and record observed usage as unknown. The
+source agent's `routing_tier` is a recommendation, not evidence that a model ran.
 
-Skip entirely in autonomous mode.
-Ask whether the user wants to brainstorm first:
+`--fast` skips optional research delegation but never skips evidence, tests, implementation delegation, review, or delivery.
+If a safety-critical fact is missing, stop for that fact instead of silently escalating or guessing.
 
-```
-AskUserQuestion(
-  header: "Brainstorm?",
-  question: "Would you like to brainstorm this idea before starting refinement?",
-  options: [
-    "Start refinement (Recommended)" -- Jump straight into refining the feature specification,
-    "Brainstorm first" -- Explore and sharpen the idea with a thinking partner before committing to building it
-  ]
-)
-```
+All delegated agents are leaves:
 
-**If "Start refinement":** proceed to Step 5.
+- They receive one bounded question or disjoint file ownership.
+- They may not spawn agents, manage lifecycle state, commit, push, or poll.
+- Their final response stays under 2,000 characters and lists outcomes, not process.
+- Maximum delegation depth is one.
 
-**If "Brainstorm first":**
+The top agent is the sole owner of decisions, state, planning, integration, validation, remediation, and delivery.
+Never dispatch an orchestrator, phase controller, milestone controller, bundle generator,
+validation controller, delivery controller, or memory extractor.
 
-1. Create the brainstorm file:
+### Advisory Token Accounting
 
-   ```bash
-   mkdir -p ~/docs/brainstorms
-   TODAY=$(date +%Y-%m-%d)
-   ```
+`--token-budget` is not a whole-session hard ceiling. Runtime interfaces do not expose a
+portable exact total for the top agent, tools, active delegates, and future work. Count only exact
+cumulative token totals reported by completed delegated agents. Before starting another optional
+leaf or separable task, sum those completed-delegate totals; if the measured sum is at or above the
+threshold, stop and report the measured scope and excluded unknown usage. Never estimate missing
+usage or claim the total run stayed below the threshold. A run with no delegates has a measured
+completed-delegate total of zero.
 
-   Derive a brainstorm slug (kebab-case, max 40 chars).
-   Create `~/docs/brainstorms/<slug>.md` with the initial idea (same template as `/brainstorm`).
+## Step 3: Initialize or Resume State
 
-2. Dispatch the brainstormer agent using the Brainstormer template in
-   [references/dispatch-templates.md](references/dispatch-templates.md).
+Read [references/artifacts.md](references/artifacts.md) before creating or updating run artifacts.
 
-3. After completion, read `~/docs/brainstorms/<slug>.md` and pass the content as
-   `<brainstorm_context>` in the REFINE dispatch. Proceed to Step 5.
+Create artifacts as their evidence gate is reached.
+Before delivery, ensure the completed run contains:
 
-## Step 5: Phase Execution Loop
+- `FEATURE.md`
+- `RESEARCH.md`
+- `CONVENTIONS.md`
+- `PLAN.md`
+- `REVIEW.md`
+- `VALIDATION.md`
+- `SNAPSHOT.md`
+- `events.jsonl`
+- compact `tasks/TASK-*.md` files when the plan has separable tasks
 
-New and resume modes converge here.
-The outer loop dispatches a **fresh, phase-scoped orchestrator** for each phase —
-each gets only the context it needs, writes results to state files, and returns.
-The outer loop reads state and dispatches the next phase.
-This eliminates context exhaustion from a single long-running orchestrator.
+If a gate reused approved context and produced no unique evidence,
+create its artifact with the required headings and one line identifying the reused source.
 
-### 5a: Resume Preamble (Resume Mode Only)
+The top agent writes every artifact.
+No artifact exists to feed another controller.
 
-1. Read the state file → determine current phase, status, and workdir configuration.
-2. **Reconcile git state:** if `worktree_path` is set, verify the worktree exists and `cd` into it.
-   Check that the branch matches. Handle dirty tree per `uncommitted_policy` in state.
-3. Set `WORKDIR_PATH` from state `worktree_path` (or `repo_root` if null).
-4. **State-reality verification:** compare FEATURE.md Progress against `git log`.
-   For each "complete" task with a commit SHA, verify the SHA exists in log.
-   Check task bundle statuses against git reality.
-   Check the next pending task's preconditions against current codebase state.
-   Store discrepancies as `state_drift` for the next orchestrator dispatch.
-5. **Pending-triage surfacing:** count discovered bundles with
-   `Grep(pattern="^status: discovered$", path="tasks/", output_mode="count")`.
-   If non-zero, include a one-line summary in the resume message:
-   `N discovered bundle(s) pending triage (see SNAPSHOT.md Discovered Tasks; triaged at DONE).`
-   Do not auto-triage on resume — the user decides fate at DONE.
-6. **Regenerate SNAPSHOT.md** — the existing snapshot may be stale if the session crashed mid-task.
-   Follow the Resume Snapshot Protocol in phase-flow.md.
+Append events only for:
 
-### 5b: Phase Loop
+- `SESSION_START`
+- `PROFILE_SELECTED`
+- `DECISION`
+- `IMPLEMENTATION_COMPLETE`
+- `REVIEW_COMPLETE`
+- `VALIDATION_COMPLETE`
+- `DELIVERY_COMPLETE`
+- `BLOCKED`
 
-Read [references/workflow-rules.md](references/workflow-rules.md) once
-and store as `WORKFLOW_RULES` for all dispatches.
+Do not log individual tools, waits, status requests, or commentary updates.
+Pass paths and a short risk/task capsule to leaf agents; never inline complete artifacts.
 
-Read FEATURE.md frontmatter → extract `current_phase`, `phase_status`, `interaction_mode`, `analysis_only`.
+On resume:
 
-```
-while current_phase not in [DONE, ANALYSIS_COMPLETE]:
-  1. Load phase context per the Context Payloads table in phase-flow.md
-  2. Dispatch the phase orchestrator per Step 5c (or the milestone orchestrator per 5d for EXECUTE)
-  3. Read updated state per the Return Contract table in phase-flow.md
-  4. If interactive: present a phase summary and AskUserQuestion at every transition.
-     Do NOT proceed until explicit approval. Apply user feedback (adjust, refine further, re-dispatch).
-  5. Apply phase transitions:
-     - REFINE approved        → RESEARCH
-     - RESEARCH approved      → PLAN_DRAFT (or DONE if analysis_only)
-     - PLAN_DRAFT approved    → PLAN_REVIEW
-     - PLAN_REVIEW approved   → BUNDLE_GENERATION (5e, if tasks/ absent) → EXECUTE
-     - PLAN_REVIEW blocked    → PLAN_DRAFT (max 3 loops)
-     - EXECUTE all done       → VALIDATE
-     - VALIDATE approved      → DONE
-     - VALIDATE blocked       → EXECUTE with fix tasks (max 2 loops)
-  6. Update FEATURE.md frontmatter: current_phase, last_checkpoint
-  7. Regenerate SNAPSHOT.md per the Resume Snapshot Protocol in phase-flow.md
-```
+1. Read `FEATURE.md` frontmatter and `SNAPSHOT.md`.
+2. Compare recorded branch, commits, and task status with git.
+3. Correct stale state from repository truth.
+4. Continue from the first unmet acceptance criterion.
 
-**EXECUTE sub-loop:** read PLAN.md and task bundles, build the milestone dependency graph.
-Identify ready milestones (all dependencies complete, status != complete).
-Group by file overlap per the File Impact Map — no overlap → dispatch in parallel
-(multiple Task calls in one message); shared files → sequential.
-Initialize `events.jsonl` on first EXECUTE entry (append `SESSION_START`).
-After all milestones complete, advance to VALIDATE.
+## Step 4: Satisfy Evidence Gates in the Top Agent
 
-### 5c: Dispatch Templates
+Treat lifecycle phases as checks, not agent dispatches:
 
-All phase, milestone, and bundle-generation dispatches use the templates in
-[references/dispatch-templates.md](references/dispatch-templates.md).
+1. **Refine:** Verify the goal, audience, scope, constraints, and binary acceptance criteria.
+2. **Research:** Inspect only code, documentation, history, or external facts needed by the plan.
+3. **Plan:** Record the chosen approach, affected subsystems, task order, risks, and validation commands.
 
-| Phase path | Template |
-|-|-|
-| REFINE, RESEARCH, PLAN_DRAFT, PLAN_REVIEW, VALIDATE, DONE | Phase Orchestrator |
-| EXECUTE (per ready milestone or parallel group) | Milestone Orchestrator |
-| PLAN_REVIEW approval → EXECUTE (once) | Bundle Generation (skip if `tasks/` exists) |
-| Step 4d brainstorm option | Brainstormer |
-| Step 6 status request | Status Mode (read-only) |
+Reuse approved conversation evidence.
+Do not re-ask approved decisions or repeat repository research.
 
-**Parallel milestone dispatch:** when multiple ready milestones have no file overlap,
-send one message with multiple Task calls.
-After all return, read updated state and proceed to the next group.
+In Fast mode, keep the plan short and proceed as soon as the checks above are satisfied.
+In Standard mode, use the optional research leaf for one concrete evidence gap only.
+In Deep mode, parallelize independent research or implementation only when file ownership and
+conflict keys are disjoint. Cap automatic fan-out at three leaf workers with one coordinator slot
+reserved. If capacity is unknown, dispatch one probe before refilling. Use wait-any completion;
+after the first failure, stop dispatching, drain active leaves, and skip undispatched work.
 
-After BUNDLE_GENERATION, verify the task file count matches the task count in PLAN.md.
+Interactive mode pauses only for a material product or architecture choice.
+Autonomous mode resolves ordinary implementation choices from repository evidence.
+Both modes stop for missing authority, destructive scope expansion, or an unresolved safety decision.
 
-## Step 6: Status Mode
+## Step 5: Implement and Validate
 
-If the user asks for status without resuming, dispatch the orchestrator read-only using the
-Status Mode template in [references/dispatch-templates.md](references/dispatch-templates.md).
-The orchestrator must not modify state or code.
+Delegate the initial implementation to the named `implementer` agent in every profile.
+Fast and Standard use exactly one implementation leaf. Deep may use multiple implementation
+leaves only when their file ownership is disjoint. Tell every implementer that:
+
+- the top agent retains commit ownership;
+- other work may be happening and unrelated edits must be preserved;
+- it must implement the approved plan, run focused checks, and return outcomes under 2,000 characters.
+
+For behavior changes:
+
+1. Add or update a focused regression test.
+2. Run it and confirm the expected failure.
+3. Implement the minimum coherent fix.
+4. Run the focused test and nearby regression suite.
+
+The required order is RED test → implementation → GREEN test → stabilized full validation
+→ final review → commits → push/PR → one status fetch.
+
+For refactors, configuration, generated code, or documentation,
+use the repository's most relevant deterministic verification instead of forcing artificial TDD.
+
+Validation is proportional:
+
+- Run focused checks while editing.
+- Run repository-mandated validation once after the diff stabilizes.
+- Re-run only checks affected by a subsequent fix.
+- Do not run a full baseline before every task or milestone.
+- Never delete, disable, or skip a failing test to proceed.
+
+Record unrelated findings in the `FEATURE.md` discovered-work section.
+Create a separate discovery task only when the finding blocks or materially affects delivery.
+Do not expand the current change automatically.
+
+### Waiting Discipline
+
+Work on independent local checks while a leaf agent is active.
+Then use the runtime's completion notification or longest permitted completion wait.
+
+After a timeout:
+
+1. Check status once.
+2. If progress is visible, issue at most one further completion wait.
+3. If completion still cannot be observed, report the worker as a blocker.
+
+Never send status-only follow-ups, repeatedly call agent-listing tools, or spawn a replacement
+until the original worker is confirmed stopped.
+
+## Step 6: Run One Final Review
+
+After deterministic checks pass, dispatch exactly one independent whole-diff reviewer using the
+named `task-critic` agent.
+
+Give the reviewer:
+
+- acceptance criteria
+- base and head refs
+- changed-file list or diff
+- named high-risk areas
+- exact validation evidence
+
+Do not provide implementation reasoning, full research history, or previous reviewer chains.
+The reviewer checks specification compliance, correctness, maintainability, tests, and named risks together.
+
+If the reviewer accepts, record the result in `REVIEW.md`.
+If it proves actionable findings:
+
+1. The top agent fixes only the proven findings.
+2. Re-run affected checks.
+3. Ask the same reviewer for one focused recheck.
+
+A second rejection blocks delivery.
+Do not spawn a new critic, red team, spec reviewer, code-quality reviewer, or rescue agent.
+
+## Step 7: Deliver the Pull Request
+
+After review and validation pass:
+
+1. Inspect the final diff for unintended files, debug code, secrets, and generated-file drift.
+2. Organize the change into the minimum logical commits without dispatching a commit agent.
+3. Follow repository instructions for commit signing and the approved push command.
+4. Create or update the intended pull request.
+5. Fetch CI and review status once.
+6. Update `VALIDATION.md`, `FEATURE.md`, `SNAPSHOT.md`, and `events.jsonl`.
+7. Report the PR, commits, checks, known pending status, and artifact path.
+
+Do not poll CI, wait for review bots, invoke `/pr-fix`, or apply new review feedback unless the user asks.
+
+## Step 8: Report Status Without Resuming
+
+For a status request, read `FEATURE.md`, `SNAPSHOT.md`, and git directly.
+Report current profile, completed work, tests, blocker, next action, and PR state.
+Do not spawn an agent or mutate code/state.
 
 ## Error Handling
 
 | Error | Action |
 |-|-|
-| State file not found | List discovered runs or prompt for new feature |
-| Git branch conflict | Report and offer resolution options |
-| Phase failure | Mark phase as `blocked` in FEATURE.md, record blocker, offer manual intervention |
-| Subagent failure | Log failure, mark phase `blocked`, re-dispatch on next loop iteration |
-| Phase loop stuck | Track PLAN_REVIEW→PLAN_DRAFT and VALIDATE→EXECUTE counts; max 3 each before escalating |
-| Resume after crash | Read FEATURE.md current_phase, regenerate SNAPSHOT.md, re-enter the loop; task bundles enable task-level resume within EXECUTE |
-| Plan deviation during EXECUTE | Follow the Plan Amendment Protocol in phase-flow.md (update PLAN.md task contracts and downstream preconditions) |
-| Workspace secrets missing | Guide through `workspaces secrets set KEY=VALUE --export`. Block workspace creation until resolved. |
-| Workspace creation fails | Offer retry, delete and recreate, or fall back to branch-only mode |
-| Workspace SSH fails | Run `workspaces ssh-config <name>`, retry once, then offer branch-only fallback |
-| Remote tmux/Claude fails to start | Retry once, then provide manual SSH and tmux commands |
-| Workspace auth blocked | Run `wmux auth doctor --workspace <name>` for diagnostics, offer delete and recreate |
-
-Phase-level behaviors, adversarial protocols, EXECUTE batch loops, DONE finalization, Discovery Capture Protocol,
-and Plan Amendment Protocol are defined in [references/phase-flow.md](references/phase-flow.md).
-State file schemas are in [references/state-file-schema.md](references/state-file-schema.md).
+| Goal or acceptance criteria remain ambiguous | Ask the smallest material question before editing |
+| Referenced state does not match git | Trust git, repair state, and record one `DECISION` event |
+| Worker times out while active | Follow Waiting Discipline; do not replace it based on elapsed time |
+| Worker stops without a usable result | Continue in the top agent or dispatch one replacement within the same profile budget |
+| Focused test fails for an unrelated reason | Diagnose, record it as discovered work, and keep scope explicit |
+| Final validation fails | Fix the failure and re-run affected checks before review or delivery |
+| Reviewer rejects twice | Mark `BLOCKED` and report the remaining proven findings |
+| Commit signing fails | Preserve staging and ask the user to restore signing; never bypass it silently |
+| Push or PR operation fails | Preserve local commits and report the exact recovery command |
+| Measured completed-delegate tokens reach the advisory threshold | Stop before the next optional leaf/task and report the measured total, excluded usage, completed work, and smallest continuation |

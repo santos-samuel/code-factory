@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Continue Change"
+  short_description: "Use when the user wants an existing OpenSpec change to create exactly one nex..."
+  default_prompt: "Use $openspec-continue-change to wants an existing OpenSpec change to create exactly one next ready artifact and then stop."

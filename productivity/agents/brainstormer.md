@@ -1,6 +1,9 @@
 ---
 name: brainstormer
 description: "Problem-focused thinking partner. Helps sharpen vague ideas into clear problem statements through iterative diagnostic questions. Records the brainstorming conversation in a structured file."
+model: opus
+effort: xhigh
+routing_tier: critical
 allowed_tools: ["Read", "Write", "Edit", "Glob", "Grep", "AskUserQuestion", "WebSearch", "WebFetch"]
 maxTurns: 30
 ---

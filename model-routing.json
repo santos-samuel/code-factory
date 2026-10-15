@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "default_tier": {
+    "claude": "economy",
+    "codex": "critical",
+    "pi": "critical"
+  },
+  "tiers": {
+    "economy": {
+      "claude": {
+        "model": "sonnet",
+        "effort": "high"
+      },
+      "codex": {
+        "model": "gpt-5.6-luna",
+        "effort": "max"
+      },
+      "pi": {
+        "provider": "ai-gw-baseten",
+        "model": "baseten/deepseek-ai/DeepSeek-V4-Flash-0731",
+        "thinking": "high"
+      }
+    },
+    "critical": {
+      "claude": {
+        "model": "opus",
+        "effort": "xhigh"
+      },
+      "codex": {
+        "model": "gpt-5.6-sol",
+        "effort": "xhigh"
+      },
+      "pi": {
+        "provider": "ai-gw-baseten",
+        "model": "baseten/zai-org/GLM-5.2",
+        "thinking": "xhigh"
+      }
+    }
+  },
+  "task_tiers": {
+    "adversarial": "critical",
+    "exploration": "economy",
+    "grading": "critical",
+    "implementation": "economy",
+    "memory-extraction": "economy",
+    "planning": "critical",
+    "read": "economy",
+    "refinement": "critical",
+    "research": "economy",
+    "review": "critical",
+    "simplification": "economy",
+    "validation": "critical"
+  },
+  "pi_constraints": {
+    "allowed_providers": ["ai-gw-baseten"],
+    "allowed_model_prefixes": ["baseten/"],
+    "allowed_models": ["baseten/deepseek-ai/DeepSeek-V4-Flash-0731", "baseten/zai-org/GLM-5.2"],
+    "thinking_levels_by_model": {
+      "baseten/deepseek-ai/DeepSeek-V4-Flash-0731": ["low", "high", "max"],
+      "baseten/zai-org/GLM-5.2": ["high", "xhigh"]
+    }
+  },
+  "allowed_efforts": ["high", "xhigh", "max"],
+  "allowed_pi_thinking": ["low", "medium", "high", "xhigh", "max"],
+  "parallelism": {
+    "max_leaf_workers": 3,
+    "coordinator_reserved_slots": 1,
+    "unknown_capacity_probe": 1,
+    "failure_policy": "stop-dispatch-drain-active-skip-undispatched"
+  }
+}

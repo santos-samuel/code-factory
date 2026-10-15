@@ -13,25 +13,28 @@ After the push from Step 7, wait for CI to start and complete using the backgrou
 **NEVER poll CI with inline `sleep` loops or `sleep N && gh pr checks`.** The script below is the ONLY permitted method — it checks immediately on first poll and consumes zero tokens while waiting.
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/pr-fix/scripts/poll-ci.sh {number}
+./scripts/poll-ci.sh {number} 30 40 0
 ```
 
 **MUST run with `run_in_background: true`.** The script automatically filters out approval-gated checks (merge gate, peer review, manual approval, codeowner, devflow/mergegate) and polls every 30 seconds for up to 20 minutes.
+The final `0` keeps unchanged progress quiet; pass a positive `log-every` only when the user asked for live progress.
+For `DataDog/dd-source`, the poller waits for DDCI checks to register before accepting an all-passing state; this prevents early success while downstream `dd-gitlab/*` jobs are still attaching.
 
 ### Handle the script's exit state
 
 | State | Action |
 |-------|--------|
 | `ALL_PASSING` | Skip to Phase 5 (report success) |
-| `FAILURES_DETECTED` | Parse the `FULL_STATUS` JSON from the output. Continue to Phase 2. |
-| `CONFLICTS_DETECTED` | PR has merge conflicts from base branch movement. Invoke `/fix-conflicts`, push the resolution, then restart the poller. |
-| `TIMEOUT` | Report to the user that CI hasn't completed in 20 minutes. Ask how to proceed. |
+| `FAILURES_DETECTED` | Read `STATUS_FILE` from the output. Continue to Phase 2. |
+| `CONFLICTS_DETECTED` | PR has merge conflicts from base branch movement. Use the `fix-conflicts` skill, push the resolution, then restart the poller. |
+| `TIMEOUT` | Use the `LAST_SUMMARY` and `PENDING_CHECKS` output to report the current state. Do not keep foreground polling. |
 
-**On `FAILURES_DETECTED`:** the script output includes the full status JSON with `name`, `state`, `bucket`, and `link` for each check. Use this directly — no follow-up API call needed.
+**On `FAILURES_DETECTED`:** the script writes the full compact check table to `STATUS_FILE`.
+Read that file; do not call `gh pr checks` again unless the file is missing or malformed.
 
 ## Phase 2: Identify Failures
 
-Fetch the full check results:
+Use the `STATUS_FILE` JSON from Phase 1. Only refetch if that file is missing or malformed:
 
 ```bash
 gh pr checks {number} --json name,state,bucket,link
@@ -57,6 +60,7 @@ Parse into a structured list of failed checks, excluding approval-gated checks (
 2. List failed jobs:
 
 ```bash
+command -v get_ddci_logs.sh
 get_ddci_logs.sh --list-failed {request_id}
 ```
 
@@ -68,7 +72,26 @@ Output is tab-separated: `job_id`, `job_name`, `status`, `failure_reason`.
 get_ddci_logs.sh {job_id} {request_id} --summary
 ```
 
-**If `get_ddci_logs.sh` is not available:** fall back to the `/dd:fetch-ci-results` skill if installed, or report the Mosaic URL to the user and ask them to investigate manually.
+**If GitLab/DDCI logs are unavailable:** diagnose credentials, then use PR comments before giving up.
+
+| Check | Command | If it fails |
+|-------|---------|-------------|
+| `get_ddci_logs.sh` exists | `command -v get_ddci_logs.sh` | Continue with PR-comment fallback. |
+| `GITLAB_TOKEN` works | `[ -n "${GITLAB_TOKEN:-}" ] && curl -fsS -H "Authorization: Bearer $GITLAB_TOKEN" https://gitlab.ddbuild.io/api/v4/user >/dev/null` | If unset, `invalid_token`, or expired, do not print the token; continue. |
+| `ddtool` token works | `ddtool auth gitlab token` | If `invalid_grant`, report that GitLab auth must be refreshed; continue. |
+| project token works | `ddtool auth gitlab project-token {owner} {repo}` | If securestore/keychain write fails, report it; continue. |
+
+Fetch compact Datadog CI PR comments for the failed check, head SHA, job name, or common failing test name:
+
+```bash
+gh api repos/{owner}/{repo}/issues/{number}/comments --paginate \
+  --jq '[.[] | select((.body // "") | test("{failed_check}|{head_sha}|gazelle_check|repository-checks"; "i")) | {author:.user.login, updated_at, body:(.body[0:4000])}]'
+```
+
+Extract failed test names, job names, commit SHA, linked paths, and short error text.
+Datadog CI comments often contain enough information to fix format, Gazelle, repository-check, and test failures even when GitLab logs are inaccessible.
+
+If neither logs nor PR comments identify a file, line, test, or exact command, classify the failure as not auto-fixable and report the Mosaic/GitLab URL.
 
 ### GitHub Actions Failures
 
@@ -107,7 +130,7 @@ Classify each failure before deciding the fix strategy:
 
 ### Re-run Flaky Jobs
 
-For failures classified as P3 (flaky/infra), re-run without fixing code:
+For failures classified as P5 (flaky/infra), re-run without fixing code:
 
 **GitHub Actions:**
 
@@ -121,7 +144,15 @@ gh run rerun {run_id} --failed
 retry_ddci_job.sh {job_id}
 ```
 
-**If `retry_ddci_job.sh` is not available:** report the failure and Mosaic link. Let the user retry manually.
+If `retry_ddci_job.sh` is not available on `PATH`, use the bundled helper from this skill.
+Resolve this path relative to the `pr-fix` skill root, not the repository checkout:
+
+```bash
+<pr-fix-skill-root>/scripts/retry_ddci_job.sh {job_id}
+```
+
+The bundled helper accepts a bare GitLab job id, a GitLab job URL, or a Mosaic URL containing
+`taskExecutionId=<job-id>`.
 
 After re-running, return to Phase 1 to wait for the new run. Count this as an iteration.
 
@@ -160,6 +191,26 @@ For each failure, in priority order:
 | Confidence threshold | Only auto-fix if you can identify the exact root cause from the logs |
 | Ask on ambiguity | If multiple fixes are possible, present options to the user |
 | Never suppress tests | Do not skip, disable, or mark tests as expected-failure to pass CI |
+
+### Datadog Source Repository Checks
+
+For `tools/format/gazelle_check`, stale BUILD metadata is likely after Go, Python, or proto import changes.
+Use the repo's generator first:
+
+```bash
+bzl run //:gazelle -- update {touched directories}
+```
+
+If Bazel/Gazelle is blocked by local auth or credential-helper setup, use a scoped fallback:
+
+1. Read the failing CI comment or log to identify the touched package.
+2. Run language-native metadata in that package only, using temp dirs under `/tmp` if needed:
+   ```bash
+   env TMPDIR=/tmp GOTMPDIR=/tmp GOCACHE=/tmp/go-cache go list -json {package_or_dir}
+   ```
+3. Compare imports against direct `deps`/`test deps` in the nearby `BUILD.bazel`.
+4. Remove stale deps or add missing deps only when the mapping is unambiguous.
+5. Record the generator blocker and manual BUILD edit in the final report.
 
 ### Scope Discipline
 
@@ -246,7 +297,7 @@ All CI checks passing after {N} iteration(s).
 | Error | Action |
 |-------|--------|
 | `gh pr checks` fails | Verify PR number. Check `gh auth status`. Report error. |
-| `--watch` hangs beyond 20 min | Kill and fall back to polling. Report timeout. |
+| Poller timeout | Report `LAST_SUMMARY` and pending checks. Ask how to proceed unless another parallel waiter still has actionable work. |
 | `get_ddci_logs.sh` not found | Skip DDCI log analysis. Report the Mosaic URL for manual investigation. |
 | Log output exceeds context | Truncate to last 100 lines. Focus on the first error in the output. |
 | Push fails after fix | Report error. Do NOT force-push. Let user decide. |

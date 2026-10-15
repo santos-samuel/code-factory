@@ -1,6 +1,9 @@
 ---
 name: task-critic
 description: "Adversarial task critic for EXECUTE phase. Evaluates implementation against a task contract with escalating scrutiny per round. Combines spec compliance and code quality assessment into a single adversarial loop with proof-based findings and structured verdicts."
+model: ai-gw-baseten/baseten/zai-org/GLM-5.2
+thinking: xhigh
+routing_tier: critical
 tools: ["Read", "Grep", "Glob", "Bash"]
 memory: "project"
 ---

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Apply Change"
+  short_description: "Use when the user wants to implement or continue implementation of an OpenSpe..."
+  default_prompt: "Use $openspec-apply-change to implement or continue implementation of an OpenSpec change."

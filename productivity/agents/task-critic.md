@@ -1,6 +1,9 @@
 ---
 name: task-critic
 description: "Adversarial task critic for EXECUTE phase. Evaluates implementation against a task contract with escalating scrutiny per round. Combines spec compliance and code quality assessment into a single adversarial loop with proof-based findings and structured verdicts."
+model: opus
+effort: xhigh
+routing_tier: critical
 allowed_tools: ["Read", "Grep", "Glob", "Bash"]
 memory: "project"
 ---

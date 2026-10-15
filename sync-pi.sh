@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# sync-pi.sh -- Generate pi.dev-compatible skills, prompts, agents, and MCP extension.
+# sync-pi.sh -- Generate pi.dev-compatible skills, agents, extensions, and MCP config.
 #
 # This script:
 #   1. Discovers plugins from .claude-plugin/marketplace.json
 #   2. Copies skills (with body rewrites + stripped frontmatter) to .pi/skills/{name}/SKILL.md
-#   3. Generates .pi/prompts/{name}.md for every user-invocable skill
-#   4. Transforms agent Markdown files to .pi/agents/{name}.md
-#   5. Builds .pi/extensions/mcp-wrapper/ (TS source + servers.json from mcp.json)
+#   3. Transforms agent Markdown files to .pi/agents/{name}.md
+#   4. Copies local Pi extensions from pi-extensions/ (if present)
+#   5. Generates .pi/mcp.json from shared MCP config plus Pi-only overrides
 #
 # All output stays within the repo (.pi/ directory).
 # Run `make install` to propagate to ~/.pi/agent/.
@@ -23,13 +23,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MARKETPLACE="$SCRIPT_DIR/.claude-plugin/marketplace.json"
 MCP_CONFIG="$SCRIPT_DIR/mcp.json"
+PI_MCP_OVERRIDES="$SCRIPT_DIR/pi-mcp-overrides.json"
 EXT_SRC_DIR="$SCRIPT_DIR/pi-extensions"
 
 PI_DIR="$SCRIPT_DIR/.pi"
+MODEL_ROUTER="$SCRIPT_DIR/scripts/model_router.py"
 SKILLS_DIR="$PI_DIR/skills"
-PROMPTS_DIR="$PI_DIR/prompts"
 AGENTS_DIR="$PI_DIR/agents"
 EXTENSIONS_DIR="$PI_DIR/extensions"
+PI_ADAPTER_CONFIG="$PI_DIR/mcp.json"
 
 CHECK_MODE=false
 if [[ "${1:-}" == "--check" ]]; then
@@ -61,13 +63,20 @@ extract_frontmatter_field() {
                 val = $0
                 sub("^" field ":[[:space:]]*>?[[:space:]]*", "", val)
                 if (val != "") { print val; exit }
+                # Multi-line folded value: join all continuation lines with spaces
+                out = ""
                 while ((getline line) > 0) {
                     if (line ~ /^[[:space:]]/) {
                         sub(/^[[:space:]]+/, "", line)
-                        print line
+                        if (out) out = out " " line
+                        else out = line
+                    } else {
+                        print out
                         exit
-                    } else { exit }
+                    }
                 }
+                print out
+                exit
             }
         }
     ' "$file"
@@ -83,21 +92,224 @@ has_frontmatter_field() {
     ' "$file"
 }
 
-# rewrite_body: apply body-text rewrites in-place (subagent refs, mcp tool names, plugin paths)
+make_temp_dir() {
+    mktemp -d 2>/dev/null || mktemp -d -p /private/tmp
+}
+
+# rewrite_body: apply body-text rewrites in-place (subagent refs, MCP adapter calls, plugin paths)
 rewrite_body() {
     local file="$1"
-    local sed_i
-    if sed --version 2>/dev/null | grep -q 'GNU'; then
-        sed_i=(-i)
-    else
-        sed_i=(-i '')
-    fi
-    sed "${sed_i[@]}" 's/subagent_type = "\([^:]*\):\([^"]*\)"/subagent = "\2"/g' "$file"
-    sed "${sed_i[@]}" 's/subagent_type="\([^:]*\):\([^"]*\)"/subagent="\2"/g' "$file"
-    sed "${sed_i[@]}" 's/subagent_type=\([A-Za-z0-9_-]*\)/subagent=\1/g' "$file"
-    sed "${sed_i[@]}" 's/mcp__\([^_]*\)__/\1_/g' "$file"
-    sed "${sed_i[@]}" 's|\${CLAUDE_PLUGIN_ROOT}/skills/[^/]*/|./|g' "$file"
-    sed "${sed_i[@]}" 's|\$CLAUDE_PLUGIN_ROOT/skills/[^/]*/|./|g' "$file"
+    python3 - "$file" << 'PYEOF'
+import ast
+import json
+import re
+import sys
+
+path = sys.argv[1]
+
+
+def pi_mcp_tool_name(server: str, tool: str) -> str:
+    return f'{server.replace("-", "_")}_{tool}'
+
+
+def pi_agent_name(name: str) -> str:
+    agent = name.strip().strip('"').strip("'")
+    if ":" in agent:
+        agent = agent.rsplit(":", 1)[1]
+    return {
+        "Explore": "explorer",
+    }.get(agent, agent)
+
+
+def split_top_level_args(text: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    escape = False
+    for char in text:
+        if quote:
+            current.append(char)
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in ("'", '"'):
+            quote = char
+            current.append(char)
+            continue
+        if char == ",":
+            part = "".join(current).strip()
+            if part:
+                parts.append(part)
+            current = []
+            continue
+        current.append(char)
+    part = "".join(current).strip()
+    if part:
+        parts.append(part)
+    return parts
+
+
+def parse_arg_value(raw: str) -> object:
+    value = raw.strip().rstrip(",").strip()
+    if not value:
+        return ""
+    if value in ("true", "false"):
+        return value == "true"
+    if value == "null":
+        return None
+    if re.fullmatch(r"-?\d+", value):
+        return int(value)
+    if re.fullmatch(r"-?\d+\.\d+", value):
+        return float(value)
+    if value[0:1] in ("'", '"') and value[-1:] == value[0]:
+        try:
+            return ast.literal_eval(value)
+        except Exception:
+            return value[1:-1]
+    return value
+
+
+def parse_call_args(args_text: str) -> dict[str, object]:
+    normalized = " ".join(line.strip() for line in args_text.splitlines()).strip()
+    normalized = normalized.strip(",").strip()
+    if not normalized:
+        return {}
+
+    parsed: dict[str, object] = {}
+    for part in split_top_level_args(normalized):
+        match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$", part)
+        if not match:
+            return {"raw": normalized}
+        key, raw_value = match.groups()
+        parsed[key] = parse_arg_value(raw_value)
+    return parsed
+
+
+def render_args_literal(args_text: str) -> str:
+    payload = json.dumps(parse_call_args(args_text), separators=(",", ":"))
+    return json.dumps(payload)
+
+
+def render_mcp_call(
+    indent: str,
+    server: str,
+    tool: str,
+    args_text: str,
+    suffix: str,
+    newline: str,
+    multiline: bool,
+) -> str:
+    tool_name = pi_mcp_tool_name(server, tool)
+    args_literal = render_args_literal(args_text)
+    if multiline:
+        return (
+            f'{indent}mcp({{\n'
+            f'{indent}  tool: "{tool_name}",\n'
+            f'{indent}  args: {args_literal}\n'
+            f'{indent}}}){suffix}{newline}'
+        )
+    return f'{indent}mcp({{ tool: "{tool_name}", args: {args_literal} }}){suffix}{newline}'
+
+
+def rewrite_mcp_call_blocks(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+    out = []
+    i = 0
+    call_re = re.compile(r'^(\s*)mcp__([A-Za-z0-9_-]+)__([A-Za-z0-9_-]+)\((.*)$')
+
+    while i < len(lines):
+        line = lines[i]
+        match = call_re.match(line)
+        if not match:
+            out.append(line)
+            i += 1
+            continue
+
+        indent, server, tool, rest = match.groups()
+        newline = "\n" if line.endswith("\n") else ""
+
+        if ")" in rest:
+            args, suffix = rest.split(")", 1)
+            out.append(render_mcp_call(indent, server, tool, args, suffix, newline, multiline=False))
+            i += 1
+            continue
+
+        i += 1
+        arg_lines = []
+        closing_newline = "\n"
+        suffix = ""
+        found_close = False
+        while i < len(lines):
+            arg_line = lines[i]
+            if arg_line.strip().startswith(")"):
+                closing_newline = "\n" if arg_line.endswith("\n") else ""
+                suffix = arg_line.strip()[1:]
+                found_close = True
+                i += 1
+                break
+            arg_lines.append(arg_line)
+            i += 1
+
+        out.append(render_mcp_call(indent, server, tool, "".join(arg_lines), suffix, closing_newline, multiline=True))
+        if not found_close:
+            out.append("\n")
+
+    return "".join(out)
+
+
+def rewrite_inline_mcp_call(match: re.Match[str]) -> str:
+    server, tool, args = match.groups()
+    return render_mcp_call("", server, tool, args, "", "", multiline=False)
+
+
+def rewrite_bare_mcp_tool(match: re.Match[str]) -> str:
+    server, tool = match.groups()
+    return f'mcp({{ tool: "{pi_mcp_tool_name(server, tool)}", args: "{{}}" }})'
+
+
+text = open(path).read()
+
+text = rewrite_mcp_call_blocks(text)
+text = re.sub(
+    r'\bmcp__([A-Za-z0-9_-]+)__([A-Za-z0-9_-]+)\(([^()\n]*)\)',
+    rewrite_inline_mcp_call,
+    text,
+)
+text = re.sub(
+    r'\bmcp__([A-Za-z0-9_-]+)__([A-Za-z0-9_-]+)',
+    rewrite_bare_mcp_tool,
+    text,
+)
+
+text = re.sub(r'\bTask\(', 'subagent(', text)
+text = re.sub(r'\bAgent\(', 'subagent(', text)
+text = text.replace('"Task"', '"subagent"')
+text = text.replace("'Task'", "'subagent'")
+text = text.replace('`Task`', '`subagent`')
+text = text.replace('Task tool', 'subagent tool')
+text = text.replace('WebSearch and WebFetch', 'web_search')
+text = text.replace('WebSearch/WebFetch', 'web_search')
+text = text.replace('WebSearch or WebFetch', 'web_search')
+text = text.replace('WebSearch', 'web_search')
+text = text.replace('WebFetch', 'web_search')
+text = text.replace('AskUserQuestion', 'ask_user_question')
+text = re.sub(
+    r'subagent_type\s*=\s*("[^"]+"|\'[^\']+\'|[A-Za-z0-9_-]+)',
+    lambda m: f'agent = "{pi_agent_name(m.group(1))}"',
+    text,
+)
+text = re.sub(r'\bprompt\s*=', 'task =', text)
+
+text = re.sub(r'\$\{CLAUDE_PLUGIN_ROOT\}/skills/[^/]+/', './', text)
+text = re.sub(r'\$CLAUDE_PLUGIN_ROOT/skills/[^/]+/', './', text)
+
+with open(path, "w") as f:
+    f.write(text)
+PYEOF
 }
 
 # strip_pi_frontmatter: keep name, description, and disable-model-invocation only.
@@ -163,31 +375,22 @@ PYEOF
     mv "$tmpfile" "$file"
 }
 
-# generate_prompt: write .pi/prompts/<name>.md for a user-invocable skill.
-# Pi prompt templates have no frontmatter -- just Markdown body with optional {{var}}.
-generate_prompt() {
-    local src_skill="$1" dest_prompt="$2"
-
-    local skill_name short_desc
-    skill_name=$(extract_frontmatter_field "$src_skill" "name")
-    short_desc=$(extract_frontmatter_field "$src_skill" "description" | sed 's/\. .*/\./')
-
-    cat > "$dest_prompt" <<PROMPTEOF
-<!-- $short_desc -->
-
-Use the \`$skill_name\` skill to handle this request: {{args}}
-PROMPTEOF
-}
-
 # normalize_agent_frontmatter: pass agent files through, but rename allowed_tools -> tools
-# (pi-subagents convention) and drop fields that don't survive the trip.
+# (pi-subagents convention) and drop fields that don't survive the trip. Claude's
+# model aliases (sonnet/opus) and effort levels are replaced with Pi-specific
+# model and thinking fields resolved from routing_tier via the shared model
+# router, so each Pi subagent uses the correct model for its task tier at runtime.
 normalize_agent_frontmatter() {
     local file="$1"
     local tmpfile="${file}.tmp"
-    python3 - "$file" "$tmpfile" << 'PYEOF'
-import sys, re
+    python3 - "$file" "$tmpfile" "$MODEL_ROUTER" << 'PYEOF'
+import ast
+import json
+import re
+import subprocess
+import sys
 
-src, dst = sys.argv[1], sys.argv[2]
+src, dst, model_router = sys.argv[1], sys.argv[2], sys.argv[3]
 lines = open(src).readlines()
 
 fence_indices = [i for i, l in enumerate(lines) if l.strip() == '---']
@@ -199,8 +402,72 @@ fm_start, fm_end = fence_indices[0], fence_indices[1]
 fm_lines = lines[fm_start + 1 : fm_end]
 body_lines = lines[fm_end:]
 
+
+def normalize_tool_name(tool: str) -> str:
+    if tool.startswith("mcp__"):
+        return "mcp"
+    return {
+        "Task": "subagent",
+        "Agent": "subagent",
+        "AskUserQuestion": "ask_user_question",
+        "WebSearch": "web_search",
+        "WebFetch": "web_search",
+    }.get(tool, tool)
+
+
+def normalize_tool_list(value: str) -> str:
+    raw = value.strip()
+    if not raw:
+        return raw
+    try:
+        parsed = ast.literal_eval(raw)
+    except Exception:
+        parsed = [piece.strip().strip('"').strip("'") for piece in raw.split(",")]
+    if not isinstance(parsed, list):
+        parsed = [str(parsed)]
+
+    tools: list[str] = []
+    seen: set[str] = set()
+    for item in parsed:
+        tool = normalize_tool_name(str(item).strip())
+        if not tool or tool in seen:
+            continue
+        seen.add(tool)
+        tools.append(tool)
+    return json.dumps(tools)
+
+
+# First pass: find routing_tier in the frontmatter.
+routing_tier = None
+for line in fm_lines:
+    m = re.match(r'^routing_tier\s*:\s*(.*)', line)
+    if m:
+        routing_tier = m.group(1).strip().strip('"').strip("'")
+        break
+
+# Resolve the Pi model profile from the routing_tier via the shared model router.
+# If no routing_tier is present (e.g. general-purpose), the router defaults to
+# the Pi default tier ("critical").
+pi_model = None
+pi_thinking = None
+try:
+    result = subprocess.run(
+        ["python3", model_router, "agent-profile", "--surface", "pi",
+         "--tier", routing_tier or "critical", "--format", "shell"],
+        capture_output=True, text=True, check=True,
+    )
+    parts = result.stdout.strip().split()
+    if len(parts) >= 2:
+        pi_model = parts[0]   # e.g. ai-gw-baseten/baseten/deepseek-ai/DeepSeek-V4-Flash-0731
+        pi_thinking = parts[1]  # e.g. high
+except Exception:
+    pass  # If the router fails, skip model/thinking (old behaviour).
+
+
 out_fm = []
 skip_continuation = False
+model_written = False
+thinking_written = False
 for line in fm_lines:
     if skip_continuation and re.match(r'^[ \t]', line):
         continue
@@ -208,13 +475,49 @@ for line in fm_lines:
     m = re.match(r'^([a-zA-Z][-a-zA-Z_]*)\s*:', line)
     if m:
         field = m.group(1)
+        if field == 'model':
+            # Replace Claude's model alias with the Pi-specific model.
+            if pi_model:
+                out_fm.append(f'model: {pi_model}\n')
+                model_written = True
+            continue
+        if field == 'effort':
+            # Replace Claude's effort level with the Pi-specific thinking level.
+            if pi_thinking:
+                out_fm.append(f'thinking: {pi_thinking}\n')
+                thinking_written = True
+            continue
         if field == 'allowed_tools':
-            out_fm.append('tools:' + line[len('allowed_tools:'):])
+            out_fm.append('tools: ' + normalize_tool_list(line[len('allowed_tools:'):]) + '\n')
+            continue
+        if field == 'tools':
+            out_fm.append('tools: ' + normalize_tool_list(line[len('tools:'):]) + '\n')
             continue
         if field == 'hooks':
             skip_continuation = True
             continue
     out_fm.append(line)
+
+# If the source agent had no model/effort fields (e.g. general-purpose),
+# inject the Pi model and thinking after the description line.
+if pi_model and not model_written:
+    for i, line in enumerate(out_fm):
+        if re.match(r'^description\s*:', line):
+            out_fm.insert(i + 1, f'model: {pi_model}\n')
+            model_written = True
+            break
+if pi_thinking and not thinking_written:
+    for i, line in enumerate(out_fm):
+        if re.match(r'^model\s*:', line):
+            out_fm.insert(i + 1, f'thinking: {pi_thinking}\n')
+            thinking_written = True
+            break
+    if not thinking_written:
+        # Fallback: insert after description if model wasn't written either.
+        for i, line in enumerate(out_fm):
+            if re.match(r'^description\s*:', line):
+                out_fm.insert(i + 1, f'thinking: {pi_thinking}\n')
+                break
 
 with open(dst, 'w') as f:
     f.write('---\n')
@@ -224,34 +527,67 @@ PYEOF
     mv "$tmpfile" "$file"
 }
 
-# generate_mcp_servers_json: emit .pi/extensions/mcp-wrapper/servers.json from
-# mcp.json (HTTP servers only for v1).
-generate_mcp_servers_json() {
+# generate_pi_mcp_config: emit .pi/mcp.json for pi-mcp-adapter from the shared
+# MCP config plus Pi-only server overrides.
+# Keep this HTTP-only and proxy-only; no stdio commands, imports, direct tools,
+# or sampling auto-approval are generated by code-factory.
+generate_pi_mcp_config() {
     local out_file="$1"
-    python3 - "$MCP_CONFIG" "$out_file" << 'PYEOF'
-import json, sys
+    python3 - "$MCP_CONFIG" "$PI_MCP_OVERRIDES" "$out_file" << 'PYEOF'
+import json
+import os
+import sys
 
-src, dst = sys.argv[1], sys.argv[2]
+src, overrides_src, dst = sys.argv[1], sys.argv[2], sys.argv[3]
 data = json.load(open(src))
+overrides = json.load(open(overrides_src))
 
-servers = []
-for name, cfg in sorted(data.get('mcpServers', {}).items()):
+merged_servers = dict(data.get('mcpServers', {}))
+merged_servers.update(overrides.get('mcpServers', {}))
+
+servers = {}
+for name, cfg in sorted(merged_servers.items()):
     if cfg.get('type') != 'http':
         continue
-    servers.append({
-        'name': name,
+    server = {
         'url': cfg['url'],
-        'oauth': cfg.get('oauth'),
-    })
+        'lifecycle': 'lazy',
+        'directTools': False,
+    }
+    oauth = cfg.get('oauth')
+    auth = cfg.get('auth')
+    if auth is not None:
+        server['auth'] = auth
+    elif oauth:
+        server['auth'] = 'oauth'
+    if oauth:
+        adapter_oauth = dict(oauth)
+        callback_port = adapter_oauth.pop('callbackPort', None)
+        if callback_port and not adapter_oauth.get('redirectUri'):
+            adapter_oauth['redirectUri'] = f"http://localhost:{callback_port}/callback"
+        if adapter_oauth:
+            server['oauth'] = adapter_oauth
+    servers[name] = server
 
+out = {
+    'settings': {
+        'directTools': False,
+        'idleTimeout': 10,
+        'autoAuth': False,
+        'samplingAutoApprove': False,
+    },
+    'mcpServers': servers,
+}
+
+os.makedirs(os.path.dirname(dst), exist_ok=True)
 with open(dst, 'w') as f:
-    json.dump({'servers': servers}, f, indent=2)
+    json.dump(out, f, indent=2)
     f.write('\n')
 PYEOF
 }
 
-# build_extensions: copy every directory under pi-extensions/ into
-# .pi/extensions/<name>/, then run extension-specific post-steps.
+# build_extensions: copy every directory under pi-extensions/ (if it exists) into
+# .pi/extensions/<name>/.
 build_extensions() {
     [[ -d "$EXT_SRC_DIR" ]] || return 0
 
@@ -264,14 +600,42 @@ build_extensions() {
         mkdir -p "$out_dir"
         cp -R "$ext_src." "$out_dir/"
 
-        case "$name" in
-            mcp-wrapper) generate_mcp_servers_json "$out_dir/servers.json" ;;
-        esac
-
         if [[ "$CHECK_MODE" != "true" ]]; then
             echo "  SYNC  extension: $name"
         fi
     done
+}
+
+# write_builtin_general_purpose_agent: Pi skills commonly delegate broad
+# writing/implementation work to Claude's general-purpose agent. Pi needs a
+# concrete local agent for those calls instead of aliasing them to explorer.
+write_builtin_general_purpose_agent() {
+    # Resolve the Pi default-tier model (critical) for the general-purpose agent.
+    local gp_model gp_thinking
+    read -r gp_model gp_thinking <<< "$(python3 "$MODEL_ROUTER" agent-profile --surface pi --tier critical --format shell)"
+    {
+        printf -- '---\n'
+        printf 'name: general-purpose\n'
+        printf 'description: "General-purpose agent for broad research, writing, implementation, and coordination tasks when no specialized agent is required."\n'
+        printf 'model: %s\n' "$gp_model"
+        printf 'thinking: %s\n' "$gp_thinking"
+        printf 'tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Skill", "subagent", "ask_user_question"]\n'
+        printf -- '---\n\n'
+        cat << 'GPEOF'
+# General Purpose Agent
+
+You are a general-purpose execution agent for Pi workflows.
+
+Take the requested task literally. You may research, write documents, edit files,
+run local validation commands, and coordinate with other tools when the task
+requires it. Preserve user changes you did not make, keep edits scoped to the
+task, and report concise outcomes with any validation performed.
+
+Use `ask_user_question` only when required information cannot be inferred from the
+task or local context. If the task includes an output path, create or update that
+path directly.
+GPEOF
+    } > "$AGENTS_DIR/general-purpose.md"
 }
 
 # ---------------------------------------------------------------------------
@@ -279,27 +643,31 @@ build_extensions() {
 # ---------------------------------------------------------------------------
 
 main() {
-    local skill_count=0 prompt_count=0 agent_count=0
+    local skill_count=0 agent_count=0
 
     if [[ "$CHECK_MODE" == "true" ]]; then
         local tmpdir
-        tmpdir=$(mktemp -d)
+        tmpdir=$(make_temp_dir)
         # Expand $tmpdir at trap-set time: it is `local` to main(), so the trap
         # cannot resolve it later when EXIT fires after main() returns.
         trap "rm -rf '$tmpdir'" EXIT
         local real_skills_dir="$SKILLS_DIR"
-        local real_prompts_dir="$PROMPTS_DIR"
         local real_agents_dir="$AGENTS_DIR"
         local real_extensions_dir="$EXTENSIONS_DIR"
+        local real_pi_mcp_config="$PI_ADAPTER_CONFIG"
         SKILLS_DIR="$tmpdir/skills"
-        PROMPTS_DIR="$tmpdir/prompts"
         AGENTS_DIR="$tmpdir/agents"
         EXTENSIONS_DIR="$tmpdir/extensions"
+        PI_ADAPTER_CONFIG="$tmpdir/mcp.json"
     else
-        rm -rf "$SKILLS_DIR" "$PROMPTS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
+        rm -rf "$SKILLS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
+        rm -f "$PI_ADAPTER_CONFIG"
+        # Remove the legacy prompts directory now that slash-command proxies
+        # were dropped in favor of pi's built-in /skill:<name> commands.
+        rm -rf "$PI_DIR/prompts"
     fi
 
-    mkdir -p "$SKILLS_DIR" "$PROMPTS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
+    mkdir -p "$SKILLS_DIR" "$AGENTS_DIR" "$EXTENSIONS_DIR"
 
     while IFS= read -r plugin_dir; do
         [[ -d "$plugin_dir" ]] || continue
@@ -313,21 +681,12 @@ main() {
 
                 cp -R "$skill_src_dir" "$SKILLS_DIR/$skill_name"
                 strip_pi_frontmatter "$SKILLS_DIR/$skill_name/SKILL.md"
-                rewrite_body "$SKILLS_DIR/$skill_name/SKILL.md"
+                while IFS= read -r markdown_path; do
+                    rewrite_body "$markdown_path"
+                done < <(find "$SKILLS_DIR/$skill_name" -type f -name "*.md" 2>/dev/null | sort)
 
                 skill_count=$((skill_count + 1))
                 [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  skill: $skill_name"
-
-                # --- Prompt (slash command) ---
-                if has_frontmatter_field "$skill_path" "user-invocable"; then
-                    local user_inv
-                    user_inv=$(extract_frontmatter_field "$skill_path" "user-invocable")
-                    if [[ "$user_inv" == "true" ]]; then
-                        generate_prompt "$skill_path" "$PROMPTS_DIR/$skill_name.md"
-                        prompt_count=$((prompt_count + 1))
-                        [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  prompt: $skill_name"
-                    fi
-                fi
             done < <(find "$plugin_dir/skills" -name "SKILL.md" 2>/dev/null | sort)
         fi
 
@@ -346,20 +705,30 @@ main() {
         fi
     done < <(discover_plugins)
 
-    # --- Extensions (mcp-wrapper, subagent-runner, etc.) ---
+    write_builtin_general_purpose_agent
+    agent_count=$((agent_count + 1))
+    [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  agent: general-purpose"
+
+    # --- Extensions and MCP adapter config ---
     build_extensions
+    generate_pi_mcp_config "$PI_ADAPTER_CONFIG"
+    [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  mcp config: mcp.json"
 
     if [[ "$CHECK_MODE" == "true" ]]; then
         local stale=false
         for dir_pair in \
             "$SKILLS_DIR:$real_skills_dir" \
-            "$PROMPTS_DIR:$real_prompts_dir" \
             "$AGENTS_DIR:$real_agents_dir" \
             "$EXTENSIONS_DIR:$real_extensions_dir"; do
             local tmp_dir="${dir_pair%%:*}"
             local real_dir="${dir_pair##*:}"
 
             if [[ ! -d "$real_dir" ]]; then
+                # Git cannot preserve an empty generated directory. Treat an
+                # absent real directory as current when generation is empty.
+                if [[ -z "$(find "$tmp_dir" -mindepth 1 -print -quit)" ]]; then
+                    continue
+                fi
                 echo "STALE  $real_dir does not exist (run ./sync-pi.sh)"
                 stale=true
                 continue
@@ -373,6 +742,14 @@ main() {
             fi
         done
 
+        if [[ ! -f "$real_pi_mcp_config" ]]; then
+            echo "STALE  $real_pi_mcp_config does not exist (run ./sync-pi.sh)"
+            stale=true
+        elif ! cmp -s "$PI_ADAPTER_CONFIG" "$real_pi_mcp_config"; then
+            echo "STALE  $real_pi_mcp_config differs (run ./sync-pi.sh)"
+            stale=true
+        fi
+
         if [[ "$stale" == "true" ]]; then
             exit 1
         fi
@@ -382,7 +759,7 @@ main() {
     fi
 
     echo ""
-    echo "Synced $skill_count skills, $prompt_count prompts, $agent_count agents."
+    echo "Synced $skill_count skills, $agent_count agents."
 }
 
 main

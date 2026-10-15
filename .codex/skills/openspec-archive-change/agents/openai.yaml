@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Archive Change"
+  short_description: "Use when the user wants to finalize and archive one OpenSpec change."
+  default_prompt: "Use $openspec-archive-change to finalize and archive one OpenSpec change."

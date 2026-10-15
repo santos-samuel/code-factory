@@ -1,0 +1,4 @@
+{"timestamp":"2026-07-01T00:01:00Z","type":"session_meta","payload":{"id":"grandchild-thread","session_id":"root-thread","parent_thread_id":"child-thread","timestamp":"2026-07-01T00:01:00Z"}}
+this is malformed json
+{"timestamp":"2026-07-01T00:01:10Z","type":"response_item","payload":{"type":"custom_tool_call","name":"exec","input":"await tools.spawn_agent({}); await tools.wait_agent({});"}}
+{"timestamp":"2026-07-01T00:02:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":50,"cached_input_tokens":25,"output_tokens":7,"reasoning_output_tokens":2,"total_tokens":57}}}}

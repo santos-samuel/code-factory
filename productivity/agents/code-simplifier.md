@@ -1,6 +1,9 @@
 ---
 name: code-simplifier
 description: "Simplifies a single source file for clarity, consistency, and maintainability while preserving all functionality. Reads project conventions, compares with sibling files, applies targeted simplifications, and reports changes."
+model: sonnet
+effort: high
+routing_tier: economy
 allowed_tools: ["Read", "Edit", "Grep", "Glob", "Bash"]
 ---
 

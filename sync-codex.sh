@@ -21,6 +21,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MARKETPLACE="$SCRIPT_DIR/.claude-plugin/marketplace.json"
+MODEL_ROUTER="$SCRIPT_DIR/scripts/model_router.py"
 
 CODEX_DIR="$SCRIPT_DIR/.codex"
 SKILLS_DIR="$CODEX_DIR/skills"
@@ -58,14 +59,20 @@ extract_frontmatter_field() {
                 val = $0
                 sub("^" field ":[[:space:]]*>?[[:space:]]*", "", val)
                 if (val != "") { print val; exit }
-                # Multi-line: read continuation lines
+                # Multi-line folded value: join all continuation lines with spaces
+                out = ""
                 while ((getline line) > 0) {
                     if (line ~ /^[[:space:]]/) {
                         sub(/^[[:space:]]+/, "", line)
-                        print line
+                        if (out) out = out " " line
+                        else out = line
+                    } else {
+                        print out
                         exit
-                    } else { exit }
+                    }
                 }
+                print out
+                exit
             }
         }
     ' "$file"
@@ -81,6 +88,10 @@ has_frontmatter_field() {
         fence == 1 && $0 ~ "^" field ":" { found = 1; exit }
         END { exit !found }
     ' "$file"
+}
+
+make_temp_dir() {
+    mktemp -d 2>/dev/null || mktemp -d -p /private/tmp
 }
 
 # rewrite_body: apply body-text rewrites to a file in-place
@@ -100,12 +111,172 @@ rewrite_body() {
     sed "${sed_i[@]}" 's/subagent_type="\([^:]*\):\([^"]*\)"/subagent="\2"/g' "$file"
     # subagent_type=Name -> subagent=Name (unquoted built-in agent)
     sed "${sed_i[@]}" 's/subagent_type=\([A-Za-z0-9_-]*\)/subagent=\1/g' "$file"
+    # subagent=Explore -> subagent=explorer (generated agent file is explorer.toml, not Explore.toml)
+    sed "${sed_i[@]}" 's/subagent=Explore\([^a-zA-Z0-9_]\)/subagent=explorer\1/g' "$file"
+    sed "${sed_i[@]}" 's/subagent=Explore$/subagent=explorer/g' "$file"
     # MCP tool name references: mcp__<server>__<tool> -> <server>_<tool>
-    sed "${sed_i[@]}" 's/mcp__\([^_]*\)__/\1_/g' "$file"
+    sed "${sed_i[@]}" 's/mcp__\([A-Za-z0-9-]*\)__/\1_/g' "$file"
     # CLAUDE_PLUGIN_ROOT paths: ${CLAUDE_PLUGIN_ROOT}/skills/<name>/<rest> -> ./<rest>
     # Handles both ${CLAUDE_PLUGIN_ROOT} and $CLAUDE_PLUGIN_ROOT forms
     sed "${sed_i[@]}" 's|\${CLAUDE_PLUGIN_ROOT}/skills/[^/]*/|./|g' "$file"
     sed "${sed_i[@]}" 's|\$CLAUDE_PLUGIN_ROOT/skills/[^/]*/|./|g' "$file"
+
+    # Rewrite Claude-only interaction patterns to plain-text instructions Codex
+    # can follow: <interaction>AskUserQuestion(...)</interaction> -> "Ask the
+    # user..." block; $ARGUMENTS (outside fenced code) -> "the user's
+    # invocation prompt".
+    rewrite_codex_prompts "$file"
+}
+
+# rewrite_codex_prompts: convert Claude-Code-only interaction syntax to plain
+# text Codex respects. Codex has no AskUserQuestion tool, so the original
+# blocks render as inert documentation and the model silently skips the prompt.
+#   $1 = file path
+rewrite_codex_prompts() {
+    local file="$1"
+    python3 - "$file" << 'PYEOF'
+import re, sys
+
+src = sys.argv[1]
+with open(src) as f:
+    text = f.read()
+
+# ---------------------------------------------------------------------------
+# Option parsing: tolerate both string-tuple and object-literal forms.
+#   "Label" -- Description, "Label" — Description, ...
+#   {label: "Label", description: "..."}, {...}
+# ---------------------------------------------------------------------------
+str_option_re = re.compile(
+    r'"(?P<label>[^"]+)"\s*(?:--|—|–)\s*(?P<desc>.+?)(?=\s*,\s*"|\s*,\s*\{|\Z)',
+    re.DOTALL,
+)
+obj_option_re = re.compile(
+    r'\{\s*label:\s*"(?P<label>[^"]+)"\s*,\s*description:\s*"(?P<desc>[^"]*)"\s*\}',
+    re.DOTALL,
+)
+
+def parse_options(options_text):
+    out = []
+    for m in obj_option_re.finditer(options_text):
+        out.append((m.group('label').strip(),
+                    re.sub(r'\s+', ' ', m.group('desc').strip())))
+    if out:
+        return out
+    for m in str_option_re.finditer(options_text):
+        out.append((m.group('label').strip(),
+                    re.sub(r'\s+', ' ',
+                           m.group('desc').strip().rstrip(',').strip())))
+    return out
+
+def render_block(header, question, options, multi=False):
+    suffix = ' (the user may pick multiple options)' if multi else ''
+    lines = [f'**Pause and ask the user. Wait for their answer before proceeding.{suffix}**', '']
+    if header and question:
+        lines.append(f'> **{header}** -- {question}')
+    elif question:
+        lines.append(f'> {question}')
+    elif header:
+        lines.append(f'> {header}')
+    if options:
+        lines.append('>')
+        for label, desc in options:
+            lines.append(f'> - **{label}** -- {desc}')
+    return '\n'.join(lines)
+
+def parse_call_body(body):
+    """Extract header, question, options, multiSelect from a single question dict
+       or the flat call body."""
+    # If body wraps a `questions: [{...}]` array, pull the first question.
+    nested = re.search(r'questions:\s*\[\s*\{(.*)\}\s*\]', body, re.DOTALL)
+    inner = nested.group(1) if nested else body
+
+    header = (re.search(r'header:\s*"([^"]*)"', inner) or [None, ''])[1]
+    h = re.search(r'header:\s*"([^"]*)"', inner)
+    q = re.search(r'question:\s*"([^"]*)"', inner)
+    o = re.search(r'options:\s*\[\s*(.*?)\s*\]', inner, re.DOTALL)
+    multi = bool(re.search(r'multiSelect:\s*true', inner))
+    header = h.group(1) if h else ''
+    question = q.group(1) if q else ''
+    options = parse_options(o.group(1)) if o else []
+    return header, question, options, multi
+
+# ---------------------------------------------------------------------------
+# 1) <interaction>AskUserQuestion(...)</interaction> -> ask block.
+# ---------------------------------------------------------------------------
+interaction_re = re.compile(
+    r'<interaction>\s*'
+    r'AskUserQuestion\(\s*'
+    r'(?P<body>.*?)'
+    r'\s*\)\s*'
+    r'</interaction>',
+    re.DOTALL,
+)
+def transform_interaction(m):
+    return render_block(*parse_call_body(m.group('body')))
+text = interaction_re.sub(transform_interaction, text)
+
+# ---------------------------------------------------------------------------
+# 2) Fenced AskUserQuestion blocks (``` ... AskUserQuestion(...) ... ```)
+#    Replace the entire fenced region with the plain-text ask block so the
+#    markdown reads cleanly.
+# ---------------------------------------------------------------------------
+fenced_re = re.compile(
+    r'```[^\n]*\n'
+    r'AskUserQuestion\(\s*'
+    r'(?P<body>.*?)'
+    r'\s*\)\s*\n'
+    r'```',
+    re.DOTALL,
+)
+def transform_fenced(m):
+    return render_block(*parse_call_body(m.group('body')))
+text = fenced_re.sub(transform_fenced, text)
+
+# ---------------------------------------------------------------------------
+# 3) Bare AskUserQuestion(...) blocks (no wrapper, no fence). Conservative
+#    match: the call must start at the beginning of a line.
+# ---------------------------------------------------------------------------
+bare_re = re.compile(
+    r'(?m)^AskUserQuestion\(\s*\n'
+    r'(?P<body>.*?)\n'
+    r'\s*\)\s*$',
+    re.DOTALL,
+)
+def transform_bare(m):
+    return render_block(*parse_call_body(m.group('body')))
+text = bare_re.sub(transform_bare, text)
+
+# ---------------------------------------------------------------------------
+# 4) Inline prose mention: `AskUserQuestion` -> `an interactive prompt`.
+#    Replace both backtick-wrapped and bare word occurrences. By this point
+#    every structural call site has been rewritten, so the only remaining
+#    matches are descriptive prose.
+# ---------------------------------------------------------------------------
+text = text.replace('`AskUserQuestion`', '`an interactive prompt`')
+text = re.sub(r'\bAskUserQuestion\b', 'an interactive prompt', text)
+
+# ---------------------------------------------------------------------------
+# 5) $ARGUMENTS -> "the user's invocation prompt", but only outside fenced
+#    code blocks (so shell heredocs like "$ARGUMENTS" stay intact). Codex has
+#    no Claude-style argument variable; invocation text reaches the skill as
+#    the user prompt.
+# ---------------------------------------------------------------------------
+out_lines = []
+in_fence = False
+for line in text.split('\n'):
+    if line.lstrip().startswith('```'):
+        in_fence = not in_fence
+        out_lines.append(line)
+        continue
+    if not in_fence:
+        line = line.replace('`$ARGUMENTS`', "the user's invocation prompt")
+        line = line.replace('$ARGUMENTS', "the user's invocation prompt")
+    out_lines.append(line)
+text = '\n'.join(out_lines)
+
+with open(src, 'w') as f:
+    f.write(text)
+PYEOF
 }
 
 # strip_codex_frontmatter: rewrite SKILL.md frontmatter to Codex format
@@ -197,12 +368,15 @@ generate_openai_yaml() {
     local skill_desc
     skill_desc=$(extract_frontmatter_field "$src" "description")
 
+    local disable_mi
+    disable_mi=$(extract_frontmatter_field "$src" "disable-model-invocation")
+
     mkdir -p "$dest_dir/agents"
 
-    python3 - "$skill_name" "$skill_desc" "$dest_dir/agents/openai.yaml" << 'PYEOF'
+    python3 - "$skill_name" "$skill_desc" "$disable_mi" "$dest_dir/agents/openai.yaml" << 'PYEOF'
 import sys, re
 
-name, desc, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+name, desc, disable_mi, out_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 # Display name: hyphen-to-space, title case
 display_name = name.replace('-', ' ').title()
@@ -256,7 +430,25 @@ with open(out_path, 'w') as f:
     f.write(f'  display_name: "{yaml_escape(display_name)}"\n')
     f.write(f'  short_description: "{yaml_escape(short)}"\n')
     f.write(f'  default_prompt: "{yaml_escape(prompt)}"\n')
+    # Codex auto-injection toggle: mirror disable-model-invocation so skills
+    # the user marked user-only are not injected by model relevance matching.
+    # The skill stays explicitly invocable via $<skill-name>.
+    if disable_mi.strip().strip('"').strip("'").lower() in ('true', 'yes', '1'):
+        f.write('policy:\n')
+        f.write('  allow_implicit_invocation: false\n')
 PYEOF
+}
+
+# codex_agent_profile: resolve a source agent's routing tier through the
+# shared cross-surface policy. Claude model/effort stays in source frontmatter;
+# Codex receives the corresponding Codex-specific profile.
+codex_agent_profile() {
+    local agent_name="$1" tier="$2"
+    if [[ -z "$tier" ]]; then
+        echo "  ERROR  missing routing tier for Codex agent: $agent_name" >&2
+        return 1
+    fi
+    python3 "$MODEL_ROUTER" agent-profile --surface codex --tier "$tier" --format shell
 }
 
 # transform_agent_to_toml: convert Claude Code agent .md to Codex .toml
@@ -286,12 +478,20 @@ transform_agent_to_toml() {
     # Escape any literal triple single-quotes in body (rare but defensive)
     body=$(printf '%s' "$body" | sed "s/'''/'''\"'''\"'''/g")
 
+    local routing_tier
+    routing_tier=$(extract_frontmatter_field "$src" "routing_tier")
+    routing_tier=$(echo "$routing_tier" | sed 's/^"//;s/"$//')
+
+    local model effort
+    read -r model effort <<< "$(codex_agent_profile "$name" "$routing_tier")"
+
     # Write TOML — developer_instructions is a flat string, not a table.
     # Use TOML literal strings (''') to avoid backslash escape issues.
     {
         printf 'name = "%s"\n' "$name"
         printf 'description = "%s"\n' "$desc"
-        printf 'model_reasoning_effort = "high"\n'
+        printf 'model = "%s"\n' "$model"
+        printf 'model_reasoning_effort = "%s"\n' "$effort"
         printf "developer_instructions = '''\n"
         printf '%s\n' "$body"
         printf "'''\n"
@@ -307,6 +507,33 @@ transform_agent_to_toml() {
     return 0
 }
 
+# write_builtin_general_purpose_agent: Codex skills commonly delegate broad
+# writing/implementation work to Claude's general-purpose agent. Codex needs
+# a concrete local agent for those calls instead of silently failing.
+write_builtin_general_purpose_agent() {
+    local dest="$AGENTS_DIR/general-purpose.toml"
+    cat > "$dest" << 'EOF'
+name = "general-purpose"
+description = "General-purpose agent for broad research, writing, implementation, and coordination tasks when no specialized agent is required."
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
+developer_instructions = '''
+# General Purpose Agent
+
+You are a general-purpose execution agent for Codex workflows.
+
+Take the requested task literally. You may research, write documents, edit files,
+run local validation commands, and coordinate with other tools when the task
+requires it. Preserve user changes you did not make, keep edits scoped to the
+task, and report concise outcomes with any validation performed.
+
+Use the ask pattern only when required information cannot be inferred from the
+task or local context. If the task includes an output path, create or update that
+path directly.
+'''
+EOF
+}
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -318,7 +545,7 @@ main() {
     # --check mode: sync to temp dirs and compare
     if [[ "$CHECK_MODE" == "true" ]]; then
         local tmpdir
-        tmpdir=$(mktemp -d)
+        tmpdir=$(make_temp_dir)
         # Expand $tmpdir at trap-set time: it is `local` to main(), so the trap
         # cannot resolve it later when EXIT fires after main() returns.
         trap "rm -rf '$tmpdir'" EXIT
@@ -384,6 +611,10 @@ main() {
         fi
 
     done < <(discover_plugins)
+
+    write_builtin_general_purpose_agent
+    agent_count=$((agent_count + 1))
+    [[ "$CHECK_MODE" != "true" ]] && echo "  SYNC  agent: general-purpose"
 
     # --check mode: compare temp output against real output
     if [[ "$CHECK_MODE" == "true" ]]; then
